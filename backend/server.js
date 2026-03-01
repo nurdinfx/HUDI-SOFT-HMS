@@ -23,7 +23,7 @@ app.use(cors({
 
         const isAllowed = allowedOrigins.indexOf(origin) !== -1 ||
             allowedOrigins.some(o => origin.startsWith(o)) ||
-            (origin.includes('hudi-soft-hms') && origin.endsWith('.vercel.app'));
+            (origin.includes('hudi-soft') && origin.endsWith('.vercel.app'));
 
         if (isAllowed) {
             return callback(null, true);
