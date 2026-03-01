@@ -22,9 +22,9 @@ router.get('/stats', async (req, res) => {
     const today = new Date().toISOString().split('T')[0];
     try {
         const todayVisits = (await db.prepare('SELECT COUNT(*) as c FROM opd_visits WHERE date = ?').get(today)).c;
-        const waitingCount = (await db.prepare('SELECT COUNT(*) as c FROM opd_visits WHERE date = ? AND status = "waiting"').get(today)).c;
-        const consultingCount = (await db.prepare('SELECT COUNT(*) as c FROM opd_visits WHERE date = ? AND status = "in-consultation"').get(today)).c;
-        const completedCount = (await db.prepare('SELECT COUNT(*) as c FROM opd_visits WHERE date = ? AND status = "completed"').get(today)).c;
+        const waitingCount = (await db.prepare('SELECT COUNT(*) as c FROM opd_visits WHERE date = ? AND status = \'waiting\'').get(today)).c;
+        const consultingCount = (await db.prepare('SELECT COUNT(*) as c FROM opd_visits WHERE date = ? AND status = \'in-consultation\'').get(today)).c;
+        const completedCount = (await db.prepare('SELECT COUNT(*) as c FROM opd_visits WHERE date = ? AND status = \'completed\'').get(today)).c;
         const departmentStats = await db.prepare('SELECT department, COUNT(*) as count FROM opd_visits WHERE date = ? GROUP BY department').all(today);
         const queueStatus = await db.prepare('SELECT visit_id as "visitId", patient_name as "patientName", token_number as token, status FROM opd_visits WHERE date = ? ORDER BY token_number ASC').all(today);
 

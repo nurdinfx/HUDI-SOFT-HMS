@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
     const pendingBills = (await db.prepare("SELECT COUNT(*) as c FROM invoices WHERE status IN ('unpaid','partial')").get()).c;
     const totalRevenueRow = await db.prepare('SELECT SUM(paid_amount) as total FROM invoices').get();
     const totalRevenue = totalRevenueRow.total || 0;
-    const monthRevenueRow = await db.prepare('SELECT SUM(paid_amount) as total FROM invoices WHERE date LIKE ?').get(thisMonthPattern);
+    const monthRevenueRow = await db.prepare("SELECT SUM(paid_amount) as total FROM invoices WHERE TO_CHAR(date, 'YYYY-MM') LIKE ?").get(thisMonthPattern);
     const monthRevenue = monthRevenueRow.total || 0;
     const availableBeds = (await db.prepare("SELECT COUNT(*) as c FROM beds WHERE status = 'available'").get()).c;
     const totalBeds = (await db.prepare('SELECT COUNT(*) as c FROM beds').get()).c;

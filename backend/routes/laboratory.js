@@ -24,12 +24,12 @@ router.get('/stats', async (req, res) => {
     const today = new Date().toISOString().split('T')[0];
     try {
         const stats = {
-            totalToday: (await db.prepare("SELECT COUNT(*) as c FROM lab_tests WHERE ordered_at::text LIKE ?").get(today + '%')).c,
+            totalToday: (await db.prepare("SELECT COUNT(*) as c FROM lab_tests WHERE TO_CHAR(ordered_at, 'YYYY-MM-DD') LIKE ?").get(today + '%')).c,
             pending: (await db.prepare("SELECT COUNT(*) as c FROM lab_tests WHERE status = 'ordered'").get()).c,
             inProgress: (await db.prepare("SELECT COUNT(*) as c FROM lab_tests WHERE status IN ('sample-collected', 'in-progress')").get()).c,
-            completed: (await db.prepare("SELECT COUNT(*) as c FROM lab_tests WHERE status = 'completed' AND ordered_at::text LIKE ?").get(today + '%')).c,
+            completed: (await db.prepare("SELECT COUNT(*) as c FROM lab_tests WHERE status = 'completed' AND TO_CHAR(ordered_at, 'YYYY-MM-DD') LIKE ?").get(today + '%')).c,
             critical: (await db.prepare("SELECT COUNT(*) as c FROM lab_tests WHERE critical_flag = 1").get()).c,
-            revenueToday: (await db.prepare("SELECT SUM(cost) as s FROM lab_tests WHERE ordered_at::text LIKE ?").get(today + '%')).s || 0
+            revenueToday: (await db.prepare("SELECT SUM(cost) as s FROM lab_tests WHERE TO_CHAR(ordered_at, 'YYYY-MM-DD') LIKE ?").get(today + '%')).s || 0
         };
         res.json(stats);
     } catch (err) {

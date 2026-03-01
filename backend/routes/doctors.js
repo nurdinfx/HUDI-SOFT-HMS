@@ -19,7 +19,7 @@ router.get('/stats', async (req, res) => {
     try {
         const totalData = await db.prepare('SELECT COUNT(*) as c FROM doctors').get();
         const total = parseInt(totalData.c);
-        const availableData = await db.prepare('SELECT COUNT(*) as c FROM doctors WHERE status = "available"').get();
+        const availableData = await db.prepare("SELECT COUNT(*) as c FROM doctors WHERE status = 'available'").get();
         const available = parseInt(availableData.c);
         const depts = await db.prepare('SELECT department, COUNT(*) as count FROM doctors GROUP BY department').all();
         res.json({

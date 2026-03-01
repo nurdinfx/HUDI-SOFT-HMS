@@ -205,7 +205,7 @@ router.put('/prescriptions/:id/dispense', async (req, res) => {
             });
         }
 
-        await db.prepare('UPDATE prescriptions SET status = "dispensed" WHERE id = ?').run(req.params.id);
+        await db.prepare('UPDATE prescriptions SET status = \'dispensed\' WHERE id = ?').run(req.params.id);
 
         await db.prepare(`INSERT INTO invoices (id, invoice_id, patient_id, patient_name, date, due_date, items, subtotal, tax, discount, total, paid_amount, status, notes)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)

@@ -53,7 +53,7 @@ router.get('/summary', async (req, res) => {
                 SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as "totalIncome",
                 SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as "totalExpense",
                 SUM(CASE WHEN type = 'income' AND date = ? THEN amount ELSE 0 END) as "incomeToday",
-                SUM(CASE WHEN type = 'income' AND date LIKE ? THEN amount ELSE 0 END) as "incomeMonth"
+                SUM(CASE WHEN type = 'income' AND TO_CHAR(date, 'YYYY-MM') LIKE ? THEN amount ELSE 0 END) as "incomeMonth"
             FROM account_entries
         `).get(today, month);
 

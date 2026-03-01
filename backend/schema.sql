@@ -17,13 +17,16 @@ CREATE TABLE IF NOT EXISTS users (
 -- 2. Patients
 CREATE TABLE IF NOT EXISTS patients (
     id UUID PRIMARY KEY,
+    patient_id TEXT UNIQUE, -- Added
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     email TEXT,
     phone TEXT,
     gender TEXT,
-    dob DATE,
+    date_of_birth DATE, -- Renamed from dob to match route
+    blood_group TEXT, -- Added
     address TEXT,
+    city TEXT, -- Added
     status TEXT DEFAULT 'active',
     allergies TEXT DEFAULT '[]',
     chronic_conditions TEXT DEFAULT '[]',
@@ -31,19 +34,29 @@ CREATE TABLE IF NOT EXISTS patients (
     emergency_phone TEXT,
     insurance_provider TEXT,
     insurance_policy_number TEXT,
+    registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Added
+    last_visit TIMESTAMP, -- Added
+    notes TEXT, -- Added
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 3. Doctors
 CREATE TABLE IF NOT EXISTS doctors (
     id UUID PRIMARY KEY,
+    doctor_id TEXT UNIQUE, -- Added
     name TEXT NOT NULL,
     specialization TEXT,
     email TEXT,
     phone TEXT,
     status TEXT DEFAULT 'available',
     department TEXT,
+    qualification TEXT, -- Added
+    experience INTEGER DEFAULT 0, -- Added
     consultation_fee NUMERIC DEFAULT 50,
+    available_days TEXT DEFAULT '[]', -- Added (JSON string)
+    available_time_start TEXT DEFAULT '09:00', -- Added
+    available_time_end TEXT DEFAULT '17:00', -- Added
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Added
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -308,7 +321,7 @@ CREATE TABLE IF NOT EXISTS hospital_settings (
 
 -- 20. Audit Logs
 CREATE TABLE IF NOT EXISTS audit_logs (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY,
     user_id UUID,
     user_name TEXT,
     user_role TEXT,

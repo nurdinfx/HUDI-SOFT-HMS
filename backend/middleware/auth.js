@@ -3,7 +3,7 @@ const db = require('../database');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
-const authenticate = (req, res, next) => {
+const authenticate = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
@@ -13,7 +13,7 @@ const authenticate = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = db.prepare('SELECT id, name, email, role, department FROM users WHERE id = ? AND is_active = 1').get(decoded.id);
+        const user = await db.prepare('SELECT id, name, email, role, department FROM users WHERE id = ? AND is_active = 1').get(decoded.id);
         if (!user) return res.status(401).json({ error: 'User not found or inactive' });
         req.user = user;
         next();
