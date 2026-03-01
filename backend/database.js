@@ -7,11 +7,20 @@ const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
+const databaseUrl = process.env.DATABASE_URL;
+if (databaseUrl && (databaseUrl.includes('base') || databaseUrl.startsWith('YOUR_'))) {
+  console.warn('⚠️ Potential misconfiguration in DATABASE_URL:', databaseUrl.substring(0, 20) + '...');
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: databaseUrl,
   ssl: {
     rejectUnauthorized: false
   }
+});
+
+pool.on('error', (err) => {
+  console.error('❌ Unexpected database error:', err.message);
 });
 
 // Helper to convert SQLite SQL to PostgreSQL SQL
