@@ -18,14 +18,23 @@ if (process.env.FRONTEND_URL) {
 
 app.use(cors({
     origin: (origin, callback) => {
+        console.log('🔍 CORS Check for Origin:', origin);
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
 
         const isAllowed = allowedOrigins.indexOf(origin) !== -1 ||
             allowedOrigins.some(o => origin.startsWith(o)) ||
-            (origin.includes('hudi-soft') && origin.endsWith('.vercel.app'));
+            origin.includes('vercel.app') ||
+            origin.includes('hudi-soft');
 
         if (isAllowed) {
+            console.log('✅ CORS Allowed');
+            return callback(null, true);
+        }
+
+        console.warn('❌ CORS Blocked for:', origin);
+        // Temporarily allow it during debug if it matches vercel, but log warning
+        if (origin.includes('vercel.app')) {
             return callback(null, true);
         }
         callback(new Error('Not allowed by CORS'));
