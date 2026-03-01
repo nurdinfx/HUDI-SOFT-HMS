@@ -8,8 +8,20 @@ const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
 const databaseUrl = process.env.DATABASE_URL;
-if (databaseUrl && (databaseUrl.includes('base') || databaseUrl.startsWith('YOUR_'))) {
-  console.warn('⚠️ Potential misconfiguration in DATABASE_URL:', databaseUrl.substring(0, 20) + '...');
+if (databaseUrl) {
+  try {
+    const parsed = new URL(databaseUrl);
+    console.log('🔌 DB Connection Attempt:', {
+      protocol: parsed.protocol,
+      host: parsed.hostname,
+      port: parsed.port,
+      database: parsed.pathname.split('/')[1]
+    });
+  } catch (e) {
+    console.warn('⚠️ DATABASE_URL is not a valid URL format:', databaseUrl.substring(0, 15) + '...');
+  }
+} else {
+  console.error('❌ DATABASE_URL is MISSING in environment variables!');
 }
 
 const pool = new Pool({
