@@ -366,8 +366,8 @@ CREATE TABLE IF NOT EXISTS insurance_claims (
 -- Initial Admin Seed
 -- Password: admin123
 INSERT INTO users (id, name, email, password_hash, role, is_active, created_at)
-VALUES ('00000000-0000-0000-0000-000000000000', 'Admin', 'admin@hospital.com', '$2a$10$8.K.fK6.7.7.7.7.7.7.7.7.7.7.7.7.7.7.7.7.7.7.7.7.7.7.7', 'admin', 1, CURRENT_TIMESTAMP)
-ON CONFLICT (email) DO NOTHING;
+VALUES ('00000000-0000-0000-0000-000000000000', 'Admin', 'admin@hospital.com', '$2y$10$R8.Xo1J.yX1YyX1YyX1YyOxeYdXyeXeYdXyeXeYdXyeXeYdXyeXeY', 'admin', 1, CURRENT_TIMESTAMP)
+ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
 
 INSERT INTO hospital_settings (id, name, tagline, currency, tax_rate)
 VALUES (1, 'Hudi Hospital', 'Care with Excellence', 'USD', 10)
