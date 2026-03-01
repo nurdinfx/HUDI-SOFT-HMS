@@ -28,11 +28,17 @@ const pool = new Pool({
   connectionString: databaseUrl,
   ssl: {
     rejectUnauthorized: false
-  }
+  },
+  // Force IPv4 to avoid ENETUNREACH errors on environments with poor IPv6 support
+  family: 4,
+  connectionTimeoutMillis: 10000, // 10 second timeout
 });
 
 pool.on('error', (err) => {
-  console.error('❌ Unexpected database error:', err.message);
+  console.error('❌ Unexpected database pool error:', err.message);
+  if (err.code === 'ENETUNREACH') {
+    console.error('💡 TIP: This is a network reachability issue. Try using the Supabase "Transaction Pooler" URL (port 6543) instead of 5432.');
+  }
 });
 
 // Helper to convert SQLite SQL to PostgreSQL SQL
