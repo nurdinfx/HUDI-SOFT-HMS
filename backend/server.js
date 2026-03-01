@@ -20,7 +20,12 @@ app.use(cors({
     origin: (origin, callback) => {
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.some(o => origin.startsWith(o))) {
+
+        const isAllowed = allowedOrigins.indexOf(origin) !== -1 ||
+            allowedOrigins.some(o => origin.startsWith(o)) ||
+            (origin.includes('hudi-soft-hms') && origin.endsWith('.vercel.app'));
+
+        if (isAllowed) {
             return callback(null, true);
         }
         callback(new Error('Not allowed by CORS'));
