@@ -63,7 +63,7 @@ function LoginContent() {
       <div className="absolute inset-0 z-10 bg-black/30" />
 
       {/* Login Box */}
-      <div className="relative z-20 w-full max-w-3xl px-4 flex flex-col md:flex-row items-center justify-center gap-8 animate-in fade-in zoom-in duration-700">
+      <div className="relative z-20 w-full max-w-5xl px-4 flex flex-col md:flex-row items-center justify-center gap-8 lg:gap-24 animate-in fade-in zoom-in duration-700">
 
         {/* Fingerprint Side (Visible on MD and up) */}
         <div className="hidden md:flex flex-col items-center justify-center text-white/90 space-y-4">
@@ -80,10 +80,10 @@ function LoginContent() {
         </div>
 
         {/* Separator for MD (Visual line from image) */}
-        <div className="hidden md:block h-64 w-[1px] bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+        <div className="hidden md:block h-72 w-[1px] bg-gradient-to-b from-transparent via-white/20 to-transparent" />
 
         {/* Form Card */}
-        <div className="glass-card w-full max-w-sm rounded-[32px] overflow-hidden p-8 flex flex-col items-center shadow-2xl relative">
+        <div className="glass-card w-full max-w-[420px] rounded-[32px] p-8 flex flex-col items-center shadow-2xl relative mt-16 md:mt-0">
 
           {/* Top Circular User Icon */}
           <div className="absolute -top-12 left-1/2 -translate-x-1/2 p-1 bg-white/10 rounded-full backdrop-blur-md border border-white/20 shadow-xl overflow-hidden">
