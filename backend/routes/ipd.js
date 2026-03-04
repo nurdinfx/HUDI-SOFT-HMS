@@ -74,7 +74,7 @@ router.post('/admissions', async (req, res) => {
 
         await db.prepare(`INSERT INTO ipd_admissions (id, admission_id, patient_id, patient_name, doctor_id, doctor_name, department, ward, bed_number, admission_date, diagnosis, status, nursing_notes)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-            .run(id, admId, patientId, `${patient.first_name} ${patient.last_name}`, doctorId || '', doctor ? doctor.name : '', doctor ? doctor.department : 'General', ward, bedNumber, today, diagnosis, 'admitted', JSON.stringify([`Patient admitted on ${today}`]));
+            .run(id, admId, patientId, `${patient.first_name} ${patient.last_name}`, doctorId || null, doctor ? doctor.name : '', doctor ? doctor.department : 'General', ward, bedNumber, today, diagnosis, 'admitted', JSON.stringify([`Patient admitted on ${today}`]));
 
         if (bed) await db.prepare("UPDATE beds SET status='occupied', patient_id=? WHERE bed_number=?").run(patientId, bedNumber);
 

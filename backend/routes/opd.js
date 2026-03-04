@@ -128,7 +128,7 @@ router.get('/:id/patient-summary', async (req, res) => {
         if (!visit) return res.status(404).json({ error: 'Visit not found' });
 
         const patient = await db.prepare('SELECT allergies, chronic_conditions FROM patients WHERE id = ?').get(visit.patient_id);
-        const visitCountData = await db.prepare('SELECT COUNT(*) as c FROM opd_visits WHERE patient_id = ? AND status = "completed"').get(visit.patient_id);
+        const visitCountData = await db.prepare('SELECT COUNT(*) as c FROM opd_visits WHERE patient_id = ? AND status = \'completed\'').get(visit.patient_id);
 
         res.json({
             allergies: JSON.parse(patient?.allergies || '[]'),
