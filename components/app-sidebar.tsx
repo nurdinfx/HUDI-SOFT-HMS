@@ -22,6 +22,7 @@ import {
   ScrollText,
   Activity,
   User,
+  ShoppingCart,
 } from "lucide-react"
 import {
   Sidebar,
@@ -65,6 +66,7 @@ const navGroups = [
   {
     label: "Financial",
     items: [
+      { title: "Point of Sale", href: "/pos", icon: ShoppingCart },
       { title: "Billing", href: "/billing", icon: Receipt },
       { title: "Insurance", href: "/insurance", icon: ShieldCheck },
       { title: "Accounts", href: "/accounts", icon: BookOpen },

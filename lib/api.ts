@@ -217,6 +217,11 @@ export const settingsApi = {
     update: (data: Partial<HospitalSettings>) => put<HospitalSettings>('/settings', data),
 };
 
+// ─── POS ─────────────────────────────────────────────────────────
+export const posApi = {
+    checkout: (data: CheckoutPayload) => post<Invoice>('/pos/checkout', data),
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────
 type QueryParams = Record<string, string | number | boolean | undefined>;
 
@@ -507,4 +512,24 @@ export interface DashboardData {
     revenueByMonth: { month: string; revenue: number; count: number }[];
     apptByStatus: { status: string; count: number }[];
     topDepartments: { department: string; count: number }[];
+}
+
+export interface POSItem {
+    type: 'medicine' | 'lab' | 'service';
+    id: string;
+    name: string;
+    unitPrice: number;
+    quantity: number;
+    category?: string;
+}
+
+export interface CheckoutPayload {
+    patientId?: string | null;
+    patientName?: string;
+    patientPhone?: string;
+    items: POSItem[];
+    discount: number;
+    paymentMethod: string;
+    amountPaid?: number;
+    notes?: string;
 }

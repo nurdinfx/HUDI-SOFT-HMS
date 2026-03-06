@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { laboratoryApi, type LabTest, type LabCatalogItem, type OPDVisit } from "@/lib/api"
 import { toast } from "sonner"
 import { StatusBadge } from "@/components/shared/status-badge"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 
 interface LabInvestigationsTabProps {
     visit: OPDVisit
@@ -278,6 +278,7 @@ export function LabInvestigationsTab({ visit }: LabInvestigationsTabProps) {
                     className="max-h-[96vh] p-0 overflow-hidden border-none rounded-2xl shadow-2xl flex flex-col"
                     style={{ maxWidth: '1200px', width: '95vw' }}
                 >
+                    <DialogTitle className="sr-only">Report Preview</DialogTitle>
                     <style>{`
                         @media print {
                             @page { size: A4; margin: 0; }

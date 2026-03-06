@@ -58,7 +58,7 @@ export function RevenueChart({ data: backendData = [] }: RevenueChartProps) {
             className="text-muted-foreground"
             axisLine={false}
             tickLine={false}
-            tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+            tickFormatter={(v) => `$${Number(v).toLocaleString()}`}
           />
           <Tooltip
             contentStyle={{

@@ -788,6 +788,7 @@ export function LaboratoryContent({ initialLabTests }: Props) {
           className="max-h-[96vh] rounded-2xl p-0 overflow-hidden border-none shadow-2xl flex flex-col"
           style={{ maxWidth: '1200px', width: '95vw' }}
         >
+          <DialogTitle className="sr-only">Report Preview</DialogTitle>
           <style>{`
             @media print {
               @page { size: A4; margin: 0; }

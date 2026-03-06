@@ -47,11 +47,20 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Request logging
+app.use((req, res, next) => {
+    console.log(`📡 [${new Date().toLocaleTimeString()}] ${req.method} ${req.originalUrl}`);
+    next();
+});
+
 // Wait for DB to be ready, then mount routes
 const dbModule = require('./database');
 dbModule.promise.then(() => {
     // Routes
     app.use('/api/auth', require('./routes/auth'));
+    app.use('/api/pos', require('./routes/pos'));
+    console.log('✅ POS Routes mounted at /api/pos');
+
     app.use('/api/patients', require('./routes/patients'));
     app.use('/api/doctors', require('./routes/doctors'));
     app.use('/api/appointments', require('./routes/appointments'));
@@ -76,6 +85,7 @@ dbModule.promise.then(() => {
 
     // 404 handler
     app.use((req, res) => {
+        console.warn(`🔍 404 Not Found: ${req.method} ${req.originalUrl}`);
         res.status(404).json({ error: `Route not found: ${req.method} ${req.path}` });
     });
 

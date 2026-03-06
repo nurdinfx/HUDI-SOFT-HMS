@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, Suspense } from "react"
+import { useState, Suspense, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
@@ -21,8 +21,13 @@ function LoginContent() {
 
   const redirectTo = searchParams.get("redirect") || "/dashboard"
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace(redirectTo)
+    }
+  }, [isAuthenticated, router, redirectTo])
+
   if (isAuthenticated) {
-    router.replace(redirectTo)
     return null
   }
 

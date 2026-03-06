@@ -81,8 +81,8 @@ export function BillingContent({ invoices = [], patients = [], onRefresh = () =>
     })
   }, [list, search, statusFilter])
 
-  const totalRevenue = list.reduce((sum, inv) => sum + (inv.total || 0), 0)
-  const paid = list.reduce((sum, inv) => sum + (inv.paidAmount || 0), 0)
+  const totalRevenue = list.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0)
+  const paid = list.reduce((sum, inv) => sum + (Number(inv.paidAmount) || 0), 0)
   const outstanding = totalRevenue - paid
   const pendingCount = list.filter((inv) => inv.status === "unpaid" || inv.status === "partial").length
 
@@ -277,7 +277,7 @@ export function BillingContent({ invoices = [], patients = [], onRefresh = () =>
                   <TableCell>
                     <div className="flex flex-col">
                       <span className="font-bold text-slate-900 uppercase text-xs">{inv.patientName}</span>
-                      <span className="text-[10px] text-slate-400 font-medium">#{inv.patientId.slice(0, 8)}</span>
+                      <span className="text-[10px] text-slate-400 font-medium">#{inv.patientId?.slice(0, 8) || 'WALK-IN'}</span>
                     </div>
                   </TableCell>
                   <TableCell className="hidden md:table-cell text-xs font-medium text-slate-500">
@@ -338,6 +338,7 @@ export function BillingContent({ invoices = [], patients = [], onRefresh = () =>
           className="max-h-[96vh] rounded-2xl p-0 overflow-hidden border-none shadow-2xl flex flex-col"
           style={{ maxWidth: '1000px', width: '95vw' }}
         >
+          <DialogTitle className="sr-only">Invoice Detail</DialogTitle>
           <style>{`
             @media print {
               @page { size: A4; margin: 0; }
