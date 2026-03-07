@@ -10,7 +10,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" })
 
 export const metadata: Metadata = {
-  title: 'HUDI SOFT SYSTEMS // HMS',
+  title: 'HUDI_SOFT // HSM',
   description: 'Professional hospital and clinic management: patients, appointments, OPD, IPD, billing, pharmacy, laboratory, and reports.',
   generator: 'v0.app',
   manifest: '/manifest.webmanifest',
