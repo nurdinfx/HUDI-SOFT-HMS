@@ -1,7 +1,8 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { Bell, Moon, Sun, Search, LogOut } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Bell, Moon, Sun, Search, LogOut, BellOff } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,11 +18,35 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/lib/auth-context"
 import { Badge } from "@/components/ui/badge"
+import { useNotifications } from "@/hooks/use-notifications"
 
 export function DashboardHeader() {
   const router = useRouter()
   const { setTheme, theme } = useTheme()
   const { user, logout } = useAuth()
+  const { permission, requestPermission } = useNotifications()
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchNotifications() {
+      try {
+        const res = await fetch('/api/audit?limit=5')
+        if (res.ok) {
+          const data = await res.json()
+          setNotifications(data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch notifications:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchNotifications()
+    // Poll for notifications every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   function handleLogout() {
     logout()
@@ -42,30 +67,55 @@ export function DashboardHeader() {
       </div>
 
       <div className="ml-auto flex items-center gap-1">
+        {permission !== 'granted' && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={requestPermission}
+            className="text-xs text-muted-foreground hover:text-primary transition-colors hidden md:flex items-center gap-1.5"
+          >
+            <BellOff className="size-3.5" />
+            Enable Alerts
+          </Button>
+        )}
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative">
-              <Bell className="size-4" />
-              <Badge className="absolute -top-0.5 -right-0.5 h-4 w-4 p-0 flex items-center justify-center text-[10px] bg-destructive text-destructive-foreground">
-                3
-              </Badge>
+              <Bell className={`size-4 ${permission === 'granted' ? 'text-primary' : ''}`} />
+              {notifications.length > 0 && (
+                <Badge className="absolute -top-0.5 -right-0.5 h-4 w-4 p-0 flex items-center justify-center text-[10px] bg-destructive text-destructive-foreground">
+                  {notifications.length}
+                </Badge>
+              )}
               <span className="sr-only">Notifications</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-72">
-            <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuLabel>Recent Activity</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="flex flex-col items-start gap-1 cursor-pointer">
-              <span className="text-sm font-medium">New Lab Result</span>
-              <span className="text-xs text-muted-foreground">CBC results ready for John Doe</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem className="flex flex-col items-start gap-1 cursor-pointer">
-              <span className="text-sm font-medium">Low Stock Alert</span>
-              <span className="text-xs text-muted-foreground">Omeprazole 20mg below reorder level</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem className="flex flex-col items-start gap-1 cursor-pointer">
-              <span className="text-sm font-medium">New Appointment</span>
-              <span className="text-xs text-muted-foreground">Benjamin Anderson scheduled with Dr. Torres</span>
+            {loading ? (
+              <div className="p-4 text-center text-xs text-muted-foreground">Loading...</div>
+            ) : notifications.length === 0 ? (
+              <div className="p-4 text-center text-xs text-muted-foreground">No recent notifications</div>
+            ) : (
+              notifications.map((notif) => (
+                <DropdownMenuItem key={notif.id} className="flex flex-col items-start gap-1 cursor-pointer p-3">
+                  <div className="flex w-full items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-primary">{notif.module.toUpperCase()}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <span className="text-xs font-medium">{notif.action}</span>
+                  <span className="text-[11px] text-muted-foreground line-clamp-2">{notif.details}</span>
+                  <span className="text-[10px] text-muted-foreground/70 italic">By {notif.userName}</span>
+                </DropdownMenuItem>
+              ))
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="justify-center text-xs font-medium cursor-pointer text-primary" onClick={() => router.push('/audit-logs')}>
+              View All Logs
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

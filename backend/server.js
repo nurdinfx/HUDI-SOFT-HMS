@@ -59,7 +59,9 @@ dbModule.promise.then(() => {
     // Routes
     app.use('/api/auth', require('./routes/auth'));
     app.use('/api/pos', require('./routes/pos'));
+    app.use('/api/push', require('./routes/push'));
     console.log('✅ POS Routes mounted at /api/pos');
+    console.log('✅ Push Notification Routes mounted at /api/push');
 
     app.use('/api/patients', require('./routes/patients'));
     app.use('/api/doctors', require('./routes/doctors'));

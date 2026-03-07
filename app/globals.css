@@ -119,9 +119,43 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Mobile Optimizations for PWA */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* Standalone Mode Adjustments */
+@media (display-mode: standalone) {
+  header {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .sidebar-trigger {
+    margin-top: env(safe-area-inset-top);
+  }
+}
+
+/* Base transitions for native feel */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Premium Button Feel */
+button:active {
+  transform: scale(0.98);
+}
+
+.native-scroll {
+  -webkit-overflow-scrolling: touch;
 }
 
 @layer utilities {
@@ -132,13 +166,13 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
   }
-  
+
   .glass-input {
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.3);
     color: white;
   }
-  
+
   .glass-input::placeholder {
     color: rgba(255, 255, 255, 0.6);
   }
