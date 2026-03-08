@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { accountsApi, type AccountEntry, type AccountsSummary, type CashFlowEntry, type DepartmentBudget } from "@/lib/api"
 import { AccountsContent } from "@/components/accounts/accounts-content"
 import { Skeleton } from "@/components/ui/skeleton"
+import { toast } from "sonner"
 
 export default function AccountsPage() {
   const [entries, setEntries] = useState<AccountEntry[]>([])
@@ -26,6 +27,7 @@ export default function AccountsPage() {
       setBudgets(budgetsData)
     } catch (error) {
       console.error("Failed to fetch accounts data:", error)
+      toast.error("Failed to sync financial data. Please re-login if this persists.")
     } finally {
       setLoading(false)
     }
