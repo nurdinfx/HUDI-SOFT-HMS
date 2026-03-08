@@ -32,6 +32,26 @@ router.get('/pending/:patientId', async (req, res) => {
             ORDER BY ordered_at DESC
         `).all(patientId);
 
+        // 4. Get pending OPD visits (Consultation Fees)
+        const pendingVisits = await db.prepare(`
+            SELECT v.*, d.consultation_fee 
+            FROM opd_visits v
+            LEFT JOIN doctors d ON v.doctor_id = d.id
+            WHERE v.patient_id = ? AND (v.is_billed = 0 OR v.is_billed IS NULL)
+            ORDER BY v.created_at DESC
+        `).all(patientId);
+
+        // Fetch current medicine prices for prescriptions
+        const allMeds = await db.prepare('SELECT id, name, selling_price FROM medicines').all();
+        const medPriceMap = {};
+        if (allMeds && Array.isArray(allMeds)) {
+            allMeds.forEach(m => {
+                // simple name match or exact match if possible
+                medPriceMap[m.name.toLowerCase()] = m.selling_price;
+            });
+        }
+
+
         // Format items for POS cart
         const items = [];
 
@@ -59,15 +79,19 @@ router.get('/pending/:patientId', async (req, res) => {
         pendingRxs.forEach(rx => {
             const rxMeds = JSON.parse(rx.medicines || '[]');
             rxMeds.forEach((med, idx) => {
+                let unitPrice = med.unitPrice || 0;
+                if (!unitPrice && med.medicineName) {
+                    unitPrice = medPriceMap[med.medicineName.toLowerCase()] || 0;
+                }
                 items.push({
                     id: `${rx.id}-${idx}`,
                     prescriptionId: rx.id,
                     name: med.medicineName,
                     type: 'medicine',
                     category: 'Pharmacy',
-                    unitPrice: med.unitPrice || 0, // We'll need to fetch price if missing
+                    unitPrice: unitPrice,
                     quantity: parseInt(med.quantity) || 1,
-                    total: (med.unitPrice || 0) * (parseInt(med.quantity) || 1),
+                    total: unitPrice * (parseInt(med.quantity) || 1),
                     isFromPrescription: true,
                     dosage: med.dosage,
                     duration: med.duration
@@ -88,6 +112,24 @@ router.get('/pending/:patientId', async (req, res) => {
                 total: lab.cost,
                 isFromLab: true
             });
+        });
+
+        // Process visits
+        pendingVisits.forEach(visit => {
+            const fee = parseFloat(visit.consultation_fee) || 0;
+            if (fee > 0) {
+                items.push({
+                    id: visit.id,
+                    visitId: visit.id,
+                    name: `Consultation: Dr. ${visit.doctor_name || 'Unknown'} - ${visit.department || 'General'}`,
+                    type: 'service',
+                    category: 'Consultation',
+                    unitPrice: fee,
+                    quantity: 1,
+                    total: fee,
+                    isFromVisit: true
+                });
+            }
         });
 
         res.json({ items });
@@ -182,14 +224,20 @@ router.post('/checkout', async (req, res) => {
         for (const item of items) {
             // Update Prescription status if applicable
             if (item.prescriptionId) {
-                await db.prepare('UPDATE prescriptions SET status = ? WHERE id = ?')
-                    .run('dispensed', item.prescriptionId);
+                await db.prepare('UPDATE prescriptions SET status = ?, is_billed = 1, invoice_id = ? WHERE id = ?')
+                    .run('dispensed', invoiceDbId, item.prescriptionId);
             }
 
             // Update Lab Test status if applicable
             if (item.labTestId) {
                 await db.prepare('UPDATE lab_tests SET status = ?, is_billed = 1, invoice_id = ? WHERE id = ?')
                     .run('sample-collected', invoiceDbId, item.labTestId);
+            }
+
+            // Update OPD Visit status if applicable
+            if (item.visitId) {
+                await db.prepare('UPDATE opd_visits SET is_billed = 1, invoice_id = ? WHERE id = ?')
+                    .run(invoiceDbId, item.visitId);
             }
 
             // Update existing Invoice if applicable
