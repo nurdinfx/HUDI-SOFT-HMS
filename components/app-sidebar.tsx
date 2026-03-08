@@ -52,9 +52,9 @@ const navGroups = [
     items: [
       { title: "Patients", href: "/patients", icon: Users },
       { title: "Appointments", href: "/appointments", icon: CalendarDays },
-      { title: "Doctors", href: "/doctors", icon: Stethoscope },
-      { title: "OPD", href: "/opd", icon: ClipboardPlus },
-      { title: "IPD", href: "/ipd", icon: BedDouble },
+      { title: "Doctors", href: "/doctors", icon: Stethoscope, roles: ["admin", "doctor", "receptionist"] },
+      { title: "OPD", href: "/opd", icon: ClipboardPlus, roles: ["admin", "doctor", "nurse"] },
+      { title: "IPD", href: "/ipd", icon: BedDouble, roles: ["admin", "doctor", "nurse"] },
     ],
   },
   {
@@ -73,7 +73,7 @@ const navGroups = [
       { title: "Point of Sale", href: "/pos", icon: ShoppingCart },
       { title: "Billing", href: "/billing", icon: Receipt },
       { title: "Payments", href: "/payments", icon: DollarSign },
-      { title: "Insurance", href: "/insurance", icon: ShieldCheck },
+      { title: "Insurance", href: "/insurance", icon: ShieldCheck, roles: ["admin", "accountant"] },
       { title: "Accounts", href: "/accounts", icon: BookOpen, roles: ["admin", "accountant"] },
       { title: "Reports", href: "/reports", icon: BarChart3, roles: ["admin", "accountant"] },
     ],

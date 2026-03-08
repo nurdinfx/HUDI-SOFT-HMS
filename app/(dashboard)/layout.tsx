@@ -7,6 +7,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { useAuth } from "@/lib/auth-context"
 import { Loader2 } from "lucide-react"
+import { RouteGuard } from "@/components/with-role-guard"
 
 export default function DashboardLayout({
   children,
@@ -25,36 +26,7 @@ export default function DashboardLayout({
       return
     }
 
-    // Role-based route protection
-    const rolePermissions: Record<string, string[]> = {
-      "/patients": ["admin", "doctor", "nurse", "receptionist"],
-      "/appointments": ["admin", "doctor", "nurse", "receptionist"],
-      "/doctors": ["admin", "doctor", "nurse", "receptionist"],
-      "/opd": ["admin", "doctor", "nurse", "receptionist"],
-      "/ipd": ["admin", "doctor", "nurse", "receptionist"],
-      "/pharmacy": ["admin", "pharmacist"],
-      "/laboratory": ["admin", "lab_tech"],
-      "/inventory": ["admin", "pharmacist", "lab_tech", "accountant"],
-      "/pos": ["admin", "accountant", "receptionist"],
-      "/billing": ["admin", "accountant", "receptionist"],
-      "/payments": ["admin", "accountant", "receptionist"],
-      "/insurance": ["admin", "accountant", "receptionist"],
-      "/accounts": ["admin", "accountant"],
-      "/reports": ["admin", "accountant"],
-      "/users": ["admin"],
-      "/audit-logs": ["admin", "accountant"],
-      "/settings": ["admin"],
-    }
-
-    const currentRoute = Object.keys(rolePermissions).find(route =>
-      pathname === route || pathname.startsWith(route + "/")
-    )
-
-    if (currentRoute && user?.role) {
-      if (!rolePermissions[currentRoute].includes(user.role)) {
-        router.replace("/dashboard")
-      }
-    }
+    // Role-based route protection handled by RouteGuard component now
   }, [isAuthenticated, isLoading, router, pathname, user?.role])
 
   if (isLoading || !isAuthenticated) {
@@ -71,7 +43,9 @@ export default function DashboardLayout({
       <SidebarInset>
         <DashboardHeader />
         <main className="flex-1 overflow-auto p-4 md:p-6">
-          {children}
+          <RouteGuard>
+            {children}
+          </RouteGuard>
         </main>
       </SidebarInset>
     </SidebarProvider>
