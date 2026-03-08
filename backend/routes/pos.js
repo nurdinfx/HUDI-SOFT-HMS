@@ -185,6 +185,8 @@ router.post('/checkout', async (req, res) => {
         return res.status(400).json({ error: 'Cart is empty' });
     }
 
+    console.log("[DEBUG POS CHECKOUT] Payload received:", JSON.stringify({ patientId, items }, null, 2));
+
     try {
         await db.exec('BEGIN');
 
