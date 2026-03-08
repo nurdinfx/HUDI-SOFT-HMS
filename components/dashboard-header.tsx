@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/lib/auth-context"
 import { Badge } from "@/components/ui/badge"
 import { useNotifications } from "@/hooks/use-notifications"
+import { auditApi } from "@/lib/api"
 
 export function DashboardHeader() {
   const router = useRouter()
@@ -31,10 +32,9 @@ export function DashboardHeader() {
   useEffect(() => {
     async function fetchNotifications() {
       try {
-        const res = await fetch('/api/audit?limit=5')
-        if (res.ok) {
-          const data = await res.json()
-          setNotifications(data)
+        const data = await auditApi.getAll({ limit: 5 })
+        if (data) {
+          setNotifications(Array.isArray(data) ? data : [])
         }
       } catch (error) {
         console.error('Failed to fetch notifications:', error)

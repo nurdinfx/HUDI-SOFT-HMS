@@ -334,9 +334,9 @@ export function AccountsContent({ entries = [], summary, cashFlow, budgets = [],
                     </ResponsiveContainer>
                   </div>
                   <div className="grid grid-cols-2 gap-2 mt-2">
-                    {summary?.departmentRevenue.slice(0, 4).map((dept, i) => (
+                    {(summary?.departmentRevenue || []).slice(0, 4).map((dept, i) => (
                       <div key={i} className="flex items-center gap-1.5">
-                        <div className="size-2 rounded-full" style={{ backgroundColor: DEPT_COLORS[dept.department] }} />
+                        <div className="size-2 rounded-full" style={{ backgroundColor: DEPT_COLORS[dept.department] || "#94a3b8" }} />
                         <span className="text-[10px] font-bold text-slate-500 truncate">{dept.department}</span>
                       </div>
                     ))}

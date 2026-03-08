@@ -36,20 +36,20 @@ const COLORS = ["#0ea5e9", "#10b981", "#f59e0b", "#6366f1", "#ec4899", "#8b5cf6"
 
 export function AccountantDashboard({ summary, cashFlow }: AccountantDashboardProps) {
     const deptData = useMemo(() => {
-        return summary.departmentRevenue.map((d) => ({
+        return (summary?.departmentRevenue || []).map((d) => ({
             name: d.department,
             value: d.amount,
         }))
-    }, [summary.departmentRevenue])
+    }, [summary?.departmentRevenue])
 
     const todayDeptData = useMemo(() => {
-        return summary.todayDeptRevenue.map((d) => ({
+        return (summary?.todayDeptRevenue || []).map((d) => ({
             name: d.department,
             value: d.amount,
         }))
-    }, [summary.todayDeptRevenue])
+    }, [summary?.todayDeptRevenue])
 
-    const totalToday = summary.incomeToday
+    const totalToday = summary?.incomeToday || 0
 
     return (
         <div className="flex flex-col gap-6">
@@ -62,32 +62,32 @@ export function AccountantDashboard({ summary, cashFlow }: AccountantDashboardPr
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
                 <StatCard
                     title="Revenue Today"
-                    value={`$${summary.incomeToday.toLocaleString()}`}
+                    value={`$${(summary?.incomeToday || 0).toLocaleString()}`}
                     icon={TrendingUp}
                     iconClassName="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
                 />
                 <StatCard
                     title="Monthly Revenue"
-                    value={`$${summary.incomeMonth.toLocaleString()}`}
+                    value={`$${(summary?.incomeMonth || 0).toLocaleString()}`}
                     icon={Activity}
                     iconClassName="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
                 />
                 <StatCard
                     title="Outstanding Bal."
-                    value={`$${summary.outstandingBalance.toLocaleString()}`}
+                    value={`$${(summary?.outstandingBalance || 0).toLocaleString()}`}
                     icon={Receipt}
                     description="Unpaid invoices"
                     iconClassName="bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
                 />
                 <StatCard
                     title="Total Expenses"
-                    value={`$${summary.totalExpense.toLocaleString()}`}
+                    value={`$${(summary?.totalExpense || 0).toLocaleString()}`}
                     icon={TrendingDown}
                     iconClassName="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
                 />
                 <StatCard
                     title="Net Profit"
-                    value={`$${summary.profit.toLocaleString()}`}
+                    value={`$${(summary?.profit || 0).toLocaleString()}`}
                     icon={Wallet}
                     iconClassName="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"
                 />
@@ -180,7 +180,7 @@ export function AccountantDashboard({ summary, cashFlow }: AccountantDashboardPr
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="flex flex-col">
-                            {summary.recentEntries.map((entry) => (
+                            {(summary?.recentEntries || []).map((entry) => (
                                 <div key={entry.id} className="flex items-center justify-between p-4 border-b last:border-0">
                                     <div className="flex items-center gap-3">
                                         <div className={`p-2 rounded-full ${entry.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
