@@ -687,43 +687,41 @@ export function POSTerminal() {
              {/* RECEIPT MODAL */}
              <Dialog open={showReceipt} onOpenChange={(open) => { if (!open) setShowReceipt(false) }}>
                 <DialogContent className="max-w-md rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
-                    <DialogHeader className="p-6 bg-emerald-50 border-b border-emerald-100">
+                    <DialogHeader className="p-6 bg-slate-50 border-b">
                         <DialogTitle className="sr-only">Transaction Receipt</DialogTitle>
                         <div className="flex flex-col items-center justify-center text-center space-y-2 py-4">
-                            <div className="h-16 w-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-2 shadow-inner ring-4 ring-white">
-                                <CheckCircle2 className="size-8" />
+                            <div className={`h-16 w-16 ${receiptMode === 'review' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'} rounded-full flex items-center justify-center mb-2`}>
+                                {receiptMode === 'review' ? <Info className="size-8" /> : <CheckCircle2 className="size-8" />}
                             </div>
-                            <h3 className="text-2xl font-black uppercase tracking-tighter text-emerald-950">
-                                Payment Successful
+                            <h3 className="text-2xl font-black uppercase tracking-tighter text-slate-900">
+                                {receiptMode === 'review' ? 'Review Receipt' : 'Payment Successful'}
                             </h3>
-                            <p className="text-sm font-bold text-emerald-700/70 font-mono bg-white px-3 py-1 rounded-full shadow-sm">
-                                ID: {lastInvoice?.invoiceId}
+                            <p className="text-sm font-bold text-slate-500">
+                                {receiptMode === 'review' ? 'Please verify details before printing' : `Transaction ID: ${lastInvoice?.invoiceId}`}
                             </p>
                         </div>
                     </DialogHeader>
 
                     {/* Visible Review Section */}
                     <div className="p-4 bg-slate-50 border-y border-dashed border-slate-200">
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 max-h-[350px] overflow-y-auto custom-scrollbar relative">
-                            {/* Receipt jagged edge effect */}
-                            <div className="absolute top-0 left-0 right-0 h-2 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPjxwb2x5Z29uIHBvaW50cz0iMCwwIDQsOCA4LDAiIGZpbGw9IiNmOGZhZmMiLz48L3N2Zz4=')] repeat-x"></div>
-                            
-                            <div className="space-y-4 pt-2">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 max-h-[300px] overflow-y-auto">
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center pb-2 border-b border-slate-50">
+                                    <span className="text-xs font-black uppercase text-slate-400">Items Scan</span>
+                                    <span className="text-xs font-mono font-bold text-slate-500">#{lastInvoice?.invoiceId || 'PENDING'}</span>
+                                </div>
                                 <div className="space-y-3">
-                                    {lastInvoice?.items?.map((item: any, i: number) => (
-                                        <div key={i} className="flex justify-between text-sm items-start">
-                                            <div className="flex flex-col flex-1 pr-4">
-                                                <span className="font-bold text-slate-800 leading-tight mb-0.5">{item.description}</span>
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.quantity} x ${item.unitPrice}</span>
+                                    {lastInvoice?.items?.map((item, i) => (
+                                        <div key={i} className="flex justify-between text-sm">
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-slate-900">{item.description}</span>
+                                                <span className="text-[10px] font-black text-slate-400 uppercase">{item.quantity} x ${item.unitPrice}</span>
                                             </div>
                                             <span className="font-black text-slate-900">${item.total}</span>
                                         </div>
                                     ))}
                                 </div>
-                                
-                                <Separator className="border-dashed" />
-                                
-                                <div className="space-y-1.5">
+                                <div className="pt-4 border-t border-slate-200 space-y-1">
                                     <div className="flex justify-between text-xs font-bold text-slate-500">
                                         <span>Subtotal</span>
                                         <span>${lastInvoice?.subtotal}</span>
@@ -738,9 +736,9 @@ export function POSTerminal() {
                                             <span>-${lastInvoice?.discount}</span>
                                         </div>
                                     )}
-                                    <div className="flex justify-between text-xl font-black text-slate-900 pt-3 mt-3 border-t border-slate-100">
+                                    <div className="flex justify-between text-lg font-black text-slate-900 pt-2 text-emerald-600">
                                         <span>TOTAL PAID</span>
-                                        <span className="text-emerald-600">${lastInvoice?.total}</span>
+                                        <span>${lastInvoice?.total}</span>
                                     </div>
                                 </div>
                             </div>
@@ -776,7 +774,7 @@ export function POSTerminal() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {lastInvoice?.items?.map((item: any, i: number) => (
+                                    {lastInvoice?.items?.map((item, i) => (
                                         <tr key={i}>
                                             <td style={{ wordBreak: 'break-word', fontWeight: 'bold' }}>{item.description}</td>
                                             <td style={{ textAlign: 'center' }}>{item.quantity}</td>
@@ -819,14 +817,15 @@ export function POSTerminal() {
                         </div>
                     </div>
 
-                    <DialogFooter className="p-6 bg-slate-100 flex gap-3 sm:justify-center border-t border-slate-200">
-                        <Button variant="outline" className="h-14 rounded-2xl font-black uppercase tracking-widest text-xs flex-1 border-slate-300 hover:bg-white transition-all shadow-sm" onClick={() => setShowReceipt(false)}>
+                    <DialogFooter className="p-6 bg-slate-100 flex gap-3 sm:justify-center">
+                        <Button variant="outline" className="h-12 rounded-xl font-bold uppercase tracking-widest text-xs flex-1 border-slate-300" onClick={() => setShowReceipt(false)}>
                             NEW SALE
                         </Button>
                         <Button
-                            className="h-14 rounded-2xl font-black uppercase tracking-widest text-xs flex-1 shadow-xl bg-slate-900 text-white hover:bg-slate-800 transition-all hover:translate-y-[-2px] active:translate-y-[0px]"
+                            className="h-12 rounded-xl font-bold uppercase tracking-widest text-xs flex-1 shadow-lg bg-emerald-600 text-white hover:bg-emerald-700"
                             onClick={() => {
                                 handlePrintReceipt()
+                                setReceiptMode('print')
                             }}
                         >
                             <Printer className="size-4 mr-2" /> PRINT RECEIPT

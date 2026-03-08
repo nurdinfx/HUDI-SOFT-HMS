@@ -249,12 +249,15 @@ router.post('/checkout', async (req, res) => {
 
             // Stock management for medicines
             if (item.type === 'medicine') {
-                const med = await db.prepare('SELECT quantity, reorder_level FROM medicines WHERE id = ?').get(item.id.split('-')[0]);
-                if (med) {
-                    const newQty = Math.max(0, med.quantity - item.quantity);
-                    const newStatus = newQty === 0 ? 'out-of-stock' : newQty <= med.reorder_level ? 'low-stock' : 'in-stock';
-                    await db.prepare('UPDATE medicines SET quantity = ?, status = ? WHERE id = ?')
-                        .run(newQty, newStatus, item.id.split('-')[0]);
+                const medicineIdToUpdate = item.medicineId ? item.medicineId : (item.isFromPrescription || item.prescriptionId ? null : item.id);
+                if (medicineIdToUpdate) {
+                    const med = await db.prepare('SELECT quantity, reorder_level FROM medicines WHERE id = ?').get(medicineIdToUpdate);
+                    if (med) {
+                        const newQty = Math.max(0, med.quantity - item.quantity);
+                        const newStatus = newQty === 0 ? 'out-of-stock' : newQty <= med.reorder_level ? 'low-stock' : 'in-stock';
+                        await db.prepare('UPDATE medicines SET quantity = ?, status = ? WHERE id = ?')
+                            .run(newQty, newStatus, medicineIdToUpdate);
+                    }
                 }
             }
 
