@@ -75,6 +75,7 @@ dbModule.promise.then(() => {
     app.use('/api/users', require('./routes/users'));
     app.use('/api/inventory', require('./routes/inventory'));
     app.use('/api/accounts', require('./routes/accounts'));
+    app.use('/api/payments', require('./routes/payments'));
     app.use('/api/audit', require('./routes/audit'));
     app.use('/api/reports', require('./routes/reports'));
     app.use('/api/settings', require('./routes/settings'));

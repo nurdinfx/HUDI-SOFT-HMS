@@ -17,7 +17,8 @@ const fmtAdm = (a) => ({
 
 const fmtBed = (b) => ({
     id: b.id, ward: b.ward, bedNumber: b.bed_number, type: b.type,
-    status: b.status, patientId: b.patient_id, dailyRate: b.daily_rate
+    status: b.status, patientId: b.patient_id, dailyRate: b.daily_rate,
+    wardId: b.ward_id
 });
 
 const fmtWard = (w) => ({
@@ -42,14 +43,23 @@ const fmtDoctorRound = (d) => ({
 // Admissions
 router.get('/admissions', async (req, res) => {
     const { search, status, ward } = req.query;
-    let q = 'SELECT * FROM ipd_admissions WHERE 1=1'; const p = [];
-    if (search) { q += ` AND (patient_name LIKE ? OR admission_id LIKE ?)`; const s = `%${search}%`; p.push(s, s); }
-    if (status) { q += ' AND status = ?'; p.push(status); }
-    if (ward) { q += ' AND ward = ?'; p.push(ward); }
-    q += ' ORDER BY admission_date DESC';
+    let q = `
+        SELECT a.*, w.name as ward_name 
+        FROM ipd_admissions a
+        LEFT JOIN wards w ON a.ward = w.id
+        WHERE 1=1
+    `;
+    const p = [];
+    if (search) { q += ` AND (a.patient_name LIKE ? OR a.admission_id LIKE ?)`; const s = `%${search}%`; p.push(s, s); }
+    if (status) { q += ' AND a.status = ?'; p.push(status); }
+    if (ward) { q += ' AND a.ward = ?'; p.push(ward); }
+    q += ' ORDER BY a.admission_date DESC';
     try {
         const rows = await db.prepare(q).all(...p);
-        res.json(rows.map(fmtAdm));
+        res.json(rows.map(a => ({
+            ...fmtAdm(a),
+            ward: a.ward_name || a.ward // Fallback to ID if name not found
+        })));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

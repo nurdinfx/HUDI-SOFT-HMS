@@ -84,7 +84,7 @@ export function AddAdmissionDialog({
 
     const availableBeds = useMemo(() => {
         if (!selectedWard) return []
-        return beds.filter(b => b.ward === selectedWard && b.status === "available")
+        return beds.filter(b => (b.wardId === selectedWard || b.ward === selectedWard) && b.status === "available")
     }, [beds, selectedWard])
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -246,7 +246,7 @@ export function AddAdmissionDialog({
                                 </SelectTrigger>
                                 <SelectContent>
                                     {wards.map(w => (
-                                        <SelectItem key={w.name} value={w.name}>
+                                        <SelectItem key={w.id} value={w.id}>
                                             {w.name} ({w.type})
                                         </SelectItem>
                                     ))}

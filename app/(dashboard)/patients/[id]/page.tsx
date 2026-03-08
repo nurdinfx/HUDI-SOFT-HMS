@@ -20,8 +20,9 @@ export default function PatientDetailPage() {
       appointmentsApi.getAll().catch(() => []),
       pharmacyApi.getPrescriptions().catch(() => []),
       laboratoryApi.getAll().catch(() => []),
-      billingApi.getAll().catch(() => [])
-    ]).then(([patient, allAppts, allPrescs, allLabs, allInvoices]) => {
+      billingApi.getAll().catch(() => []),
+      billingApi.getPatientFinancialHistory(id).catch(() => null)
+    ]).then(([patient, allAppts, allPrescs, allLabs, allInvoices, financialHistory]) => {
       if (!patient) {
         router.push("/404")
         return
@@ -37,7 +38,8 @@ export default function PatientDetailPage() {
         appointments: patientAppts,
         prescriptions: patientPrescs,
         labTests: patientLabs,
-        invoices: patientInvoices
+        invoices: patientInvoices,
+        financialHistory: financialHistory
       })
     }).finally(() => {
       setLoading(false)
@@ -54,6 +56,7 @@ export default function PatientDetailPage() {
       prescriptions={data.prescriptions}
       labTests={data.labTests}
       invoices={data.invoices}
+      financialHistory={data.financialHistory}
     />
   )
 }

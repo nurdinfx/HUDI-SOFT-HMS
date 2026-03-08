@@ -57,12 +57,22 @@ router.get('/summary', async (req, res) => {
             FROM account_entries
         `).get(today, month);
 
+        // Get outstanding invoices total
+        const outstanding = await db.prepare("SELECT SUM(total - paid_amount) as total FROM invoices WHERE status != 'paid'").get();
+
         const deptBreakdown = await db.prepare(`
             SELECT department, SUM(amount) as amount 
             FROM account_entries 
             WHERE type = 'income' 
             GROUP BY department
         `).all();
+
+        const todayDeptBreakdown = await db.prepare(`
+            SELECT department, SUM(amount) as amount 
+            FROM account_entries 
+            WHERE type = 'income' AND date = ?
+            GROUP BY department
+        `).all(today);
 
         const paymentModeBreakdown = await db.prepare(`
             SELECT payment_method as method, SUM(amount) as amount 
@@ -79,7 +89,9 @@ router.get('/summary', async (req, res) => {
             profit: parseFloat(stats?.totalIncome || 0) - parseFloat(stats?.totalExpense || 0),
             incomeToday: parseFloat(stats?.incomeToday || 0),
             incomeMonth: parseFloat(stats?.incomeMonth || 0),
+            outstandingBalance: parseFloat(outstanding?.total || 0),
             departmentRevenue: deptBreakdown || [],
+            todayDeptRevenue: todayDeptBreakdown || [],
             paymentModeRevenue: paymentModeBreakdown || [],
             recentEntries: recentEntries.map(fmt) || []
         });

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useRef } from "react"
-import { Search, Plus, Minus, Trash2, User, CreditCard, Receipt, Activity, Pill, FileText, CheckCircle2, ChevronRight, X, Printer, QrCode, Info } from "lucide-react"
+import { Search, Plus, Minus, Trash2, User, CreditCard, Receipt, Activity, Pill, FileText, CheckCircle2, ChevronRight, X, Printer, QrCode, Info, History, Loader2, RotateCcw, Calendar, DollarSign, Wallet } from "lucide-react"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -10,8 +10,11 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { pharmacyApi, laboratoryApi, patientsApi, posApi, type POSItem, type Patient } from "@/lib/api"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 interface CatalogItem {
     id: string;
@@ -41,6 +44,11 @@ export function POSTerminal() {
     const [lastInvoice, setLastInvoice] = useState<any>(null)
     const [showReceipt, setShowReceipt] = useState(false)
     const [receiptMode, setReceiptMode] = useState<'review' | 'print'>('review')
+
+    const [patientHistory, setPatientHistory] = useState<any>(null)
+    const [isLoadingPending, setIsLoadingPending] = useState(false)
+    const [insuranceDetails, setInsuranceDetails] = useState({ company: "", policyNumber: "", claimAmount: 0 })
+    const [showHistory, setShowHistory] = useState(false)
 
     // Load Initial Data
     useEffect(() => {
@@ -89,13 +97,41 @@ export function POSTerminal() {
 
     // Filter Patients
     const filteredPatients = useMemo(() => {
-        if (!patientSearch) return patients.slice(0, 5);
+        if (!patientSearch) return [];
         return patients.filter(p =>
             `${p.firstName} ${p.lastName}`.toLowerCase().includes(patientSearch.toLowerCase()) ||
             p.patientId?.toLowerCase().includes(patientSearch.toLowerCase()) ||
             p.phone?.includes(patientSearch)
         ).slice(0, 5)
     }, [patients, patientSearch])
+
+    const handlePatientSelect = async (patient: Patient) => {
+        setSelectedPatient(patient)
+        setPatientSearch("")
+        setIsLoadingPending(true)
+        try {
+            const [pending, history] = await Promise.all([
+                posApi.getPendingCharges(patient.id),
+                posApi.getHistory(patient.id)
+            ])
+
+            setPatientHistory(history)
+
+            if (pending.items.length > 0) {
+                setCart(pending.items.map(item => ({
+                    ...item,
+                    quantity: item.quantity || 1
+                })))
+                toast.success(`Loaded ${pending.items.length} pending charges`)
+            } else {
+                setCart([])
+            }
+        } catch (err) {
+            toast.error("Failed to load patient charges")
+        } finally {
+            setIsLoadingPending(false)
+        }
+    }
 
 
     // Cart Calculations
@@ -162,7 +198,8 @@ export function POSTerminal() {
                 items: cart,
                 discount: parsedDiscount,
                 paymentMethod: paymentMethod,
-                amountPaid: parsedAmountPaid
+                amountPaid: parsedAmountPaid,
+                insuranceInfo: insuranceDetails.company ? insuranceDetails : undefined
             })
 
             setLastInvoice(res)
@@ -402,7 +439,7 @@ export function POSTerminal() {
                                                 <div
                                                     key={p.id}
                                                     className="p-3 border-b border-slate-50 hover:bg-slate-50 cursor-pointer flex flex-col"
-                                                    onClick={() => { setSelectedPatient(p); setPatientSearch(""); }}
+                                                    onClick={() => handlePatientSelect(p)}
                                                 >
                                                     <span className="font-bold text-sm text-slate-900">{p.firstName} {p.lastName}</span>
                                                     <span className="text-xs text-slate-500 uppercase font-mono">{p.patientId} · {p.phone}</span>

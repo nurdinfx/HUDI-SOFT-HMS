@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { dashboardApi, billingApi, appointmentsApi, patientsApi, accountsApi } from "@/lib/api"
+import { dashboardApi, billingApi, appointmentsApi, patientsApi, accountsApi, reportsApi } from "@/lib/api"
 import { ReportsContent } from "@/components/reports/reports-content"
 
 export default function ReportsPage() {
   const [data, setData] = useState<any>(null)
+  const [financial, setFinancial] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -15,7 +16,8 @@ export default function ReportsPage() {
       appointmentsApi.getAll(),
       patientsApi.getAll(),
       accountsApi.getAll(),
-    ]).then(([dash, invoices, appointments, patients, accountData]) => {
+      reportsApi.getFinancial(),
+    ]).then(([dash, invoices, appointments, patients, accountData, finData]) => {
       setData({
         stats: dash.stats,
         invoices,
@@ -23,11 +25,12 @@ export default function ReportsPage() {
         patients,
         accountEntries: (accountData as any).entries || accountData,
       })
+      setFinancial(finData)
     }).catch(console.error).finally(() => setLoading(false))
   }, [])
 
   if (loading) return <div className="flex items-center justify-center h-64"><p className="text-muted-foreground">Loading reports...</p></div>
-  if (!data) return <div className="flex items-center justify-center h-64"><p className="text-muted-foreground">Failed to load report data.</p></div>
+  if (!data || !financial) return <div className="flex items-center justify-center h-64"><p className="text-muted-foreground">Failed to load report data.</p></div>
 
   return (
     <ReportsContent
@@ -36,6 +39,7 @@ export default function ReportsPage() {
       appointments={data.appointments}
       patients={data.patients}
       accountEntries={data.accountEntries}
+      financial={financial}
     />
   )
 }

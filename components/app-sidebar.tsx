@@ -23,6 +23,7 @@ import {
   Activity,
   User,
   ShoppingCart,
+  DollarSign,
 } from "lucide-react"
 import {
   Sidebar,
@@ -47,6 +48,7 @@ const navGroups = [
   },
   {
     label: "Clinical",
+    roles: ["admin", "doctor", "nurse", "receptionist"],
     items: [
       { title: "Patients", href: "/patients", icon: Users },
       { title: "Appointments", href: "/appointments", icon: CalendarDays },
@@ -57,28 +59,32 @@ const navGroups = [
   },
   {
     label: "Pharmacy & Lab",
+    roles: ["admin", "pharmacist", "lab_tech"],
     items: [
       { title: "Pharmacy", href: "/pharmacy", icon: Pill },
       { title: "Laboratory", href: "/laboratory", icon: FlaskConical },
-      { title: "Inventory", href: "/inventory", icon: Warehouse },
+      { title: "Inventory", href: "/inventory", icon: Warehouse, roles: ["admin", "pharmacist", "lab_tech", "accountant"] },
     ],
   },
   {
     label: "Financial",
+    roles: ["admin", "accountant", "receptionist"],
     items: [
       { title: "Point of Sale", href: "/pos", icon: ShoppingCart },
       { title: "Billing", href: "/billing", icon: Receipt },
+      { title: "Payments", href: "/payments", icon: DollarSign },
       { title: "Insurance", href: "/insurance", icon: ShieldCheck },
-      { title: "Accounts", href: "/accounts", icon: BookOpen },
-      { title: "Reports", href: "/reports", icon: BarChart3 },
+      { title: "Accounts", href: "/accounts", icon: BookOpen, roles: ["admin", "accountant"] },
+      { title: "Reports", href: "/reports", icon: BarChart3, roles: ["admin", "accountant"] },
     ],
   },
   {
     label: "Administration",
+    roles: ["admin", "accountant"],
     items: [
-      { title: "Users", href: "/users", icon: UserCog },
+      { title: "Users", href: "/users", icon: UserCog, roles: ["admin"] },
       { title: "Audit Logs", href: "/audit-logs", icon: ScrollText },
-      { title: "Settings", href: "/settings", icon: Settings },
+      { title: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
     ],
   },
 ]
@@ -88,9 +94,21 @@ export function AppSidebar() {
   const { user } = useAuth()
   const { setOpenMobile, isMobile } = useSidebar()
 
+  const filteredGroups = navGroups.filter(group => {
+    if (group.roles && !group.roles.includes(user?.role || "")) return false
+    return true
+  }).map(group => ({
+    ...group,
+    items: group.items.filter(item => {
+      if ((item as any).roles && !(item as any).roles.includes(user?.role || "")) return false
+      return true
+    })
+  })).filter(group => group.items.length > 0)
+
   return (
     <Sidebar collapsible="icon" variant="sidebar">
       <SidebarHeader className="border-b border-sidebar-border">
+        {/* ... existing header ... */}
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild className="mb-2 h-auto py-2 hover:bg-transparent">
@@ -108,7 +126,7 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        {navGroups.map((group) => (
+        {filteredGroups.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -132,6 +150,7 @@ export function AppSidebar() {
         ))}
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
+        {/* ... existing footer ... */}
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg">

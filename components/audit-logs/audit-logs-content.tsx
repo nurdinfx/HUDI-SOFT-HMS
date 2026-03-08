@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Search } from "lucide-react"
+import { Search, Filter, ShieldAlert } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -21,19 +21,25 @@ interface AuditLogsContentProps {
 
 export function AuditLogsContent({ logs = [] }: AuditLogsContentProps) {
   const [search, setSearch] = useState("")
+  const [selectedModule, setSelectedModule] = useState("all")
 
   const list = Array.isArray(logs) ? logs : []
   const filtered = useMemo(() => {
     if (!search.trim()) return list
     const s = search.toLowerCase()
     return list.filter(
-      (l) =>
-        l.userName?.toLowerCase().includes(s) ||
-        l.action?.toLowerCase().includes(s) ||
-        l.module?.toLowerCase().includes(s) ||
-        l.details?.toLowerCase().includes(s)
+      (l) => {
+        const matchesSearch = !search.trim() ||
+          l.userName?.toLowerCase().includes(s) ||
+          l.action?.toLowerCase().includes(s) ||
+          l.module?.toLowerCase().includes(s) ||
+          l.details?.toLowerCase().includes(s)
+
+        const matchesModule = selectedModule === "all" || l.module === selectedModule
+        return matchesSearch && matchesModule
+      }
     )
-  }, [list, search])
+  }, [list, search, selectedModule])
 
   return (
     <div className="flex flex-col gap-6">
@@ -43,14 +49,34 @@ export function AuditLogsContent({ logs = [] }: AuditLogsContentProps) {
       />
       <Card>
         <CardContent className="p-4">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by user, action, module..."
-              className="pl-9"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <div className="relative w-full sm:max-w-sm">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Search audit trail..."
+                className="pl-9 h-11 rounded-xl"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Filter className="size-4 text-slate-400 mr-2" />
+              <select
+                className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold outline-none"
+                value={selectedModule}
+                onChange={(e) => setSelectedModule(e.target.value)}
+              >
+                <option value="all">All Modules</option>
+                <option value="Billing">Billing</option>
+                <option value="Accounts">Accounts</option>
+                <option value="Insurance">Insurance</option>
+                <option value="Inventory">Inventory</option>
+                <option value="Pharmacy">Pharmacy</option>
+                <option value="Lab">Laboratory</option>
+                <option value="IPD">IPD</option>
+                <option value="OPD">OPD</option>
+              </select>
+            </div>
           </div>
         </CardContent>
       </Card>

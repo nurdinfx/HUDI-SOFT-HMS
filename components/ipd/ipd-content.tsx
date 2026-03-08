@@ -188,8 +188,8 @@ export function IPDContent({ admissions: initialAdmissions = [], beds: initialBe
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Wards</SelectItem>
-                    {wardNames.map((w) => (
-                      <SelectItem key={w} value={w}>{w}</SelectItem>
+                    {wardsData.map((w) => (
+                      <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

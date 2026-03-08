@@ -121,6 +121,16 @@ export const billingApi = {
     create: (data: Partial<Invoice>) => post<Invoice>('/billing', data),
     update: (id: string, data: Partial<Invoice>) => put<Invoice>(`/billing/${id}`, data),
     delete: (id: string) => del(`/billing/${id}`),
+    getPatientFinancialHistory: (patientId: string) => get<{
+        summary: {
+            totalBilled: number;
+            totalPaid: number;
+            totalInsurance: number;
+            outstandingBalance: number;
+        };
+        invoices: Invoice[];
+        claims: InsuranceClaim[];
+    }>(`/billing/patient/${patientId}/history`),
 };
 
 // ─── OPD ─────────────────────────────────────────────────────────
@@ -197,6 +207,11 @@ export const accountsApi = {
     delete: (id: string) => del(`/accounts/${id}`),
 };
 
+// ─── Payments ────────────────────────────────────────────────────
+export const paymentsApi = {
+    getAll: (params?: QueryParams) => get<Payment[]>(`/payments${toQuery(params)}`),
+};
+
 // ─── Audit Logs ──────────────────────────────────────────────────
 export const auditApi = {
     getAll: (params?: QueryParams) => get<AuditLog[]>(`/audit${toQuery(params)}`),
@@ -209,6 +224,11 @@ export const reportsApi = {
     getAppointments: () => get<unknown>('/reports/appointments'),
     getLaboratory: () => get<unknown>('/reports/laboratory'),
     getPharmacy: () => get<unknown>('/reports/pharmacy'),
+    getFinancial: () => get<{
+        incomeByDept: { department: string; amount: number }[];
+        expenseByCategory: { category: string; amount: number }[];
+        monthlyTrend: { month: string; income: number; expense: number }[];
+    }>('/reports/financial'),
 };
 
 // ─── Settings ────────────────────────────────────────────────────
@@ -219,6 +239,8 @@ export const settingsApi = {
 
 // ─── POS ─────────────────────────────────────────────────────────
 export const posApi = {
+    getPendingCharges: (patientId: string) => get<{ items: any[] }>(`/pos/pending/${patientId}`),
+    getHistory: (patientId: string) => get<any>(`/pos/history/${patientId}`),
     checkout: (data: CheckoutPayload) => post<Invoice>('/pos/checkout', data),
 };
 
@@ -467,7 +489,9 @@ export interface AccountsSummary {
     profit: number;
     incomeToday: number;
     incomeMonth: number;
+    outstandingBalance: number;
     departmentRevenue: { department: string; amount: number }[];
+    todayDeptRevenue: { department: string; amount: number }[];
     paymentModeRevenue: { method: string; amount: number }[];
     recentEntries: AccountEntry[];
 }
@@ -521,6 +545,9 @@ export interface POSItem {
     unitPrice: number;
     quantity: number;
     category?: string;
+    prescriptionId?: string;
+    labTestId?: string;
+    originalInvoiceId?: string;
 }
 
 export interface CheckoutPayload {
@@ -532,4 +559,20 @@ export interface CheckoutPayload {
     paymentMethod: string;
     amountPaid?: number;
     notes?: string;
+    insuranceInfo?: {
+        company: string;
+        policyNumber: string;
+        claimAmount: number;
+    };
+}
+
+export interface Payment {
+    id: string;
+    date: string;
+    amount: number;
+    method: string;
+    invoiceId: string;
+    patientName: string;
+    invoiceTotal: number;
+    description: string;
 }

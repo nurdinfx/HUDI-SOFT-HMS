@@ -14,6 +14,35 @@ const fmt = (i) => ({
     insuranceClaim: i.insurance_claim, notes: i.notes
 });
 
+router.get('/patient/:id/history', async (req, res) => {
+    try {
+        const patientId = req.params.id;
+        const invoices = await db.prepare('SELECT * FROM invoices WHERE patient_id = ? ORDER BY date DESC').all(patientId);
+        const claims = await db.prepare('SELECT * FROM insurance_claims WHERE patient_id = ? ORDER BY submitted_at DESC').all(patientId);
+
+        const summary = {
+            totalBilled: invoices.reduce((s, i) => s + (i.total || 0), 0),
+            totalPaid: invoices.reduce((s, i) => s + (i.paid_amount || 0), 0),
+            totalInsurance: claims.reduce((s, c) => s + (c.approved_amount || 0), 0),
+            outstandingBalance: 0
+        };
+        summary.outstandingBalance = summary.totalBilled - summary.totalPaid - summary.totalInsurance;
+
+        res.json({
+            summary,
+            invoices: invoices.map(fmt),
+            claims: claims.map(i => ({
+                id: i.id, claimId: i.claim_id, patientId: i.patient_id, patientName: i.patient_name,
+                insuranceCompany: i.insurance_company, policyNumber: i.policy_number,
+                claimAmount: i.claim_amount, approvedAmount: i.approved_amount,
+                status: i.status, submittedAt: i.submitted_at
+            }))
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 router.get('/', async (req, res) => {
     const { search, status, patientId } = req.query;
     let q = 'SELECT * FROM invoices WHERE 1=1'; const p = [];

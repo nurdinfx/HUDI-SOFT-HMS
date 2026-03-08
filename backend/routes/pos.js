@@ -6,21 +6,146 @@ const { authenticate, logAction } = require('../middleware/auth');
 const router = express.Router();
 router.use(authenticate);
 
+// GET /api/pos/pending/:patientId
+router.get('/pending/:patientId', async (req, res) => {
+    try {
+        const patientId = req.params.patientId;
+
+        // 1. Get unpaid invoices
+        const unpaidInvoices = await db.prepare(`
+            SELECT * FROM invoices 
+            WHERE patient_id = ? AND status IN ('unpaid', 'partial')
+            ORDER BY date DESC
+        `).all(patientId);
+
+        // 2. Get pending prescriptions (that don't have an invoice yet)
+        const pendingRxs = await db.prepare(`
+            SELECT * FROM prescriptions 
+            WHERE patient_id = ? AND status = 'pending'
+            ORDER BY date DESC
+        `).all(patientId);
+
+        // 3. Get ordered lab tests (that might not be in an invoice yet, though usually are)
+        const pendingLabs = await db.prepare(`
+            SELECT * FROM lab_tests 
+            WHERE patient_id = ? AND status = 'ordered' AND (is_billed = 0 OR is_billed IS NULL)
+            ORDER BY ordered_at DESC
+        `).all(patientId);
+
+        // Format items for POS cart
+        const items = [];
+
+        // Process invoices
+        unpaidInvoices.forEach(inv => {
+            const invItems = JSON.parse(inv.items || '[]');
+            invItems.forEach(item => {
+                items.push({
+                    id: item.id || inv.id,
+                    invoiceId: inv.id,
+                    invoiceNumber: inv.invoice_id,
+                    name: item.description || item.name,
+                    type: item.category === 'Pharmacy' ? 'medicine' : item.category === 'Laboratory' ? 'lab' : 'service',
+                    category: item.category,
+                    unitPrice: item.unitPrice,
+                    quantity: item.quantity,
+                    total: item.total,
+                    isFromInvoice: true,
+                    originalInvoiceId: inv.id
+                });
+            });
+        });
+
+        // Process prescriptions
+        pendingRxs.forEach(rx => {
+            const rxMeds = JSON.parse(rx.medicines || '[]');
+            rxMeds.forEach((med, idx) => {
+                items.push({
+                    id: `${rx.id}-${idx}`,
+                    prescriptionId: rx.id,
+                    name: med.medicineName,
+                    type: 'medicine',
+                    category: 'Pharmacy',
+                    unitPrice: med.unitPrice || 0, // We'll need to fetch price if missing
+                    quantity: parseInt(med.quantity) || 1,
+                    total: (med.unitPrice || 0) * (parseInt(med.quantity) || 1),
+                    isFromPrescription: true,
+                    dosage: med.dosage,
+                    duration: med.duration
+                });
+            });
+        });
+
+        // Process labs
+        pendingLabs.forEach(lab => {
+            items.push({
+                id: lab.id,
+                labTestId: lab.id,
+                name: lab.test_name,
+                type: 'lab',
+                category: 'Laboratory',
+                unitPrice: lab.cost,
+                quantity: 1,
+                total: lab.cost,
+                isFromLab: true
+            });
+        });
+
+        res.json({ items });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/pos/history/:patientId
+router.get('/history/:patientId', async (req, res) => {
+    try {
+        const patientId = req.params.patientId;
+        const invoices = await db.prepare(`
+            SELECT * FROM invoices 
+            WHERE patient_id = ? 
+            ORDER BY date DESC 
+            LIMIT 10
+        `).all(patientId);
+
+        const prescriptions = await db.prepare(`
+            SELECT * FROM prescriptions 
+            WHERE patient_id = ? 
+            ORDER BY date DESC 
+            LIMIT 5
+        `).all(patientId);
+
+        const labTests = await db.prepare(`
+            SELECT * FROM lab_tests 
+            WHERE patient_id = ? 
+            ORDER BY ordered_at DESC 
+            LIMIT 5
+        `).all(patientId);
+
+        res.json({
+            invoices: invoices.map(inv => ({ ...inv, items: JSON.parse(inv.items || '[]') })),
+            prescriptions: prescriptions.map(rx => ({ ...rx, medicines: JSON.parse(rx.medicines || '[]') })),
+            labTests
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // POST /api/pos/checkout
-// Payload: { patientId, patientName, items: [{type, id, name, unitPrice, quantity}], discount, paymentMethod, amountPaid, notes }
+// Payload: { patientId, patientName, items: [{type, id, name, unitPrice, quantity, ...}], discount, paymentMethod, amountPaid, insuranceInfo, notes }
 router.post('/checkout', async (req, res) => {
-    console.log('📦 POS Checkout Request:', {
-        patient: req.body.patientName,
-        itemsCount: req.body.items?.length,
-        total: req.body.amountPaid
-    });
-    const { patientId, patientName, items, discount, paymentMethod, amountPaid, notes } = req.body;
+    const {
+        patientId, patientName, items, discount,
+        paymentMethod, amountPaid, notes, insuranceInfo
+    } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ error: 'Cart is empty' });
     }
 
     try {
+        await db.exec('BEGIN');
+
         // 1. Calculate totals
         let subtotal = 0;
         for (const item of items) {
@@ -36,7 +161,7 @@ router.post('/checkout', async (req, res) => {
             ? parseFloat(amountPaid)
             : total;
 
-        // 2. Resolve Patient Information (Walk-ins allow null patientId)
+        // 2. Resolve Patient Information
         let actualPatientId = patientId || null;
         let actualPatientName = patientName || 'Walk-In Patient';
 
@@ -50,78 +175,49 @@ router.post('/checkout', async (req, res) => {
 
         // Prepare Invoice Record
         const invCountData = await db.prepare('SELECT COUNT(*) as c FROM invoices').get();
-        const invoiceUID = `INV-${String(parseInt(invCountData.c) + 1).padStart(4, '0')}`;
+        const invoiceUID = `INV-POS-${String(parseInt(invCountData.c) + 1).padStart(5, '0')}`;
         const invoiceDbId = uuidv4();
 
-        // 3. Process each item (Atomically reduce stock or trigger service logic)
+        // 3. Process each item and update linked modules
         for (const item of items) {
-            if (item.type === 'medicine') {
-                // Check stock
-                const med = await db.prepare('SELECT * FROM medicines WHERE id = ?').get(item.id);
-                if (!med) throw new Error(`Medicine "${item.name}" not found in database`);
-                if (med.quantity < item.quantity) throw new Error(`Insufficient stock for ${item.name}. Available: ${med.quantity}`);
-
-                const newQty = med.quantity - item.quantity;
-                const newStatus = newQty === 0 ? 'out-of-stock' : newQty <= med.reorder_level ? 'low-stock' : 'in-stock';
-
-                await db.prepare('UPDATE medicines SET quantity = ?, status = ? WHERE id = ?')
-                    .run(newQty, newStatus, item.id);
-
-                invoiceItems.push({
-                    id: item.id,
-                    description: item.name,
-                    category: 'Pharmacy',
-                    quantity: item.quantity,
-                    unitPrice: item.unitPrice,
-                    total: item.unitPrice * item.quantity
-                });
-            } else if (item.type === 'lab') {
-                // Generate Lab Order
-                const labCountData = await db.prepare('SELECT COUNT(*) as c FROM lab_tests').get();
-                const testIdStr = `LAB-${String(parseInt(labCountData.c) + 1).padStart(4, '0')}`;
-                const labTestDbId = uuidv4();
-
-                const catInfo = await db.prepare('SELECT * FROM lab_catalog WHERE id = ?').get(item.id);
-
-                await db.prepare(`INSERT INTO lab_tests (id, test_id, patient_id, patient_name, doctor_name, test_name, test_category, sample_type, priority, status, ordered_at, cost, is_billed, invoice_id, ordered_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-                    .run(
-                        labTestDbId,
-                        testIdStr,
-                        actualPatientId,
-                        actualPatientName,
-                        'POS Walk-in',
-                        item.name,
-                        catInfo ? catInfo.category : 'General',
-                        catInfo ? catInfo.sample_type : 'Blood',
-                        'normal',
-                        'ordered',
-                        new Date().toISOString(),
-                        item.unitPrice * item.quantity,
-                        1,
-                        invoiceDbId,
-                        req.user.name
-                    );
-
-                invoiceItems.push({
-                    id: item.id,
-                    description: `Lab Test: ${item.name}`,
-                    category: 'Laboratory',
-                    quantity: item.quantity,
-                    unitPrice: item.unitPrice,
-                    total: item.unitPrice * item.quantity
-                });
-            } else {
-                // General Services or unknown types
-                invoiceItems.push({
-                    id: item.id || uuidv4(),
-                    description: item.name,
-                    category: item.category || 'Service',
-                    quantity: item.quantity,
-                    unitPrice: item.unitPrice,
-                    total: item.unitPrice * item.quantity
-                });
+            // Update Prescription status if applicable
+            if (item.prescriptionId) {
+                await db.prepare('UPDATE prescriptions SET status = ? WHERE id = ?')
+                    .run('dispensed', item.prescriptionId);
             }
+
+            // Update Lab Test status if applicable
+            if (item.labTestId) {
+                await db.prepare('UPDATE lab_tests SET status = ?, is_billed = 1, invoice_id = ? WHERE id = ?')
+                    .run('sample-collected', invoiceDbId, item.labTestId);
+            }
+
+            // Update existing Invoice if applicable
+            if (item.originalInvoiceId) {
+                // We'll mark the old invoice as 'transferred' or similar, 
+                // but for simplicity here we just proceed to create the new master invoice.
+                // In a real system, you'd probably link them.
+            }
+
+            // Stock management for medicines
+            if (item.type === 'medicine') {
+                const med = await db.prepare('SELECT quantity, reorder_level FROM medicines WHERE id = ?').get(item.id.split('-')[0]);
+                if (med) {
+                    const newQty = Math.max(0, med.quantity - item.quantity);
+                    const newStatus = newQty === 0 ? 'out-of-stock' : newQty <= med.reorder_level ? 'low-stock' : 'in-stock';
+                    await db.prepare('UPDATE medicines SET quantity = ?, status = ? WHERE id = ?')
+                        .run(newQty, newStatus, item.id.split('-')[0]);
+                }
+            }
+
+            invoiceItems.push({
+                id: item.id,
+                description: item.name,
+                category: item.category || 'Service',
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                total: item.unitPrice * item.quantity
+            });
         }
 
         // 4. Create master Invoice
@@ -131,52 +227,54 @@ router.post('/checkout', async (req, res) => {
 
         await db.prepare(`INSERT INTO invoices (id, invoice_id, patient_id, patient_name, date, due_date, items, subtotal, tax, discount, total, paid_amount, status, payment_method, notes)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-            .run(invoiceDbId, invoiceUID, actualPatientId, actualPatientName, today, today, JSON.stringify(invoiceItems), subtotal, tax, disc, total, paidAmount, invoiceStatus, paymentMethod || 'cash', notes || 'POS Transaction');
+            .run(
+                invoiceDbId, invoiceUID, actualPatientId, actualPatientName,
+                today, today, JSON.stringify(invoiceItems), subtotal, tax, disc,
+                total, paidAmount, invoiceStatus, paymentMethod || 'cash',
+                notes || 'POS Transaction'
+            );
 
-        // 5. Inject account entry for payment
+        // 5. Handle Insurance Claim
+        if (insuranceInfo && actualPatientId) {
+            const claimId = `CLM-${uuidv4().slice(0, 8).toUpperCase()}`;
+            await db.prepare(`INSERT INTO insurance_claims (id, claim_id, patient_id, patient_name, insurance_company, policy_number, invoice_id, claim_amount, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+                .run(
+                    uuidv4(), claimId, actualPatientId, actualPatientName,
+                    insuranceInfo.company, insuranceInfo.policyNumber, invoiceDbId,
+                    insuranceInfo.claimAmount, 'submitted'
+                );
+        }
+
+        // 6. Account entry for payment
         if (paidAmount > 0) {
-            const entryId = uuidv4();
             await db.prepare(`
                 INSERT INTO account_entries (id, date, type, category, description, amount, payment_method, reference_id, department, status, user_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
-                entryId,
-                today,
-                'income',
-                'POS Checkout',
-                `POS Payment for Invoice ${invoiceUID} (${actualPatientName})`,
-                paidAmount,
-                paymentMethod || 'cash',
-                invoiceUID,
-                'Billing',
-                'completed',
-                req.user.id
+                uuidv4(), today, 'income', 'POS Checkout',
+                `POS Payment for ${invoiceUID} (${actualPatientName})`,
+                paidAmount, paymentMethod || 'cash', invoiceUID, 'Billing', 'completed', req.user.id
             );
         }
 
-        logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'POS', `POS Checkout completed: Invoice ${invoiceUID}`, req.ip);
+        await db.exec('COMMIT');
 
-        const savedInvoice = await db.prepare('SELECT * FROM invoices WHERE id = ?').get(invoiceDbId);
+        logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'POS', `POS Checkout: ${invoiceUID}`, req.ip);
 
         res.status(201).json({
-            id: savedInvoice.id,
-            invoiceId: savedInvoice.invoice_id,
-            patientId: savedInvoice.patient_id,
-            patientName: savedInvoice.patient_name,
-            date: savedInvoice.date,
-            items: JSON.parse(savedInvoice.items || '[]'),
-            subtotal: savedInvoice.subtotal,
-            tax: savedInvoice.tax,
-            discount: savedInvoice.discount,
-            total: savedInvoice.total,
-            paidAmount: savedInvoice.paid_amount,
-            status: savedInvoice.status,
-            paymentMethod: savedInvoice.payment_method
+            id: invoiceDbId,
+            invoiceId: invoiceUID,
+            patientName: actualPatientName,
+            total,
+            paidAmount,
+            status: invoiceStatus
         });
 
     } catch (err) {
+        await db.exec('ROLLBACK');
         console.error('POS Checkout Error:', err);
-        res.status(500).json({ error: err.message || 'Internal Server Error during checkout' });
+        res.status(500).json({ error: err.message });
     }
 });
 

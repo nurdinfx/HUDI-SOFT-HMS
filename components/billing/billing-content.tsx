@@ -123,6 +123,32 @@ export function BillingContent({ invoices = [], patients = [], onRefresh = () =>
     }
   }
 
+  const handleExportCSV = () => {
+    if (filtered.length === 0) return toast.error("No invoices to export")
+
+    const headers = ["Invoice ID", "Patient", "Date", "Due Date", "Total", "Paid", "Status"]
+    const rows = filtered.map(inv => [
+      inv.invoiceId,
+      inv.patientName,
+      inv.date,
+      inv.dueDate,
+      inv.total,
+      inv.paidAmount,
+      inv.status
+    ])
+
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n")
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.setAttribute("href", url)
+    link.setAttribute("download", `Invoices_Export_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast.success("Invoices exported to CSV (Excel compatible)")
+  }
+
   const handleProcessPayment = async () => {
     if (!selectedInvoice) return
     if (paymentData.amount < 0) return toast.error("Enter a valid amount")
@@ -252,6 +278,12 @@ export function BillingContent({ invoices = [], patients = [], onRefresh = () =>
                 <SelectItem value="overdue">Overdue</SelectItem>
               </SelectContent>
             </Select>
+            <div className="flex gap-2">
+              <Button variant="outline" className="h-9 rounded-xl font-bold text-xs" onClick={handleExportCSV}>
+                <Download className="size-4 mr-2" />
+                Export Excel
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

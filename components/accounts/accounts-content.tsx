@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
+import { auditApi, type AuditLog } from "@/lib/api"
 import {
   Search,
   TrendingUp,
@@ -23,7 +24,10 @@ import {
   Clock,
   ShieldAlert,
   PieChart as PieChartIcon2,
-  LineChart as LineChartIcon
+  LineChart as LineChartIcon,
+  Edit,
+  Trash2,
+  MoreHorizontal
 } from "lucide-react"
 import { format } from "date-fns"
 import { toast } from "sonner"
@@ -84,6 +88,14 @@ import {
   DialogFooter
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { accountsApi, type AccountEntry, type AccountsSummary, type CashFlowEntry, type DepartmentBudget } from "@/lib/api"
 
 interface AccountsContentProps {
@@ -112,8 +124,35 @@ export function AccountsContent({ entries = [], summary, cashFlow, budgets = [],
   const [deptFilter, setDeptFilter] = useState("all")
   const [showAddModal, setShowAddModal] = useState(false)
   const [showBudgetModal, setShowBudgetModal] = useState(false)
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
+  const [isFetchingAudit, setIsFetchingAudit] = useState(false)
   const [modalType, setModalType] = useState<'income' | 'expense'>('income')
+  const [editingEntry, setEditingEntry] = useState<AccountEntry | null>(null)
 
+  const handleDeleteEntry = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this entry?")) return
+    try {
+      await accountsApi.delete(id)
+      toast.success("Entry deleted successfully")
+      onRefresh?.()
+    } catch (error) {
+      toast.error("Failed to delete entry")
+    }
+  }
+  const handleFetchAudit = async () => {
+    setIsFetchingAudit(true)
+    try {
+      const logs = await auditApi.getAll({ limit: 50 })
+      const financialModules = ['Billing', 'Accounts', 'Insurance', 'Payments']
+      const logsArray = Array.isArray(logs) ? logs : []
+      const filtered = logsArray.filter(l => financialModules.includes(l.module))
+      setAuditLogs(filtered)
+    } catch (e) {
+      toast.error("Failed to fetch audit history")
+    } finally {
+      setIsFetchingAudit(false)
+    }
+  }
   const filteredEntries = useMemo(() => {
     return entries.filter(e => {
       const matchSearch = !search ||
@@ -465,7 +504,8 @@ export function AccountsContent({ entries = [], summary, cashFlow, budgets = [],
                     <TableHead className="h-12 text-[10px] font-black uppercase text-slate-500 tracking-widest text-center">Department</TableHead>
                     <TableHead className="h-12 text-[10px] font-black uppercase text-slate-500 tracking-widest">Category</TableHead>
                     <TableHead className="h-12 text-[10px] font-black uppercase text-slate-500 tracking-widest text-center">Status</TableHead>
-                    <TableHead className="pr-6 h-12 text-[10px] font-black uppercase text-slate-500 tracking-widest text-right">Amount</TableHead>
+                    <TableHead className="h-12 text-[10px] font-black uppercase text-slate-500 tracking-widest text-right">Amount</TableHead>
+                    <TableHead className="pr-6 h-12 text-[10px] font-black uppercase text-slate-500 tracking-widest text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -490,6 +530,23 @@ export function AccountsContent({ entries = [], summary, cashFlow, budgets = [],
                         <p className={e.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}>
                           {e.type === 'income' ? '+' : '-'}${e.amount.toLocaleString()}
                         </p>
+                      </TableCell>
+                      <TableCell className="pr-6 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="size-8">
+                              <MoreHorizontal className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="rounded-xl border-slate-100 shadow-xl">
+                            <DropdownMenuItem onClick={() => { setEditingEntry(e); setModalType(e.type); setShowAddModal(true); }} className="text-xs font-bold uppercase tracking-tight gap-2">
+                              <Edit className="size-3" /> Edit Entry
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDeleteEntry(e.id)} className="text-xs font-bold uppercase tracking-tight gap-2 text-rose-600 focus:text-rose-600">
+                              <Trash2 className="size-3" /> Delete Entry
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -664,12 +721,70 @@ export function AccountsContent({ entries = [], summary, cashFlow, budgets = [],
               <CardDescription>Immutable record of all financial changes and entries</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="p-12 text-center text-slate-400">
-                <ShieldAlert className="size-12 mx-auto mb-4 opacity-20" />
-                <h3 className="text-sm font-black uppercase tracking-widest mb-1">Audit Protocol Active</h3>
-                <p className="text-xs font-medium max-w-md mx-auto">This module displays a chronological log of all manual entries, budget changes, and automated billing synchronizations.</p>
-                <Button className="mt-6 rounded-xl font-bold text-xs h-10 px-6">Fetch Audit History</Button>
-              </div>
+              {auditLogs.length === 0 ? (
+                <div className="p-12 text-center text-slate-400">
+                  <ShieldAlert className="size-12 mx-auto mb-4 opacity-20" />
+                  <h3 className="text-sm font-black uppercase tracking-widest mb-1">Audit Protocol Active</h3>
+                  <p className="text-xs font-medium max-w-md mx-auto">This module displays a chronological log of all manual entries, budget changes, and automated billing synchronizations.</p>
+                  <Button
+                    variant="outline"
+                    className="mt-6 rounded-xl font-bold text-xs h-10 px-6 border-slate-200"
+                    onClick={handleFetchAudit}
+                    disabled={isFetchingAudit}
+                  >
+                    {isFetchingAudit ? "Verifying Trail..." : "Fetch Audit History"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50/50">
+                        <TableHead className="pl-6 text-[10px] font-black uppercase tracking-widest">Timestamp</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase tracking-widest">User</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Action</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Module</TableHead>
+                        <TableHead className="pr-6 text-[10px] font-black uppercase tracking-widest">Details</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {auditLogs.map((log) => (
+                        <TableRow key={log.id} className="hover:bg-slate-50 transition-colors">
+                          <TableCell className="pl-6 text-xs text-slate-500 font-mono">
+                            {format(new Date(log.timestamp), "MMM d, HH:mm")}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-bold">{log.userName}</span>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{log.userRole}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter ${log.action === 'DELETE' ? 'bg-rose-100 text-rose-700' :
+                              log.action === 'CREATE' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
+                              }`}>
+                              {log.action}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-[10px] font-bold text-slate-500 uppercase">{log.module}</TableCell>
+                          <TableCell className="pr-6 text-xs font-medium text-slate-600 max-w-xs truncate">
+                            {log.details}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  <div className="p-4 border-t border-slate-100 text-center">
+                    <Button
+                      variant="ghost"
+                      className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900"
+                      onClick={handleFetchAudit}
+                    >
+                      Refresh Audit Trail
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -677,11 +792,16 @@ export function AccountsContent({ entries = [], summary, cashFlow, budgets = [],
 
       <AddEntryModal
         open={showAddModal}
-        onOpenChange={setShowAddModal}
+        onOpenChange={(open) => {
+          setShowAddModal(open)
+          if (!open) setEditingEntry(null)
+        }}
         type={modalType}
+        entry={editingEntry}
         onSuccess={() => {
           onRefresh?.()
           setShowAddModal(false)
+          setEditingEntry(null)
         }}
       />
 
@@ -697,10 +817,11 @@ export function AccountsContent({ entries = [], summary, cashFlow, budgets = [],
   )
 }
 
-function AddEntryModal({ open, onOpenChange, type, onSuccess }: {
+function AddEntryModal({ open, onOpenChange, type, entry, onSuccess }: {
   open: boolean,
   onOpenChange: (open: boolean) => void,
   type: 'income' | 'expense',
+  entry?: AccountEntry | null,
   onSuccess: () => void
 }) {
   const [loading, setLoading] = useState(false)
@@ -713,6 +834,28 @@ function AddEntryModal({ open, onOpenChange, type, onSuccess }: {
     date: new Date().toISOString().split('T')[0]
   })
 
+  useEffect(() => {
+    if (entry) {
+      setFormData({
+        description: entry.description,
+        amount: entry.amount.toString(),
+        category: entry.category,
+        department: entry.department,
+        paymentMethod: entry.paymentMethod,
+        date: new Date(entry.date).toISOString().split('T')[0]
+      })
+    } else {
+      setFormData({
+        description: "",
+        amount: "",
+        category: "",
+        department: "General",
+        paymentMethod: "cash",
+        date: new Date().toISOString().split('T')[0]
+      })
+    }
+  }, [entry, open])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.description || !formData.amount || !formData.category) {
@@ -722,13 +865,22 @@ function AddEntryModal({ open, onOpenChange, type, onSuccess }: {
 
     setLoading(true)
     try {
-      await accountsApi.create({
-        ...formData,
-        type,
-        amount: parseFloat(formData.amount),
-        status: 'completed'
-      })
-      toast.success(`${type === 'income' ? 'Income' : 'Expense'} recorded successfully`)
+      if (entry) {
+        await accountsApi.update(entry.id, {
+          ...formData,
+          type,
+          amount: parseFloat(formData.amount),
+        })
+        toast.success("Entry updated successfully")
+      } else {
+        await accountsApi.create({
+          ...formData,
+          type,
+          amount: parseFloat(formData.amount),
+          status: 'completed'
+        })
+        toast.success(`${type === 'income' ? 'Income' : 'Expense'} recorded successfully`)
+      }
       onSuccess()
       setFormData({
         description: "",
@@ -862,7 +1014,7 @@ function AddEntryModal({ open, onOpenChange, type, onSuccess }: {
               disabled={loading}
               className={`rounded-xl h-12 font-bold uppercase tracking-widest text-xs shadow-lg ${type === 'income' ? 'bg-slate-900 shadow-primary/20' : 'bg-rose-600 shadow-rose-200'}`}
             >
-              {loading ? "Processing..." : `Record ${type}`}
+              {loading ? "Processing..." : entry ? "Update Entry" : `Record ${type}`}
             </Button>
           </DialogFooter>
         </form>

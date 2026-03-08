@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StatusBadge } from "@/components/shared/status-badge"
+import { format } from "date-fns"
 import type { Patient, Appointment, Prescription, LabTest, Invoice } from "@/lib/data/types"
 
 interface PatientProfileProps {
@@ -15,9 +16,19 @@ interface PatientProfileProps {
   prescriptions: Prescription[]
   labTests: LabTest[]
   invoices: Invoice[]
+  financialHistory?: {
+    summary: {
+      totalBilled: number;
+      totalPaid: number;
+      totalInsurance: number;
+      outstandingBalance: number;
+    };
+    invoices: Invoice[];
+    claims: any[];
+  }
 }
 
-export function PatientProfile({ patient, appointments, prescriptions, labTests, invoices }: PatientProfileProps) {
+export function PatientProfile({ patient, appointments, prescriptions, labTests, invoices, financialHistory }: PatientProfileProps) {
   const age = new Date().getFullYear() - new Date(patient.dateOfBirth).getFullYear()
 
   return (
@@ -93,6 +104,7 @@ export function PatientProfile({ patient, appointments, prescriptions, labTests,
           <TabsTrigger value="prescriptions">Prescriptions ({prescriptions.length})</TabsTrigger>
           <TabsTrigger value="lab">Lab Tests ({labTests.length})</TabsTrigger>
           <TabsTrigger value="billing">Billing ({invoices.length})</TabsTrigger>
+          <TabsTrigger value="finance">Financial History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="appointments">
@@ -201,38 +213,76 @@ export function PatientProfile({ patient, appointments, prescriptions, labTests,
           </Card>
         </TabsContent>
 
-        <TabsContent value="billing">
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Invoice ID</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Paid</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {invoices.map((inv) => (
-                    <TableRow key={inv.id}>
-                      <TableCell className="font-mono text-xs">{inv.invoiceId}</TableCell>
-                      <TableCell>{inv.date}</TableCell>
-                      <TableCell>{inv.items.length} items</TableCell>
-                      <TableCell>${inv.total.toFixed(2)}</TableCell>
-                      <TableCell>${inv.paidAmount.toFixed(2)}</TableCell>
-                      <TableCell><StatusBadge status={inv.status} /></TableCell>
+        <TabsContent value="finance">
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Card className="bg-slate-50 border-none">
+                <CardContent className="pt-4">
+                  <p className="text-xs font-bold uppercase text-slate-500 tracking-widest">Total Billed</p>
+                  <p className="text-2xl font-black">${financialHistory?.summary.totalBilled.toLocaleString() ?? "0.00"}</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-emerald-50 border-none">
+                <CardContent className="pt-4">
+                  <p className="text-xs font-bold uppercase text-emerald-600 tracking-widest">Total Paid</p>
+                  <p className="text-2xl font-black text-emerald-700">${financialHistory?.summary.totalPaid.toLocaleString() ?? "0.00"}</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-blue-50 border-none">
+                <CardContent className="pt-4">
+                  <p className="text-xs font-bold uppercase text-blue-600 tracking-widest">Insurance Coverage</p>
+                  <p className="text-2xl font-black text-blue-700">${financialHistory?.summary.totalInsurance.toLocaleString() ?? "0.00"}</p>
+                </CardContent>
+              </Card>
+              <Card className={`border-none ${financialHistory?.summary.outstandingBalance ? 'bg-rose-50' : 'bg-slate-50'}`}>
+                <CardContent className="pt-4">
+                  <p className="text-xs font-bold uppercase text-rose-600 tracking-widest">Outstanding</p>
+                  <p className={`text-2xl font-black ${financialHistory?.summary.outstandingBalance ? 'text-rose-700' : 'text-slate-700'}`}>
+                    ${financialHistory?.summary.outstandingBalance.toLocaleString() ?? "0.00"}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base font-bold uppercase tracking-tight">Ledger & Transactions</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="pl-6">Reference</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
-                  ))}
-                  {invoices.length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">No invoices found.</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {financialHistory?.invoices.map((inv) => (
+                      <TableRow key={inv.id}>
+                        <TableCell className="pl-6 font-mono text-xs">{inv.invoiceId}</TableCell>
+                        <TableCell className="text-xs font-bold uppercase">Invoice</TableCell>
+                        <TableCell className="text-xs">{inv.date}</TableCell>
+                        <TableCell className="text-right font-bold">${inv.total.toLocaleString()}</TableCell>
+                        <TableCell><StatusBadge status={inv.status} /></TableCell>
+                      </TableRow>
+                    ))}
+                    {financialHistory?.claims.map((claim) => (
+                      <TableRow key={claim.id} className="bg-blue-50/10">
+                        <TableCell className="pl-6 font-mono text-xs text-blue-600">{claim.claimId}</TableCell>
+                        <TableCell className="text-xs font-bold uppercase text-blue-600">Insurance Claim</TableCell>
+                        <TableCell className="text-xs text-blue-600">{format(new Date(claim.submittedAt), "yyyy-MM-dd")}</TableCell>
+                        <TableCell className="text-right font-bold text-blue-700">-${claim.approvedAmount?.toLocaleString() || "0"}</TableCell>
+                        <TableCell><StatusBadge status={claim.status} /></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
