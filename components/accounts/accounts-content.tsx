@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { auditApi, type AuditLog } from "@/lib/api"
+import { auditApi, accountsApi, type AccountEntry, type AccountsSummary, type CashFlowEntry, type DepartmentBudget, type AuditLog } from "@/lib/api"
 import {
   Search,
   TrendingUp,
@@ -96,7 +96,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { accountsApi, type AccountEntry, type AccountsSummary, type CashFlowEntry, type DepartmentBudget } from "@/lib/api"
+
 
 interface AccountsContentProps {
   entries?: AccountEntry[]
@@ -168,7 +168,7 @@ export function AccountsContent({ entries = [], summary, cashFlow, budgets = [],
   const expenseEntries = useMemo(() => entries.filter(e => e.type === 'expense'), [entries])
 
   return (
-    <div className="flex flex-col gap-6 p-2 md:p-6 opacity-0 animate-in fade-in duration-700 fill-mode-forwards">
+    <div className="flex flex-col gap-6 p-2 md:p-6">
       <PageHeader
         title="Financial Management"
         description="International standard accounting and revenue tracking"
