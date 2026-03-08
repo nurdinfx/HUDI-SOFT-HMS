@@ -107,16 +107,18 @@ router.put('/:id', async (req, res) => {
         if (!row) return res.status(404).json({ error: 'Invoice not found' });
 
         const { status, paidAmount, paymentMethod, notes, discount } = req.body;
-        const prevPaid = row.paid_amount || 0;
+        const prevPaid = parseFloat(row.paid_amount) || 0;
         const paid = paidAmount !== undefined ? parseFloat(paidAmount) : prevPaid;
         const paymentIncrement = paid - prevPaid;
 
-        const disc = discount !== undefined ? parseFloat(discount) : row.discount;
-        const total = row.subtotal + row.tax - disc;
+        const subtotal = parseFloat(row.subtotal) || 0;
+        const tax = parseFloat(row.tax) || 0;
+        const disc = discount !== undefined ? parseFloat(discount) : (parseFloat(row.discount) || 0);
+        const total = Math.round((subtotal + tax - disc) * 100) / 100;
 
         let newStatus = status || row.status;
         if (paidAmount !== undefined) {
-            if (paid >= total) newStatus = 'paid';
+            if (paid >= total - 0.01) newStatus = 'paid';
             else if (paid > 0) newStatus = 'partial';
             else newStatus = 'unpaid';
         }

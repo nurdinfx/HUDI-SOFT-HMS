@@ -193,7 +193,9 @@ router.post('/checkout', async (req, res) => {
         // 1. Calculate totals
         let subtotal = 0;
         for (const item of items) {
-            subtotal += (item.unitPrice * item.quantity);
+            const up = parseFloat(item.unitPrice) || 0;
+            const q = parseFloat(item.quantity) || 0;
+            subtotal += (up * q);
         }
 
         const settings = await db.prepare('SELECT tax_rate FROM hospital_settings WHERE id = 1').get();
