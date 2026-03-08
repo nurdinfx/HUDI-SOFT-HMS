@@ -7,6 +7,7 @@ import {
     Printer, QrCode, Info, History, Loader2, RotateCcw, Calendar, 
     DollarSign, Wallet, Smartphone, Landmark, ShieldCheck
 } from "lucide-react"
+import { format } from "date-fns"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -636,51 +637,153 @@ export function POSTerminal() {
 
             {/* PATIENT HISTORY MODAL */}
             <Dialog open={showHistory} onOpenChange={setShowHistory}>
-                <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-3xl">
-                    <DialogHeader className="p-6 border-b bg-slate-50 shrink-0">
-                        <DialogTitle className="flex items-center gap-2 text-xl font-bold">
-                            <History className="size-5 text-primary" />
-                            Financial History
+                <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
+                    <DialogHeader className="p-8 border-b bg-slate-900 text-white shrink-0">
+                        <DialogTitle className="flex items-center gap-3 text-2xl font-black uppercase tracking-tight">
+                            <History className="size-6 text-primary" />
+                            Financial & Medical History
                         </DialogTitle>
-                        <DialogDescription>
-                            Recent transactions and pending items for {selectedPatient?.firstName} {selectedPatient?.lastName}
+                        <DialogDescription className="text-slate-400 font-medium">
+                            Comprehensive record for {selectedPatient?.firstName} {selectedPatient?.lastName}
                         </DialogDescription>
                     </DialogHeader>
-                    <ScrollArea className="flex-1 p-6">
+                    
+                    <div className="flex-1 overflow-hidden flex flex-col bg-slate-50">
                         {patientHistory ? (
-                            <div className="space-y-6">
-                                <div>
-                                    <h4 className="font-bold text-sm text-slate-900 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                        <Receipt className="size-4" /> Recent Invoices
-                                    </h4>
-                                    <div className="space-y-2">
-                                        {patientHistory.invoices?.length > 0 ? (
-                                            patientHistory.invoices.map((inv: any) => (
-                                                <div key={inv.id} className="flex items-center justify-between p-3 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-colors">
-                                                    <div>
-                                                        <p className="font-bold text-sm text-slate-900">{inv.invoice_id}</p>
-                                                        <p className="text-xs text-slate-500 font-mono">{new Date(inv.date).toLocaleDateString()}</p>
-                                                    </div>
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="text-right">
-                                                            <p className="font-black text-emerald-600">${inv.total}</p>
-                                                            <Badge variant="outline" className={cn("text-[9px] uppercase tracking-widest", inv.status === 'paid' ? 'text-emerald-600 border-emerald-200' : 'text-amber-600 border-amber-200')}>{inv.status}</Badge>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <p className="text-sm text-slate-500 italic p-4 bg-slate-50 rounded-xl border border-dashed text-center">No previous invoices found.</p>
-                                        )}
+                            <>
+                                {/* Quick Stats */}
+                                <div className="grid grid-cols-3 gap-4 p-6 shrink-0">
+                                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Billed</p>
+                                        <p className="text-xl font-black text-slate-900">${(patientHistory.invoices?.reduce((acc: number, inv: any) => acc + (Number(inv.total) || 0), 0) || 0).toLocaleString()}</p>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                                        <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Total Paid</p>
+                                        <p className="text-xl font-black text-emerald-600">${(patientHistory.invoices?.reduce((acc: number, inv: any) => acc + (Number(inv.paid_amount) || 0), 0) || 0).toLocaleString()}</p>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                                        <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">Outstanding</p>
+                                        <p className="text-xl font-black text-rose-600">
+                                            ${((patientHistory.invoices?.reduce((acc: number, inv: any) => acc + (Number(inv.total) || 0), 0) || 0) - 
+                                              (patientHistory.invoices?.reduce((acc: number, inv: any) => acc + (Number(inv.paid_amount) || 0), 0) || 0)).toLocaleString()}
+                                        </p>
                                     </div>
                                 </div>
-                            </div>
+
+                                <Tabs defaultValue="invoices" className="flex-1 flex flex-col overflow-hidden px-6 pb-6">
+                                    <TabsList className="bg-slate-200/50 p-1 rounded-xl mb-4 w-fit">
+                                        <TabsTrigger value="invoices" className="rounded-lg px-6 font-bold text-xs uppercase tracking-widest">Invoices</TabsTrigger>
+                                        <TabsTrigger value="prescriptions" className="rounded-lg px-6 font-bold text-xs uppercase tracking-widest">Prescriptions</TabsTrigger>
+                                        <TabsTrigger value="labs" className="rounded-lg px-6 font-bold text-xs uppercase tracking-widest">Lab Tests</TabsTrigger>
+                                    </TabsList>
+
+                                    <div className="flex-1 overflow-hidden bg-white rounded-2xl border border-slate-200 shadow-sm">
+                                        <ScrollArea className="h-full">
+                                            <TabsContent value="invoices" className="m-0 p-4">
+                                                <div className="space-y-3">
+                                                    {patientHistory.invoices?.length > 0 ? (
+                                                        patientHistory.invoices.map((inv: any) => (
+                                                            <div key={inv.id} className="group flex items-center justify-between p-4 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors">
+                                                                <div className="flex items-center gap-4">
+                                                                    <div className="size-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                                                                        <Receipt className="size-5" />
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="font-bold text-sm text-slate-900">{inv.invoice_id}</p>
+                                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{format(new Date(inv.date), "MMM d, yyyy")}</p>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-right flex items-center gap-4">
+                                                                    <div>
+                                                                        <p className="font-black text-slate-900">${Number(inv.total).toLocaleString()}</p>
+                                                                        <Badge variant="outline" className={cn("text-[9px] uppercase tracking-widest font-black", 
+                                                                            inv.status === 'paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'
+                                                                        )}>{inv.status}</Badge>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="py-20 text-center text-slate-400">
+                                                            <Receipt className="size-12 mx-auto mb-3 opacity-20" />
+                                                            <p className="font-bold uppercase tracking-widest text-xs">No invoices found</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </TabsContent>
+
+                                            <TabsContent value="prescriptions" className="m-0 p-4">
+                                                <div className="space-y-3">
+                                                    {patientHistory.prescriptions?.length > 0 ? (
+                                                        patientHistory.prescriptions.map((rx: any) => (
+                                                            <div key={rx.id} className="p-4 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors">
+                                                                <div className="flex justify-between items-start mb-3">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="size-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                                                            <Pill className="size-5" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="font-bold text-sm text-slate-900">Dr. {rx.doctor_name || 'Medical Practitioner'}</p>
+                                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{format(new Date(rx.date), "MMM d, yyyy")}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <Badge className="bg-emerald-500 text-white border-none uppercase text-[9px] font-black">{rx.status}</Badge>
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    {rx.medicines?.map((m: any, idx: number) => (
+                                                                        <div key={idx} className="flex justify-between text-xs bg-slate-50 p-2 rounded-lg">
+                                                                            <span className="font-bold text-slate-700">{m.medicineName}</span>
+                                                                            <span className="font-black text-slate-500">{m.quantity} Units</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="py-20 text-center text-slate-400">
+                                                            <Pill className="size-12 mx-auto mb-3 opacity-20" />
+                                                            <p className="font-bold uppercase tracking-widest text-xs">No prescriptions found</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </TabsContent>
+
+                                            <TabsContent value="labs" className="m-0 p-4">
+                                                <div className="space-y-3">
+                                                    {patientHistory.labTests?.length > 0 ? (
+                                                        patientHistory.labTests.map((lab: any) => (
+                                                            <div key={lab.id} className="flex items-center justify-between p-4 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors">
+                                                                <div className="flex items-center gap-4">
+                                                                    <div className="size-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+                                                                        <Activity className="size-5" />
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="font-bold text-sm text-slate-900">{lab.test_name}</p>
+                                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{format(new Date(lab.ordered_at), "MMM d, yyyy")}</p>
+                                                                    </div>
+                                                                </div>
+                                                                <Badge variant="outline" className="uppercase text-[9px] font-black border-blue-200 text-blue-600">{lab.status}</Badge>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="py-20 text-center text-slate-400">
+                                                            <Activity className="size-12 mx-auto mb-3 opacity-20" />
+                                                            <p className="font-bold uppercase tracking-widest text-xs">No laboratory records</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </TabsContent>
+                                        </ScrollArea>
+                                    </div>
+                                </Tabs>
+                            </>
                         ) : (
-                            <div className="h-40 flex items-center justify-center">
-                                <Loader2 className="size-6 animate-spin text-slate-400" />
+                            <div className="h-64 flex flex-col items-center justify-center">
+                                <Loader2 className="size-10 animate-spin text-primary opacity-20" />
+                                <p className="mt-4 text-xs font-black text-slate-400 uppercase tracking-widest">Retrieving Digital Records...</p>
                             </div>
                         )}
-                    </ScrollArea>
+                    </div>
                 </DialogContent>
             </Dialog>            
 
@@ -711,7 +814,7 @@ export function POSTerminal() {
                                     <span className="text-xs font-mono font-bold text-slate-500">#{lastInvoice?.invoiceId || 'PENDING'}</span>
                                 </div>
                                 <div className="space-y-3">
-                                    {lastInvoice?.items?.map((item, i) => (
+                                    {lastInvoice?.items?.map((item: any, i: number) => (
                                         <div key={i} className="flex justify-between text-sm">
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-slate-900">{item.description}</span>
@@ -774,7 +877,7 @@ export function POSTerminal() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {lastInvoice?.items?.map((item, i) => (
+                                    {lastInvoice?.items?.map((item: any, i: number) => (
                                         <tr key={i}>
                                             <td style={{ wordBreak: 'break-word', fontWeight: 'bold' }}>{item.description}</td>
                                             <td style={{ textAlign: 'center' }}>{item.quantity}</td>

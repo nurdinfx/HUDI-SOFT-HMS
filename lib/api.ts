@@ -548,6 +548,9 @@ export interface POSItem {
     prescriptionId?: string;
     labTestId?: string;
     originalInvoiceId?: string;
+    isFromVisit?: boolean;
+    isFromLab?: boolean;
+    isFromPrescription?: boolean;
 }
 
 export interface CheckoutPayload {

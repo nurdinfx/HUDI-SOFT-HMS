@@ -159,7 +159,7 @@ export function BillingContent({ invoices = [], patients = [], onRefresh = () =>
       const newPaidAmount = (selectedInvoice.paidAmount || 0) + paymentData.amount
 
       let newStatus = "partial"
-      if (newPaidAmount >= selectedInvoice.total) {
+      if (newPaidAmount >= selectedInvoice.total - 0.01) {
         newStatus = "paid"
       }
 
