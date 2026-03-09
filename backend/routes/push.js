@@ -15,12 +15,20 @@ router.post('/subscribe', async (req, res) => {
     const { subscription, userId } = req.body;
 
     try {
-        // In a real app, you'd store this in the database
-        // For now, we'll log it and simulate a successful storage
-        console.log('✅ New Push Subscription received for user:', userId);
+        if (!subscription) {
+            return res.status(400).json({ error: 'Subscription is required.' });
+        }
 
-        // Check if subscription already exists for this user in DB if necessary
-        // await db.prepare('INSERT INTO push_subscriptions (user_id, subscription) VALUES (?, ?)').run(userId, JSON.stringify(subscription));
+        console.log('✅ New Push Subscription received for user:', userId || 'anonymous');
+
+        // Store in DB
+        const sql = `
+            INSERT INTO push_subscriptions (user_id, subscription)
+            VALUES (?, ?)
+            ON CONFLICT DO NOTHING
+        `;
+        
+        await db.prepare(sql).run(userId || null, JSON.stringify(subscription));
 
         res.status(201).json({ message: 'Subscription stored successfully.' });
     } catch (error) {

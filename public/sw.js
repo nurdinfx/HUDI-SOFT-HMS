@@ -1,8 +1,11 @@
-const CACHE_NAME = 'hudi-soft-hms-v2';
+const CACHE_NAME = 'hudi-soft-hms-v3';
 const STATIC_ASSETS = [
     '/',
     '/manifest.webmanifest',
     '/logo.jpg',
+    '/logo-144.png',
+    '/logo-192.png',
+    '/logo-512.png',
     '/globals.css',
     '/favicon.ico'
 ];

@@ -3,7 +3,7 @@
     "short_name": "HSM",
     "description": "Hospital Management System by HUDI SOFT",
     "id": "/",
-    "start_url": "/",
+    "start_url": "/dashboard",
     "display": "standalone",
     "background_color": "#020817",
     "theme_color": "#0d9488",
@@ -16,21 +16,21 @@
     ],
     "icons": [
         {
-            "src": "/logo.jpg",
+            "src": "/logo-512.png",
             "sizes": "512x512",
-            "type": "image/jpeg",
+            "type": "image/png",
             "purpose": "any"
         },
         {
-            "src": "/logo.jpg",
+            "src": "/logo-192.png",
             "sizes": "192x192",
-            "type": "image/jpeg",
+            "type": "image/png",
             "purpose": "maskable"
         },
         {
-            "src": "/logo.jpg",
+            "src": "/logo-144.png",
             "sizes": "144x144",
-            "type": "image/jpeg"
+            "type": "image/png"
         }
     ],
     "screenshots": [
@@ -40,6 +40,29 @@
             "type": "image/png",
             "form_factor": "wide",
             "label": "HMS Dashboard"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Dashboard",
+            "short_name": "Dashboard",
+            "description": "View HMS Overview",
+            "url": "/dashboard",
+            "icons": [{ "src": "/logo-192.png", "sizes": "192x192" }]
+        },
+        {
+            "name": "Appointments",
+            "short_name": "Appointments",
+            "description": "Manage Appointments",
+            "url": "/appointments",
+            "icons": [{ "src": "/logo-192.png", "sizes": "192x192" }]
+        },
+        {
+            "name": "Patients",
+            "short_name": "Patients",
+            "description": "View Patient Records",
+            "url": "/patients",
+            "icons": [{ "src": "/logo-192.png", "sizes": "192x192" }]
         }
     ]
 }

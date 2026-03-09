@@ -18,14 +18,14 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/lib/auth-context"
 import { Badge } from "@/components/ui/badge"
-import { useNotifications } from "@/hooks/use-notifications"
 import { auditApi } from "@/lib/api"
+import { PushNotificationManager } from "@/components/push-notification-manager"
+import { InstallPWA } from "@/components/install-pwa"
 
 export function DashboardHeader() {
   const router = useRouter()
   const { setTheme, theme } = useTheme()
   const { user, logout } = useAuth()
-  const { permission, requestPermission } = useNotifications()
   const [notifications, setNotifications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -67,22 +67,13 @@ export function DashboardHeader() {
       </div>
 
       <div className="ml-auto flex items-center gap-1">
-        {permission !== 'granted' && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={requestPermission}
-            className="text-xs text-muted-foreground hover:text-primary transition-colors hidden md:flex items-center gap-1.5"
-          >
-            <BellOff className="size-3.5" />
-            Enable Alerts
-          </Button>
-        )}
+        <InstallPWA />
+        <PushNotificationManager />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative">
-              <Bell className={`size-4 ${permission === 'granted' ? 'text-primary' : ''}`} />
+              <Bell className="size-4" />
               {notifications.length > 0 && (
                 <Badge className="absolute -top-0.5 -right-0.5 h-4 w-4 p-0 flex items-center justify-center text-[10px] bg-destructive text-destructive-foreground">
                   {notifications.length}
