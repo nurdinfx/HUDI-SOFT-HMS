@@ -216,80 +216,139 @@ export function PharmacyContent({ prescriptions, medicines, onRefresh }: Props) 
 
       {/* Prescription Detail & Dispense Dialog */}
       <Dialog open={!!selectedRx} onOpenChange={() => setSelectedRx(null)}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              Prescription Fulfillment {selectedRx?.prescriptionId}
-              <StatusBadge status={selectedRx?.status || "pending"} />
-            </DialogTitle>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
+          <DialogHeader className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+            <div className="flex justify-between items-start">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Order Fulfillment</p>
+                <DialogTitle className="text-2xl font-black flex items-center gap-3">
+                  {selectedRx?.prescriptionId}
+                  <StatusBadge status={selectedRx?.status || "pending"} />
+                </DialogTitle>
+              </div>
+              <Pill className="size-8 text-primary/50" />
+            </div>
           </DialogHeader>
+
           {selectedRx && (
-            <div className="flex flex-col gap-6">
-              <div className="grid grid-cols-2 gap-4 text-sm p-4 bg-muted/30 rounded-lg">
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase font-bold text-muted-foreground">Patient Details</p>
-                  <p className="font-bold">{selectedRx.patientName}</p>
+            <div className="flex flex-col">
+              <div className="p-8 space-y-8">
+                {/* Patient / Doctor Info */}
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="space-y-3 p-4 rounded-2xl bg-slate-50 border border-slate-100 italic">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Patient Details</p>
+                    <div className="flex items-center gap-3">
+                      <div className="size-10 rounded-full bg-white border flex items-center justify-center font-bold text-slate-600">
+                        {selectedRx.patientName.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900">{selectedRx.patientName}</p>
+                        <p className="text-xs text-slate-500">Scheduled: {selectedRx.date}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3 p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600/70">Physician In-Charge</p>
+                    <div>
+                      <p className="font-bold text-emerald-900">Dr. {selectedRx.doctorName}</p>
+                      <p className="text-xs text-emerald-600/70">{selectedRx.diagnosis || "General Consultation"}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase font-bold text-muted-foreground">Physician</p>
-                  <p className="font-bold">{selectedRx.doctorName}</p>
-                </div>
-              </div>
 
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-                  <Pill className="size-3" />
-                  Medication Details
-                </h4>
-                <div className="border rounded-lg overflow-hidden">
-                  <Table>
-                    <TableHeader className="bg-muted/50">
-                      <TableRow>
-                        <TableHead className="text-[10px]">Medicine</TableHead>
-                        <TableHead className="text-[10px]">Frequency</TableHead>
-                        <TableHead className="text-[10px]">Qty</TableHead>
-                        <TableHead className="text-[10px] text-right">Inventory Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedRx.medicines.map((m, i) => {
-                        const inv = medicines.find(item => item.name === m.medicineName || item.genericName === m.medicineName)
-                        const hasStock = inv && inv.quantity >= (m.quantity || 1)
-                        return (
-                          <TableRow key={i}>
-                            <TableCell>
-                              <p className="text-sm font-bold">{m.medicineName}</p>
-                              <p className="text-[10px] text-muted-foreground">{m.dosage}</p>
-                            </TableCell>
-                            <TableCell className="text-xs uppercase font-medium">{m.frequency}</TableCell>
-                            <TableCell className="text-xs font-bold">{m.quantity}</TableCell>
-                            <TableCell className="text-right">
-                              {hasStock ? (
-                                <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">In Stock ({inv.quantity})</Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-rose-600 border-rose-200 bg-rose-50">Stock Error</Badge>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        )
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
+                {/* Medication Table */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
+                       Prescribed Medications
+                    </h4>
+                    <Badge variant="outline" className="text-[10px] rounded-full border-slate-200">
+                      {selectedRx.medicines.length} items
+                    </Badge>
+                  </div>
 
-              {selectedRx.notes && (
-                <div className="p-3 border-l-4 border-primary bg-primary/5 rounded">
-                  <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Clinical Notes</p>
-                  <p className="text-sm italic">"{selectedRx.notes}"</p>
+                  <div className="border border-slate-100 rounded-2xl overflow-hidden shadow-sm bg-white">
+                    <Table>
+                      <TableHeader className="bg-slate-50/50">
+                        <TableRow className="hover:bg-transparent border-slate-100">
+                          <TableHead className="text-[10px] font-bold py-4">Medicine & Indication</TableHead>
+                          <TableHead className="text-[10px] font-bold py-4">Regimen</TableHead>
+                          <TableHead className="text-[10px] font-bold py-4 text-right">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedRx.medicines.map((m, i) => {
+                          const inv = medicines.find(item => item.name === m.medicineName || item.genericName === m.medicineName)
+                          const isCustom = m.isCustom || m.medicineId === 'custom'
+                          const hasStock = inv && inv.quantity >= (m.quantity || 1)
+                          
+                          return (
+                            <TableRow key={i} className="border-slate-50">
+                              <TableCell className="py-4">
+                                <div className="space-y-1">
+                                  <p className="text-sm font-bold text-slate-900">{m.medicineName}</p>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="secondary" className="text-[9px] h-4 font-bold bg-slate-100 text-slate-500 rounded-sm">
+                                      {inv?.category || (isCustom ? "Custom Entry" : "General Medicine")}
+                                    </Badge>
+                                    <span className="text-[10px] text-slate-400">{m.dosage}</span>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="py-4">
+                                <div className="space-y-1">
+                                  <p className="text-[10px] font-black text-slate-900 uppercase">{m.frequency}</p>
+                                  <p className="text-[10px] text-slate-400">Qty: {m.quantity} · {m.duration || "5 Days"}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right py-4">
+                                {isCustom ? (
+                                  <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 rounded-full text-[10px] font-bold px-3">
+                                    External Source
+                                  </Badge>
+                                ) : hasStock ? (
+                                  <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 rounded-full text-[10px] font-bold px-3">
+                                    Dispense Ready ({inv.quantity})
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-rose-600 border-rose-200 bg-rose-50 rounded-full text-[10px] font-bold px-3">
+                                    Critical: Out of Stock
+                                  </Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
-              )}
+
+                {/* Additional Instructions */}
+                {selectedRx.notes && (
+                  <div className="p-5 bg-blue-50/50 border border-blue-100 rounded-2xl relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-2 opacity-5">
+                      <ShieldAlert className="size-16" />
+                    </div>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-blue-600/70 mb-2">Pharmacist Instructions</p>
+                    <p className="text-sm text-blue-900 font-medium leading-relaxed italic">
+                      "{selectedRx.notes}"
+                    </p>
+                  </div>
+                )}
+              </div>
 
               {selectedRx.status === "pending" && (
-                <DialogFooter className="gap-2">
-                  <Button variant="outline" onClick={() => setSelectedRx(null)}>Cancel</Button>
+                <div className="bg-slate-50 p-6 flex justify-end gap-3 border-t">
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => setSelectedRx(null)}
+                    className="rounded-xl font-bold text-slate-500 hover:bg-slate-200"
+                  >
+                    Cancel
+                  </Button>
                   <Button
-                    className="gap-2 px-8"
+                    className="gap-2 px-10 h-12 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black shadow-xl shadow-slate-200 transition-all hover:scale-[1.02]"
                     disabled={dispenseLoading}
                     onClick={() => handleDispense(selectedRx.id)}
                   >
@@ -298,9 +357,9 @@ export function PharmacyContent({ prescriptions, medicines, onRefresh }: Props) 
                     ) : (
                       <CheckCircle2 className="size-4" />
                     )}
-                    Dispense & Generate Invoice
+                    FINALIZE DISPENSING
                   </Button>
-                </DialogFooter>
+                </div>
               )}
             </div>
           )}

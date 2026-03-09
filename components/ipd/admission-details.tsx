@@ -15,7 +15,8 @@ import {
     Clock,
     Pill,
     Trash2,
-    PlusCircle
+    PlusCircle,
+    Package
 } from "lucide-react"
 import {
     Dialog,
@@ -158,10 +159,20 @@ export function AdmissionDetailsModal({ admission, onClose, onRefresh }: Admissi
 
     const updateMedicationRow = (idx: number, field: keyof PrescriptionMedicine, value: any) => {
         const newMeds = [...medications]
-        newMeds[idx] = { ...newMeds[idx], [field]: value }
-        if (field === "medicineId") {
-            const m = availableMedicines.find(m => m.id === value)
-            if (m) newMeds[idx].medicineName = m.name
+        if (field === "isCustom") {
+            const isCustom = value;
+            newMeds[idx] = { 
+                ...newMeds[idx], 
+                isCustom,
+                medicineId: isCustom ? "custom" : "",
+                medicineName: "" 
+            }
+        } else {
+            newMeds[idx] = { ...newMeds[idx], [field]: value }
+            if (field === "medicineId") {
+                const m = availableMedicines.find(m => m.id === value)
+                if (m) newMeds[idx].medicineName = m.name
+            }
         }
         setMedications(newMeds)
     }
@@ -170,8 +181,8 @@ export function AdmissionDetailsModal({ admission, onClose, onRefresh }: Admissi
 
     return (
         <Dialog open={!!admission} onOpenChange={onClose}>
-            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
-                <DialogHeader className="p-6 bg-muted/50 border-b">
+            <DialogContent className="max-w-[95vw] w-[1400px] h-[90vh] flex flex-col p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
+                <DialogHeader className="p-8 bg-slate-900 text-white border-b border-slate-800">
                     <div className="flex justify-between items-start">
                         <div className="space-y-1">
                             <div className="flex items-center gap-2">
@@ -179,27 +190,27 @@ export function AdmissionDetailsModal({ admission, onClose, onRefresh }: Admissi
                                 <Badge variant="outline" className="font-mono">{admission.admissionId}</Badge>
                                 <StatusBadge status={admission.status} />
                             </div>
-                            <DialogDescription className="flex items-center gap-4">
+                            <DialogDescription className="flex items-center gap-4 text-slate-400">
                                 <span className="flex items-center gap-1.5"><Calendar className="size-3.5" /> Admitted: {admission.admissionDate}</span>
                                 <span className="flex items-center gap-1.5"><MapPin className="size-3.5" /> {admission.ward} / Bed {admission.bedNumber}</span>
                             </DialogDescription>
                         </div>
                         <div className="text-right">
-                            <p className="text-sm font-medium">Doctor In-Charge</p>
-                            <p className="text-sm text-muted-foreground">{admission.doctorName}</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Doctor In-Charge</p>
+                            <p className="text-sm font-bold">{admission.doctorName}</p>
                         </div>
                     </div>
                 </DialogHeader>
 
                 <div className="flex-1 overflow-hidden flex flex-col">
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-                        <div className="px-6 border-b">
-                            <TabsList className="h-12 bg-transparent gap-6">
-                                <TabsTrigger value="overview" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0">Overview</TabsTrigger>
-                                <TabsTrigger value="nurse-notes" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0">Nurse Notes</TabsTrigger>
-                                <TabsTrigger value="doctor-rounds" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0">Doctor Rounds</TabsTrigger>
-                                <TabsTrigger value="investigations" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0">Investigations</TabsTrigger>
-                                <TabsTrigger value="billing" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0">Billing & Charges</TabsTrigger>
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col bg-white">
+                        <div className="px-8 border-b bg-slate-50/50">
+                            <TabsList className="h-14 bg-transparent gap-8">
+                                <TabsTrigger value="overview" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0 font-bold uppercase text-[11px] tracking-widest transition-all">Overview</TabsTrigger>
+                                <TabsTrigger value="nurse-notes" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0 font-bold uppercase text-[11px] tracking-widest transition-all">Nurse Notes</TabsTrigger>
+                                <TabsTrigger value="doctor-rounds" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0 font-bold uppercase text-[11px] tracking-widest transition-all">Doctor Rounds</TabsTrigger>
+                                <TabsTrigger value="investigations" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0 font-bold uppercase text-[11px] tracking-widest transition-all">Investigations</TabsTrigger>
+                                <TabsTrigger value="billing" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0 font-bold uppercase text-[11px] tracking-widest transition-all">Billing & Charges</TabsTrigger>
                             </TabsList>
                         </div>
 
@@ -468,16 +479,40 @@ export function AdmissionDetailsModal({ admission, onClose, onRefresh }: Admissi
                                                         {medications.map((med, idx) => (
                                                             <div key={idx} className="grid grid-cols-12 gap-2 items-end border p-2 rounded-md bg-muted/20">
                                                                 <div className="col-span-5 space-y-1">
-                                                                    <Select value={med.medicineId} onValueChange={(v) => updateMedicationRow(idx, "medicineId", v)}>
-                                                                        <SelectTrigger className="h-8 text-[10px]">
-                                                                            <SelectValue placeholder="Drug" />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                            {availableMedicines.map(m => (
-                                                                                <SelectItem key={m.id} value={m.id} className="text-xs">{m.name}</SelectItem>
-                                                                            ))}
-                                                                        </SelectContent>
-                                                                    </Select>
+                                                                    <div className="flex items-center justify-between mb-1">
+                                                                        <Label className="text-[9px] uppercase font-bold text-muted-foreground">{med.isCustom ? "Medicine Name" : "Select Drug"}</Label>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            className="h-3 px-1 text-[8px] text-primary hover:bg-primary/10"
+                                                                            onClick={() => updateMedicationRow(idx, "isCustom" as any, !med.isCustom)}
+                                                                        >
+                                                                            {med.isCustom ? (
+                                                                                <span className="flex items-center gap-1"><Package className="size-2" /> From Pharmacy</span>
+                                                                            ) : (
+                                                                                <span className="flex items-center gap-1"><Plus className="size-2" /> Custom</span>
+                                                                            )}
+                                                                        </Button>
+                                                                    </div>
+                                                                    {med.isCustom ? (
+                                                                        <Input 
+                                                                            className="h-8 text-xs" 
+                                                                            placeholder="Medicine Name..." 
+                                                                            value={med.medicineName} 
+                                                                            onChange={(e) => updateMedicationRow(idx, "medicineName", e.target.value)} 
+                                                                        />
+                                                                    ) : (
+                                                                        <Select value={med.medicineId} onValueChange={(v) => updateMedicationRow(idx, "medicineId", v)}>
+                                                                            <SelectTrigger className="h-8 text-[10px]">
+                                                                                <SelectValue placeholder="Drug" />
+                                                                            </SelectTrigger>
+                                                                            <SelectContent>
+                                                                                {availableMedicines.map(m => (
+                                                                                    <SelectItem key={m.id} value={m.id} className="text-xs">{m.name}</SelectItem>
+                                                                                ))}
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                    )}
                                                                 </div>
                                                                 <div className="col-span-2 space-y-1">
                                                                     <Input value={med.dosage} onChange={(e) => updateMedicationRow(idx, "dosage", e.target.value)} placeholder="Dose" className="h-8 text-[10px] px-1" />

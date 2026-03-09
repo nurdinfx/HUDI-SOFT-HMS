@@ -45,6 +45,9 @@ export function LaboratoryContent({ initialLabTests }: Props) {
   const [formStatus, setFormStatus] = useState("")
   const [formCritical, setFormCritical] = useState(false)
   const [formNotes, setFormNotes] = useState("")
+  const [resultItems, setResultItems] = useState<{ parameter: string; value: string; range: string }[]>([
+    { parameter: "", value: "", range: "" }
+  ])
 
   // Collection Form State
   const [collectedBy, setCollectedBy] = useState("")
@@ -236,6 +239,23 @@ export function LaboratoryContent({ initialLabTests }: Props) {
     setFormStatus(test.status)
     setFormCritical(test.criticalFlag || false)
     setFormNotes(test.clinicalNotes || "")
+
+    // Parse structured data if exists
+    try {
+      if (test.results && (test.results.startsWith('[') || test.results.startsWith('{'))) {
+        const parsed = JSON.parse(test.results)
+        if (Array.isArray(parsed)) {
+          setResultItems(parsed)
+        } else {
+          setResultItems([{ parameter: test.testName, value: test.results, range: test.normalRange || "" }])
+        }
+      } else {
+        setResultItems([{ parameter: test.testName, value: test.results || "", range: test.normalRange || "" }])
+      }
+    } catch (e) {
+      setResultItems([{ parameter: test.testName, value: test.results || "", range: test.normalRange || "" }])
+    }
+
     setIsResultModalOpen(true)
   }
 
@@ -263,21 +283,32 @@ export function LaboratoryContent({ initialLabTests }: Props) {
 
   const handleResultSubmit = async () => {
     if (!selectedTest) return
+    // Filter out empty result items
+    const validItems = resultItems.filter(item => item.parameter.trim() || item.value.trim())
+    if (validItems.length === 0) {
+      toast.error("Please enter at least one result parameter.")
+      return
+    }
     setLoading(true)
     try {
+      // Always mark as completed when confirming results
+      const structuredResults = JSON.stringify(validItems)
+      const primaryRange = validItems[0]?.range || ""
+
       await laboratoryApi.update(selectedTest.id, {
-        status: formStatus,
-        results: formResults,
-        normalRange: formNormalRange,
+        status: "completed",
+        results: structuredResults,
+        normalRange: primaryRange,
         criticalFlag: formCritical,
         clinicalNotes: formNotes,
-        completedAt: formStatus === "completed" ? new Date().toISOString() : undefined
+        completedAt: new Date().toISOString()
       })
-      toast.success("Results updated successfully")
+      toast.success("✅ Results confirmed & report finalized!")
       setIsResultModalOpen(false)
       refreshData()
     } catch (e) {
-      toast.error("Failed to update results")
+      toast.error("Failed to update results. Please try again.")
+      console.error('Result submit error:', e)
     } finally {
       setLoading(false)
     }
@@ -683,100 +714,153 @@ export function LaboratoryContent({ initialLabTests }: Props) {
 
       {/* MODAL: RESULT ENTRY */}
       <Dialog open={isResultModalOpen} onOpenChange={setIsResultModalOpen}>
-        <DialogContent className="max-w-lg rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ClipboardList className="size-5 text-amber-600" />
-              Clinical Lab Findings
-            </DialogTitle>
+        <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+            <div className="flex justify-between items-start">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Diagnostic Findings</p>
+                <DialogTitle className="text-2xl font-black flex items-center gap-3 italic tracking-tighter uppercase">
+                  Investigation Report
+                  <StatusBadge status={formStatus} />
+                </DialogTitle>
+              </div>
+              <FlaskConical className="size-8 text-primary/50" />
+            </div>
           </DialogHeader>
 
-          <div className="space-y-5">
-            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-2xl border">
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Investigation</p>
-                <p className="font-bold">{selectedTest?.testName}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Technician</p>
-                <p className="font-medium text-sm">{selectedTest?.sampleCollectedBy || '-'}</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center justify-between">
-                  <span>Status Update</span>
-                  <StatusBadge status={formStatus} />
-                </Label>
-                <Select value={formStatus} onValueChange={setFormStatus}>
-                  <SelectTrigger className="h-11 rounded-xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sample-collected">Sample Collected</SelectItem>
-                    <SelectItem value="in-progress">Analyzing (In Progress)</SelectItem>
-                    <SelectItem value="completed">Completed / Dispatched</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
+          <ScrollArea className="max-h-[60vh]">
+            <div className="p-8 space-y-8">
+              {/* Header Info */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase text-muted-foreground">Test Results / Values</Label>
-                  <Input
-                    placeholder="Enter findings..."
-                    value={formResults}
-                    onChange={e => setFormResults(e.target.value)}
-                    className="h-11 rounded-xl font-bold"
-                  />
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Investigation</p>
+                  <p className="font-bold text-slate-900">{selectedTest?.testName}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">{selectedTest?.testId} · {selectedTest?.testCategory}</p>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase text-muted-foreground">Ref / Normal Range</Label>
-                  <Input
-                    placeholder="e.g. 13.5 - 17.5"
-                    value={formNormalRange}
-                    onChange={e => setFormNormalRange(e.target.value)}
-                    className="h-11 rounded-xl font-mono text-sm"
-                  />
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Status Update</p>
+                  <Select value={formStatus} onValueChange={setFormStatus}>
+                    <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white font-bold">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="sample-collected">Sample Collected</SelectItem>
+                      <SelectItem value="in-progress">In Progress</SelectItem>
+                      <SelectItem value="completed">Finalized Report</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase text-muted-foreground">Clinic Notes / Interpretation</Label>
-                <Textarea
-                  placeholder="Additional observations..."
-                  className="rounded-xl min-h-[80px]"
-                  value={formNotes}
-                  onChange={e => setFormNotes(e.target.value)}
-                />
+              {/* Dynamic Findings List */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Result Parameters</h4>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 rounded-lg border-primary/20 text-primary font-bold text-[10px]"
+                    onClick={() => setResultItems([...resultItems, { parameter: "", value: "", range: "" }])}
+                  >
+                    <Plus className="size-3 mr-1" /> ADD PARAMETER
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {resultItems.map((item, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-3 items-end group p-4 rounded-2xl bg-white border border-slate-100 hover:border-primary/20 transition-all">
+                      <div className="col-span-4 space-y-1.5">
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Parameter</Label>
+                        <Input 
+                          placeholder="e.g. Sodium" 
+                          value={item.parameter} 
+                          onChange={(e) => {
+                            const newItems = [...resultItems];
+                            newItems[idx].parameter = e.target.value;
+                            setResultItems(newItems);
+                          }}
+                          className="h-10 rounded-xl border-slate-100 font-bold px-3 focus:ring-primary/10" 
+                        />
+                      </div>
+                      <div className="col-span-3 space-y-1.5">
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Result Value</Label>
+                        <Input 
+                          placeholder="Finding" 
+                          value={item.value} 
+                          onChange={(e) => {
+                            const newItems = [...resultItems];
+                            newItems[idx].value = e.target.value;
+                            setResultItems(newItems);
+                          }}
+                          className="h-10 rounded-xl border-slate-100 font-bold px-3 focus:ring-primary/10" 
+                        />
+                      </div>
+                      <div className="col-span-4 space-y-1.5">
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Reference Range</Label>
+                        <Input 
+                          placeholder="Normal Ref" 
+                          value={item.range} 
+                          onChange={(e) => {
+                            const newItems = [...resultItems];
+                            newItems[idx].range = e.target.value;
+                            setResultItems(newItems);
+                          }}
+                          className="h-10 rounded-xl border-slate-100 font-mono text-xs px-3 focus:ring-primary/10" 
+                        />
+                      </div>
+                      <div className="col-span-1 pb-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="size-8 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50"
+                          disabled={resultItems.length === 1}
+                          onClick={() => setResultItems(resultItems.filter((_, i) => i !== idx))}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <div className="flex items-center justify-between p-3 border-2 border-dashed border-red-100 rounded-xl bg-red-50/30">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className={`size-5 ${formCritical ? 'text-red-600 animate-pulse' : 'text-muted-foreground opacity-30'}`} />
-                  <div>
-                    <p className="text-xs font-bold">Critical Result Flag</p>
-                    <p className="text-[10px] text-muted-foreground">Notify physician immediately if enabled</p>
+              {/* Notes & Flags */}
+              <div className="grid grid-cols-1 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Clinical Interpretation</Label>
+                  <Textarea
+                    placeholder="Provide professional notes or diagnostic summary..."
+                    className="rounded-2xl min-h-[100px] border-slate-100 font-medium focus:ring-primary/10 p-4"
+                    value={formNotes}
+                    onChange={e => setFormNotes(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-5 border-2 border-dashed border-rose-100 rounded-2xl bg-rose-50/30">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className={`size-6 ${formCritical ? 'text-rose-600 animate-pulse' : 'text-slate-300'}`} />
+                    <div>
+                      <p className="text-xs font-black text-slate-900 uppercase">Critical Value Alert</p>
+                      <p className="text-[10px] text-slate-500 font-medium leading-tight">Enable if values deviate significantly from life-sustaining ranges</p>
+                    </div>
                   </div>
+                  <Button
+                    variant={formCritical ? 'destructive' : 'outline'}
+                    className={`h-10 rounded-xl font-black text-[10px] px-6 transition-all ${formCritical ? 'shadow-lg shadow-rose-200' : 'bg-white opacity-60'}`}
+                    onClick={() => setFormCritical(!formCritical)}
+                  >
+                    {formCritical ? 'ALERT ACTIVE' : 'MARK AS CRITICAL'}
+                  </Button>
                 </div>
-                <Button
-                  size="sm"
-                  variant={formCritical ? 'destructive' : 'outline'}
-                  className="h-8 rounded-lg text-[10px] font-bold px-3"
-                  onClick={() => setFormCritical(!formCritical)}
-                >
-                  {formCritical ? 'ACTIVE' : 'NOT CRITICAL'}
-                </Button>
               </div>
             </div>
-          </div>
+          </ScrollArea>
 
-          <DialogFooter className="mt-4">
-            <Button variant="outline" className="rounded-xl h-11 px-6 font-bold" onClick={() => setIsResultModalOpen(false)}>Discard</Button>
-            <Button className="rounded-xl h-11 px-8 font-bold bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-200/50" onClick={handleResultSubmit} disabled={loading}>
+          <DialogFooter className="p-6 bg-slate-50 border-t flex gap-3 sm:justify-end">
+            <Button variant="ghost" className="rounded-xl h-11 px-6 font-black text-slate-400 hover:text-slate-900" onClick={() => setIsResultModalOpen(false)}>DISCARD</Button>
+            <Button className="rounded-xl h-11 px-10 font-black shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98] bg-slate-900 text-white" onClick={handleResultSubmit} disabled={loading}>
               {loading ? <Clock className="size-4 animate-spin mr-2" /> : <Save className="size-4 mr-2" />}
-              Save Changes
+              CONFIRM & SYNC RESULTS
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -873,11 +957,27 @@ export function LaboratoryContent({ initialLabTests }: Props) {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      <TableRow className="border-none">
-                        <TableCell className="font-bold text-slate-800 py-6">{selectedTest?.testName}</TableCell>
-                        <TableCell className={`text-center py-6 font-mono text-lg font-black ${selectedTest?.criticalFlag ? 'text-red-600' : 'text-slate-900'}`}>{selectedTest?.results}</TableCell>
-                        <TableCell className="text-right py-6 text-slate-600 font-mono text-sm">{selectedTest?.normalRange || 'N/A'}</TableCell>
-                      </TableRow>
+                      {(() => {
+                        let results: { parameter: string; value: string; range: string }[] = []
+                        try {
+                          if (selectedTest?.results && (selectedTest.results.startsWith('[') || selectedTest.results.startsWith('{'))) {
+                            const parsed = JSON.parse(selectedTest.results)
+                            results = Array.isArray(parsed) ? parsed : [{ parameter: selectedTest.testName, value: selectedTest.results, range: selectedTest.normalRange || "" }]
+                          } else {
+                            results = [{ parameter: selectedTest?.testName || 'Investigation', value: selectedTest?.results || '', range: selectedTest?.normalRange || '' }]
+                          }
+                        } catch (e) {
+                          results = [{ parameter: selectedTest?.testName || 'Investigation', value: selectedTest?.results || '', range: selectedTest?.normalRange || '' }]
+                        }
+
+                        return results.map((r, i) => (
+                          <TableRow key={i} className="border-b border-slate-50">
+                            <TableCell className="font-bold text-slate-800 py-4">{r.parameter}</TableCell>
+                            <TableCell className={`text-center py-4 font-mono text-lg font-black ${selectedTest?.criticalFlag ? 'text-red-600' : 'text-slate-900'}`}>{r.value}</TableCell>
+                            <TableCell className="text-right py-4 text-slate-600 font-mono text-sm">{r.range || 'N/A'}</TableCell>
+                          </TableRow>
+                        ))
+                      })()}
                     </TableBody>
                   </Table>
                 </div>

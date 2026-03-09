@@ -68,7 +68,7 @@ const navGroups = [
   },
   {
     label: "Financial",
-    roles: ["admin", "accountant", "receptionist"],
+    roles: ["admin", "accountant", "receptionist", "pharmacist"],
     items: [
       { title: "Point of Sale", href: "/pos", icon: ShoppingCart },
       { title: "Billing", href: "/billing", icon: Receipt },

@@ -137,7 +137,10 @@ router.post('/', async (req, res) => {
     try {
         const patient = await db.prepare('SELECT * FROM patients WHERE id = ?').get(patientId);
         if (!patient) return res.status(404).json({ error: 'Patient not found' });
-        const doctor = doctorId ? await db.prepare('SELECT * FROM doctors WHERE id = ?').get(doctorId) : null;
+        
+        // Safely handle doctorId - empty string is not a valid UUID
+        const safeDoctorId = (doctorId && doctorId.trim() !== '') ? doctorId : null;
+        const doctor = safeDoctorId ? await db.prepare('SELECT * FROM doctors WHERE id = ?').get(safeDoctorId) : null;
 
         const countData = await db.prepare('SELECT COUNT(*) as c FROM lab_tests').get();
         const testId = `LAB-${String(parseInt(countData.c) + 1).padStart(4, '0')}`;
@@ -160,9 +163,12 @@ router.post('/', async (req, res) => {
             invoiceId = invUuid;
         }
 
+        // Safely handle admissionId - empty string is not valid UUID
+        const safeAdmissionId = (admissionId && admissionId.trim() !== '') ? admissionId : null;
+
         await db.prepare(`INSERT INTO lab_tests (id, test_id, patient_id, patient_name, doctor_id, doctor_name, test_name, test_category, sample_type, priority, status, ordered_at, cost, clinical_notes, is_billed, invoice_id, admission_id, ordered_by)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-            .run(id, testId, patientId, `${patient.first_name} ${patient.last_name}`, doctorId || '', doctor ? doctor.name : '', testName, testCategory, sampleType || 'Blood', priority || 'normal', 'ordered', new Date().toISOString(), cost || 0, clinicalNotes || null, invoiceId ? 1 : 0, invoiceId, admissionId || null, req.user.name);
+            .run(id, testId, patientId, `${patient.first_name} ${patient.last_name}`, safeDoctorId, doctor ? doctor.name : '', testName, testCategory, sampleType || 'Blood', priority || 'normal', 'ordered', new Date().toISOString(), cost || 0, clinicalNotes || null, invoiceId ? 1 : 0, invoiceId, safeAdmissionId, req.user.name);
 
         logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'Laboratory', `Lab test ordered: ${testName} (ID: ${testId})`, req.ip);
         const row = await db.prepare(`
@@ -174,6 +180,7 @@ router.post('/', async (req, res) => {
         `).get(id);
         res.status(201).json(fmt(row));
     } catch (err) {
+        console.error('LAB CREATE ERROR:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -215,8 +222,15 @@ router.put('/:id', async (req, res) => {
             resultEnteredAt = new Date().toISOString();
         }
 
+        // Handle technicianId - must be null (not empty string) for UUID column
+        const techId = technicianId || row.technician_id || null;
+        const safeReportUrl = reportUrl ?? row.report_url ?? null;
+        const safeResults = results ?? row.results ?? null;
+        const safeNormalRange = normalRange ?? row.normal_range ?? null;
+        const safeClinicalNotes = clinicalNotes ?? row.clinical_notes ?? null;
+
         await db.prepare('UPDATE lab_tests SET status=?, results=?, normal_range=?, completed_at=?, report_url=?, priority=?, critical_flag=?, clinical_notes=?, technician_id=?, result_entered_by=?, result_entered_at=? WHERE id=?')
-            .run(newStatus, results ?? row.results, normalRange ?? row.normal_range, completedTs, reportUrl ?? row.report_url, priority || row.priority, crit, clinicalNotes ?? row.clinical_notes, technicianId ?? row.technician_id, resultEnteredBy, resultEnteredAt, req.params.id);
+            .run(newStatus, safeResults, safeNormalRange, completedTs, safeReportUrl, priority || row.priority, crit, safeClinicalNotes, techId, resultEnteredBy, resultEnteredAt, req.params.id);
 
         await db.prepare('INSERT INTO lab_audit_logs (id, lab_test_id, action, performed_by, details) VALUES (?, ?, ?, ?, ?)')
             .run(uuidv4(), req.params.id, 'UPDATE_TEST', req.user.name, `Updated status to ${newStatus}`);
@@ -231,6 +245,7 @@ router.put('/:id', async (req, res) => {
         `).get(req.params.id);
         res.json(fmt(updatedRow));
     } catch (err) {
+        console.error('LAB UPDATE ERROR:', err);
         res.status(500).json({ error: err.message });
     }
 });

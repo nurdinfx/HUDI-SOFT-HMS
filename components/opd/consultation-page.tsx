@@ -11,7 +11,9 @@ import {
     User,
     History,
     AlertCircle,
-    CheckCircle2
+    CheckCircle2,
+    Plus,
+    Package
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -64,7 +66,7 @@ export function ConsultationPage({ visit, patient, onComplete, onCancel }: Consu
     const handleAddMedication = () => {
         setConsultData({
             ...consultData,
-            medications: [...consultData.medications, { medicineId: "", medicineName: "", dosage: "", frequency: "1-0-1", duration: "5 days", instructions: "After food", quantity: 1 }]
+            medications: [...consultData.medications, { medicineId: "", medicineName: "", dosage: "", frequency: "1-0-1", duration: "5 days", instructions: "After food", quantity: 1, isCustom: false } as any]
         })
     }
 
@@ -286,25 +288,62 @@ export function ConsultationPage({ visit, patient, onComplete, onCancel }: Consu
                                 {consultData.medications.map((med, idx) => (
                                     <div key={idx} className="grid grid-cols-6 gap-2 items-end border p-3 rounded-md animate-in slide-in-from-top-2 duration-300">
                                         <div className="col-span-2 space-y-1">
-                                            <Label className="text-[10px]">Select Drug</Label>
-                                            <Select
-                                                value={med.medicineId}
-                                                onValueChange={(v) => {
-                                                    const m = medicines.find(m => m.id === v)
-                                                    const newMeds = [...consultData.medications]
-                                                    newMeds[idx] = { ...newMeds[idx], medicineId: v, medicineName: m?.name || "" }
-                                                    setConsultData({ ...consultData, medications: newMeds })
-                                                }}
-                                            >
-                                                <SelectTrigger className="h-8 text-xs">
-                                                    <SelectValue placeholder="Drug Name" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {medicines.map(m => (
-                                                        <SelectItem key={m.id} value={m.id}>{m.name} ({m.genericName})</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                            <div className="flex items-center justify-between">
+                                                <Label className="text-[10px]">{(med as any).isCustom ? "Medicine Name" : "Select Drug"}</Label>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-4 px-1 text-[9px] text-primary hover:bg-primary/10"
+                                                    onClick={() => {
+                                                        const newMeds = [...consultData.medications]
+                                                        const isCustom = !(med as any).isCustom
+                                                        newMeds[idx] = { 
+                                                            ...newMeds[idx], 
+                                                            isCustom,
+                                                            medicineId: isCustom ? "custom" : "",
+                                                            medicineName: "" 
+                                                        } as any
+                                                        setConsultData({ ...consultData, medications: newMeds })
+                                                    }}
+                                                >
+                                                    {(med as any).isCustom ? (
+                                                        <span className="flex items-center gap-1"><Package className="size-2" /> From Pharmacy</span>
+                                                    ) : (
+                                                        <span className="flex items-center gap-1"><Plus className="size-2" /> Not in Pharmacy</span>
+                                                    )}
+                                                </Button>
+                                            </div>
+                                            {(med as any).isCustom ? (
+                                                <Input
+                                                    className="h-8 text-xs"
+                                                    placeholder="Enter medicine name..."
+                                                    value={med.medicineName}
+                                                    onChange={(e) => {
+                                                        const newMeds = [...consultData.medications]
+                                                        newMeds[idx].medicineName = e.target.value
+                                                        setConsultData({ ...consultData, medications: newMeds })
+                                                    }}
+                                                />
+                                            ) : (
+                                                <Select
+                                                    value={med.medicineId}
+                                                    onValueChange={(v) => {
+                                                        const m = medicines.find(m => m.id === v)
+                                                        const newMeds = [...consultData.medications]
+                                                        newMeds[idx] = { ...newMeds[idx], medicineId: v, medicineName: m?.name || "" }
+                                                        setConsultData({ ...consultData, medications: newMeds })
+                                                    }}
+                                                >
+                                                    <SelectTrigger className="h-8 text-xs">
+                                                        <SelectValue placeholder="Drug Name" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {medicines.map(m => (
+                                                            <SelectItem key={m.id} value={m.id}>{m.name} ({m.genericName})</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
                                         </div>
                                         <div className="space-y-1">
                                             <Label className="text-[10px]">Dosage</Label>

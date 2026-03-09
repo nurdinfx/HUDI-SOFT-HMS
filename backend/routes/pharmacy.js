@@ -181,27 +181,32 @@ router.put('/prescriptions/:id/dispense', async (req, res) => {
         await db.exec('BEGIN');
 
         for (const med of medicinesPrescribed) {
-            const medicine = await db.prepare('SELECT * FROM medicines WHERE (name = ? OR generic_name = ?)').get(med.medicineName, med.medicineName);
+            const isCustom = med.medicineId === 'custom';
+            let medicine = null;
             const qtyDispensed = med.quantity || 1;
 
-            if (!medicine || medicine.quantity < qtyDispensed) {
-                await db.exec('ROLLBACK');
-                throw new Error(`Insufficient stock for ${med.medicineName}`);
+            if (!isCustom) {
+                medicine = await db.prepare('SELECT * FROM medicines WHERE (name = ? OR generic_name = ? OR id = ?)').get(med.medicineName, med.medicineName, med.medicineId);
+                if (!medicine || medicine.quantity < qtyDispensed) {
+                    await db.exec('ROLLBACK');
+                    throw new Error(`Insufficient stock for ${med.medicineName}`);
+                }
+
+                const newQty = medicine.quantity - qtyDispensed;
+                const newStatus = newQty === 0 ? 'out-of-stock' : newQty <= medicine.reorder_level ? 'low-stock' : 'in-stock';
+
+                await db.prepare('UPDATE medicines SET quantity = ?, status = ? WHERE id = ?')
+                    .run(newQty, newStatus, medicine.id);
             }
 
-            const newQty = medicine.quantity - qtyDispensed;
-            const newStatus = newQty === 0 ? 'out-of-stock' : newQty <= medicine.reorder_level ? 'low-stock' : 'in-stock';
-
-            await db.prepare('UPDATE medicines SET quantity = ?, status = ? WHERE id = ?')
-                .run(newQty, newStatus, medicine.id);
-
-            totalCost += (medicine.selling_price || 0) * qtyDispensed;
+            const unitPrice = medicine ? (medicine.selling_price || 0) : 0;
+            totalCost += unitPrice * qtyDispensed;
             invoiceItems.push({
-                id: medicine.id,
-                name: medicine.name,
-                unitPrice: medicine.selling_price,
+                id: medicine ? medicine.id : 'custom',
+                name: med.medicineName,
+                unitPrice: unitPrice,
                 quantity: qtyDispensed,
-                total: medicine.selling_price * qtyDispensed
+                total: unitPrice * qtyDispensed
             });
         }
 

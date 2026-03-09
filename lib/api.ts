@@ -320,6 +320,7 @@ export interface Prescription {
 export interface PrescriptionMedicine {
     medicineId: string; medicineName: string; dosage: string;
     frequency: string; duration: string; quantity: number; instructions?: string;
+    isCustom?: boolean;
 }
 
 export interface LabTest {
