@@ -33,6 +33,8 @@ const pool = new Pool({
   // Force IPv4 to avoid ENETUNREACH errors on environments with poor IPv6 support
   family: 4,
   connectionTimeoutMillis: 10000, // 10 second timeout
+  max: 30, // Increased pool size for parallel dashboard queries
+  idleTimeoutMillis: 30000
 });
 
 pool.on('error', (err) => {

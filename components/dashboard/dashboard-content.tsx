@@ -9,6 +9,15 @@ import {
   AlertTriangle,
   Stethoscope,
   Receipt,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  Search,
+  History,
+  History as HistoryIcon,
+  UserPlus,
+  AlertCircle,
+  Wallet,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PageHeader } from "@/components/shared/page-header"
@@ -17,6 +26,9 @@ import { StatusBadge } from "@/components/shared/status-badge"
 import { RevenueChart } from "./revenue-chart"
 import { AppointmentsPieChart } from "./appointments-pie-chart"
 import type { Appointment, Patient, Doctor } from "@/lib/data/types"
+import { dashboardApi, patientsApi, appointmentsApi, pharmacyApi, laboratoryApi, creditApi, hrApi, type DashboardData } from "@/lib/api"
+import { useAuth } from "@/lib/auth-context"
+import { useState, useEffect } from "react" // Added useState and useEffect
 
 const defaultStats = {
   totalPatients: 0,
@@ -30,24 +42,88 @@ const defaultStats = {
 }
 
 interface DashboardContentProps {
-  stats?: Partial<typeof defaultStats> | null
-  recentAppointments?: Appointment[]
-  revenueByMonth?: { month: string; revenue: number; count: number }[]
-  apptByStatus?: { status: string; count: number }[]
-  recentPatients?: Patient[]
-  doctors?: Doctor[]
+  // Original props are now fetched internally, so these can be removed or made optional
+  // stats?: Partial<typeof defaultStats> | null
+  // recentAppointments?: Appointment[]
+  // revenueByMonth?: { month: string; revenue: number; count: number }[]
+  // apptByStatus?: { status: string; count: number }[]
+  // recentPatients?: Patient[]
+  // doctors?: Doctor[]
 }
 
 export function DashboardContent({
-  stats: statsProp,
-  recentAppointments = [],
-  revenueByMonth = [],
-  apptByStatus = [],
-  recentPatients = [],
-  doctors = [],
+  // stats: statsProp, // No longer using props for initial data
+  // recentAppointments = [],
+  // revenueByMonth = [],
+  // apptByStatus = [],
+  // recentPatients = [],
+  // doctors = [],
 }: DashboardContentProps) {
-  const stats = { ...defaultStats, ...statsProp }
-  const appointments = Array.isArray(recentAppointments) ? recentAppointments : []
+  const [isLoading, setIsLoading] = useState(true)
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [recentAppts, setRecentAppts] = useState<Appointment[]>([])
+  const [creditStats, setCreditStats] = useState<any>(null)
+  const [hrStats, setHrStats] = useState<any>(null)
+  const [recentPatients, setRecentPatients] = useState<Patient[]>([])
+  const [doctors, setDoctors] = useState<Doctor[]>([])
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true)
+      try {
+        const [dashData, appts, credits, hr, patients, doctorsData] = await Promise.all([
+          dashboardApi.getStats(),
+          appointmentsApi.getAll({ limit: 5 }),
+          creditApi.getStats(),
+          hrApi.getStats(),
+          patientsApi.getAll({ limit: 5 }), // Fetch recent patients
+          dashboardApi.getDoctors(), // Fetch doctors
+        ])
+        setData(dashData as any)
+        setRecentAppts(appts as any || [])
+        setCreditStats(credits || null)
+        setHrStats(hr || null)
+        setRecentPatients(patients as any || [])
+        setDoctors(doctorsData as any || [])
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  const stats = { ...defaultStats, ...data?.stats }
+  const appointments = Array.isArray(recentAppts) ? recentAppts : []
+  const revenueByMonth = data?.revenueByMonth || []
+  const apptByStatus = data?.apptByStatus || []
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="Dashboard"
+          description="Welcome back. Here is an overview of your hospital today."
+        />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Card key={i} className="h-[120px] animate-pulse bg-muted/50" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
+          <Card className="lg:col-span-4 h-[300px] animate-pulse bg-muted/50" />
+          <Card className="lg:col-span-3 h-[300px] animate-pulse bg-muted/50" />
+        </div>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} className="lg:col-span-1 h-[300px] animate-pulse bg-muted/50" />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -104,12 +180,20 @@ export function DashboardContent({
           description={`${doctors.length} total doctors`}
           iconClassName="bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400"
         />
+        {/* New Credit Summary Card */}
         <StatCard
-          title="Pending Bills"
-          value={stats.pendingBills}
-          icon={Receipt}
-          description="Unpaid or partial"
-          iconClassName="bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
+          title="Outstanding Credit"
+          value={`$${parseFloat(creditStats?.stats?.total_outstanding || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          icon={HistoryIcon}
+          description={`${creditStats?.stats?.total_customers || 0} Accounts`}
+          iconClassName="bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400"
+        />
+        <StatCard
+          title="Monthly Payroll"
+          value={`$${parseFloat(hrStats?.stats?.monthlyPayrollBase || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          icon={Wallet}
+          description={`${hrStats?.stats?.activeEmployees || 0} Staff Members`}
+          iconClassName="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"
         />
       </div>
 
@@ -154,6 +238,9 @@ export function DashboardContent({
                   <StatusBadge status={apt.status} />
                 </div>
               ))}
+              {appointments.filter((a) => a.status === "scheduled").length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">No upcoming appointments.</p>
+              )}
             </div>
           </CardContent>
         </Card>

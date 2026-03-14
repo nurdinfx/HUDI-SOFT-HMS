@@ -14,10 +14,20 @@ const authenticate = async (req, res, next) => {
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const user = await db.prepare('SELECT id, name, email, role, department FROM users WHERE id = ? AND is_active = 1').get(decoded.id);
-        if (!user) return res.status(401).json({ error: 'User not found or inactive' });
+        
+        if (!user) {
+            console.warn(`🔍 Auth: User not found or inactive for ID: ${decoded.id}`);
+            return res.status(401).json({ error: 'User not found or inactive' });
+        }
+        
         req.user = user;
         next();
     } catch (err) {
+        if (err.message.includes('timeout') || err.message.includes('terminated')) {
+            console.error('❌ Auth DB Error:', err.message);
+            return res.status(500).json({ error: 'Database connection issue during authentication' });
+        }
+        console.warn('🔍 Auth: Invalid or expired token');
         return res.status(401).json({ error: 'Invalid or expired token' });
     }
 };

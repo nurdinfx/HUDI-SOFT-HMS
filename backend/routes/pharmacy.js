@@ -232,7 +232,7 @@ router.get('/stats', async (req, res) => {
         const totalMeds = (await db.prepare('SELECT COUNT(*) as c FROM medicines').get()).c;
         const outOfStock = (await db.prepare('SELECT COUNT(*) as c FROM medicines WHERE quantity = 0').get()).c;
         const lowStock = (await db.prepare('SELECT COUNT(*) as c FROM medicines WHERE quantity <= reorder_level AND quantity > 0').get()).c;
-        const todayDispensed = (await db.prepare('SELECT COUNT(*) as c FROM prescriptions WHERE status = "dispensed" AND date = CURRENT_DATE').get()).c;
+        const todayDispensed = (await db.prepare("SELECT COUNT(*) as c FROM prescriptions WHERE status = 'dispensed' AND date = CURRENT_DATE").get()).c;
 
         res.json({
             totalMedicines: totalMeds,

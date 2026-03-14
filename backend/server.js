@@ -9,6 +9,7 @@ const PORT = process.env.PORT || 4000;
 const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:3001',
+    'http://localhost:3002',
     'http://127.0.0.1:3000',
     'https://hudi-soft-hms.vercel.app'
 ];
@@ -80,6 +81,8 @@ dbModule.promise.then(() => {
     app.use('/api/reports', require('./routes/reports'));
     app.use('/api/settings', require('./routes/settings'));
     app.use('/api/dashboard', require('./routes/dashboard'));
+    app.use('/api/credit', require('./routes/credit'));
+    app.use('/api/hr', require('./routes/hr'));
 
     // Health check
     app.get('/api/health', (req, res) => {

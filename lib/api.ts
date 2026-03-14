@@ -4,7 +4,10 @@
  * Base URL: http://localhost:4000/api
  */
 
-const API_BASE = '/api';
+// Use proxied /api for local stability, but allow override via ENV
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : '/api');
+
+console.log(`🚀 HMS Frontend Engine active. API Base: ${API_BASE}`);
 
 // ─── Token management ────────────────────────────────────────────
 function getToken(): string | null {
@@ -21,7 +24,11 @@ export function clearToken() {
 }
 
 // ─── Core fetch wrapper ──────────────────────────────────────────
-async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+interface ApiOptions extends Omit<RequestInit, 'body'> {
+    body?: any;
+}
+
+async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
     const token = getToken();
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -29,7 +36,16 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
     };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+    const { body, ...rest } = options;
+    const fetchOptions: RequestInit = {
+        ...rest,
+        headers,
+        body: body && typeof body !== 'string' 
+            ? JSON.stringify(body) 
+            : body
+    };
+
+    const res = await fetch(`${API_BASE}${path}`, fetchOptions);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
         if (res.status === 401) clearToken();
@@ -39,8 +55,8 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 }
 
 const get = <T>(path: string) => apiFetch<T>(path);
-const post = <T>(path: string, body: unknown) => apiFetch<T>(path, { method: 'POST', body: JSON.stringify(body) });
-const put = <T>(path: string, body: unknown) => apiFetch<T>(path, { method: 'PUT', body: JSON.stringify(body) });
+const post = <T>(path: string, body: unknown) => apiFetch<T>(path, { method: 'POST', body });
+const put = <T>(path: string, body: unknown) => apiFetch<T>(path, { method: 'PUT', body });
 const del = <T>(path: string) => apiFetch<T>(path, { method: 'DELETE' });
 
 // ─── Auth ────────────────────────────────────────────────────────
@@ -53,6 +69,7 @@ export const authApi = {
 // ─── Dashboard ───────────────────────────────────────────────────
 export const dashboardApi = {
     getStats: () => get<DashboardData>('/dashboard'),
+    getDoctors: () => get<Doctor[]>('/doctors'),
 };
 
 // ─── Patients ────────────────────────────────────────────────────
@@ -238,10 +255,47 @@ export const settingsApi = {
 };
 
 // ─── POS ─────────────────────────────────────────────────────────
+// ===== POS API =====
 export const posApi = {
-    getPendingCharges: (patientId: string) => get<{ items: any[] }>(`/pos/pending/${patientId}`),
-    getHistory: (patientId: string) => get<any>(`/pos/history/${patientId}`),
-    checkout: (data: CheckoutPayload) => post<Invoice>('/pos/checkout', data),
+    getPendingCharges: (patientId: string) => apiFetch<{ items: POSItem[] }>(`/pos/pending/${patientId}`),
+    getHistory: (patientId: string) => apiFetch<Invoice[]>(`/pos/history/${patientId}`),
+    checkout: (data: {
+        patientId: string | null;
+        patientName: string;
+        items: POSItem[];
+        discount: number;
+        paymentMethod: string;
+        amountPaid: number;
+        insuranceInfo?: any;
+        creditCustomerId?: string; // Added for credit module
+    }) => apiFetch<Invoice>('/pos/checkout', { method: 'POST', body: data }),
+};
+
+// ===== Credit API =====
+export const creditApi = {
+    getCustomers: () => apiFetch<any[]>('/credit/customers'),
+    registerCustomer: (data: any) => apiFetch<any>('/credit/customers', { method: 'POST', body: data }),
+    getCustomerDetails: (id: string) => apiFetch<any>(`/credit/customers/${id}`),
+    recordPayment: (data: any) => apiFetch<any>('/credit/payments', { method: 'POST', body: data }),
+    getTransactions: () => apiFetch<any[]>('/credit/transactions'),
+    getStats: () => apiFetch<any>('/credit/stats'),
+    updateCustomer: (id: string, data: any) => apiFetch<any>(`/credit/customers/${id}`, { method: 'PUT', body: data }),
+    deleteCustomer: (id: string) => apiFetch<any>(`/credit/customers/${id}`, { method: 'DELETE' }),
+};
+
+// ===== HR API =====
+export const hrApi = {
+    getEmployees: () => apiFetch<any[]>('/hr/employees'),
+    registerEmployee: (data: any) => apiFetch<any>('/hr/employees', { method: 'POST', body: data }),
+    getEmployeeDetails: (id: string) => apiFetch<any>(`/hr/employees/${id}`),
+    recordExpense: (data: any) => apiFetch<any>('/hr/expenses', { method: 'POST', body: data }),
+    getPayrollSummary: (monthYear: string) => apiFetch<any[]>(`/hr/payroll/summary/${monthYear}`),
+    processPayroll: (data: any) => apiFetch<any>('/hr/payroll/process', { method: 'POST', body: data }),
+    getStats: () => apiFetch<any>('/hr/stats'),
+    getPayrollReport: (monthYear: string) => apiFetch<any[]>(`/hr/reports/payroll/${monthYear}`),
+    getExpenseReport: (params?: any) => apiFetch<any[]>(`/hr/reports/expenses${toQuery(params)}`),
+    updateEmployee: (id: string, data: any) => apiFetch<any>(`/hr/employees/${id}`, { method: 'PUT', body: data }),
+    deleteEmployee: (id: string) => apiFetch<any>(`/hr/employees/${id}`, { method: 'DELETE' }),
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────

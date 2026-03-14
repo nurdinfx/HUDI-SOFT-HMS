@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { pharmacyApi, laboratoryApi, patientsApi, posApi, type POSItem, type Patient } from "@/lib/api"
+import { pharmacyApi, laboratoryApi, patientsApi, posApi, creditApi, type POSItem, type Patient } from "@/lib/api"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -58,6 +58,11 @@ export function POSTerminal() {
     const [insuranceDetails, setInsuranceDetails] = useState({ company: "", policyNumber: "", claimAmount: 0 })
     const [showHistory, setShowHistory] = useState(false)
 
+    // Credit Module State
+    const [creditCustomers, setCreditCustomers] = useState<any[]>([])
+    const [creditSearch, setCreditSearch] = useState("")
+    const [selectedCreditCustomer, setSelectedCreditCustomer] = useState<any | null>(null)
+
     // Load Initial Data
     useEffect(() => {
         async function loadData() {
@@ -87,6 +92,10 @@ export function POSTerminal() {
 
                 setCatalog([...formattedMeds, ...formattedLabs])
                 setPatients(pats || [])
+                
+                // Load Credit Customers
+                const credits = await creditApi.getCustomers()
+                setCreditCustomers(Array.isArray(credits) ? credits : [])
             } catch (err) {
                 toast.error("Failed to load catalog data")
             }
@@ -112,6 +121,15 @@ export function POSTerminal() {
             p.phone?.includes(patientSearch)
         ).slice(0, 5)
     }, [patients, patientSearch])
+
+    const filteredCreditCustomers = useMemo(() => {
+        if (!creditSearch) return [];
+        return creditCustomers.filter(c =>
+            c.full_name.toLowerCase().includes(creditSearch.toLowerCase()) ||
+            c.customer_id.toLowerCase().includes(creditSearch.toLowerCase()) ||
+            c.phone?.includes(creditSearch)
+        ).slice(0, 5)
+    }, [creditCustomers, creditSearch])
 
     const handlePatientSelect = async (patient: Patient) => {
         setSelectedPatient(patient)
@@ -219,12 +237,13 @@ export function POSTerminal() {
 
             const res = await posApi.checkout({
                 patientId: selectedPatient ? selectedPatient.id : null,
-                patientName: selectedPatient ? `${selectedPatient.firstName} ${selectedPatient.lastName}` : "Walk-In Patient",
+                patientName: selectedPatient ? `${selectedPatient.firstName} ${selectedPatient.lastName}` : (selectedCreditCustomer ? selectedCreditCustomer.full_name : "Walk-In Patient"),
                 items: cart,
                 discount: parsedDiscount,
                 paymentMethod: paymentMethod,
                 amountPaid: parsedAmountPaid,
-                insuranceInfo: insData
+                insuranceInfo: insData,
+                creditCustomerId: paymentMethod === 'credit' ? selectedCreditCustomer?.id : undefined
             })
 
             setLastInvoice(res)
@@ -330,7 +349,8 @@ export function POSTerminal() {
         { id: 'card', label: 'Card', icon: CreditCard, color: 'text-blue-500', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
         { id: 'mobile', label: 'Mobile', icon: Smartphone, color: 'text-purple-500', bg: 'bg-purple-50 text-purple-700 border-purple-200' },
         { id: 'bank', label: 'Bank', icon: Landmark, color: 'text-indigo-500', bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-        { id: 'insurance', label: 'Insurance', icon: ShieldCheck, color: 'text-cyan-500', bg: 'bg-cyan-50 text-cyan-700 border-cyan-200' }
+        { id: 'insurance', label: 'Insurance', icon: ShieldCheck, color: 'text-cyan-500', bg: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
+        { id: 'credit', label: 'Credit', icon: History, color: 'text-rose-500', bg: 'bg-rose-50 text-rose-700 border-rose-200' }
     ]
 
     return (
@@ -400,10 +420,22 @@ export function POSTerminal() {
                                 <X className="size-3" />
                             </Button>
                         </div>
+                    ) : selectedCreditCustomer ? (
+                        <div className="flex items-center gap-3 bg-rose-50 border border-rose-100 pl-3 pr-1 py-1 rounded-full animate-in zoom-in-95">
+                            <div className="flex flex-col items-end">
+                                <span className="text-xs font-bold text-rose-900 leading-none">{selectedCreditCustomer.full_name}</span>
+                                <span className="text-[10px] font-bold text-rose-600 uppercase tracking-widest">{selectedCreditCustomer.customer_id}</span>
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full bg-rose-100 hover:bg-rose-200 text-rose-700" onClick={() => setSelectedCreditCustomer(null)}>
+                                <X className="size-3" />
+                            </Button>
+                        </div>
                     ) : (
-                        <Badge variant="outline" className="border-slate-300 text-slate-500 px-3 py-1 font-semibold uppercase tracking-widest text-[10px]">
-                            Walking Customer
-                        </Badge>
+                        <div className="flex gap-2">
+                            <Badge variant="outline" className="border-slate-300 text-slate-500 px-3 py-1 font-semibold uppercase tracking-widest text-[10px]">
+                                Walking Customer
+                            </Badge>
+                        </div>
                     )}
                     
                     <Button variant="outline" size="sm" className="h-9 gap-2 ml-2 shadow-sm rounded-xl border-slate-200" onClick={() => setShowHistory(true)} disabled={!selectedPatient}>
@@ -411,6 +443,57 @@ export function POSTerminal() {
                         <span className="hidden xl:inline">History</span>
                     </Button>
                 </div>
+            </div>
+            
+            {/* CREDIT CUSTOMER SELECTION BAR */}
+            <div className="px-6 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <div className="flex-1 max-w-sm relative">
+                    <Input
+                        placeholder="Search for Credit Customer..."
+                        className="pl-9 h-8 bg-white border-slate-200 rounded-lg text-xs"
+                        value={creditSearch}
+                        onChange={e => setCreditSearch(e.target.value)}
+                    />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3 text-slate-400" />
+                    {creditSearch && (
+                        <div className="absolute top-10 left-0 right-0 bg-white border border-slate-200 shadow-xl rounded-xl z-50 overflow-hidden max-h-[200px] overflow-y-auto">
+                            {filteredCreditCustomers.length > 0 ? (
+                                filteredCreditCustomers.map((c) => (
+                                    <div
+                                        key={c.id}
+                                        className="p-2 border-b border-slate-50 hover:bg-slate-50 cursor-pointer flex flex-col"
+                                        onClick={() => {
+                                            setSelectedCreditCustomer(c)
+                                            setCreditSearch("")
+                                            setPaymentMethod("credit")
+                                        }}
+                                    >
+                                        <div className="flex justify-between items-center">
+                                            <span className="font-bold text-slate-900 text-xs">{c.full_name}</span>
+                                            <span className="text-[10px] text-rose-600 font-bold">${parseFloat(c.outstanding_balance).toLocaleString()}</span>
+                                        </div>
+                                        <span className="text-[9px] text-slate-500 font-mono italic">{c.customer_id}</span>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="p-3 text-center text-xs text-slate-400">No credit customers found</div>
+                            )}
+                        </div>
+                    )}
+                </div>
+                
+                {selectedCreditCustomer && (
+                    <div className="flex gap-4">
+                        <div className="flex flex-col items-end">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase leading-none">Limit Remaining</span>
+                            <span className={cn("text-xs font-black leading-none mt-1", 
+                                (parseFloat(selectedCreditCustomer.credit_limit) - parseFloat(selectedCreditCustomer.outstanding_balance)) < 100 ? "text-rose-600" : "text-emerald-600"
+                            )}>
+                                ${(parseFloat(selectedCreditCustomer.credit_limit) - parseFloat(selectedCreditCustomer.outstanding_balance)).toLocaleString()}
+                            </span>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className="flex flex-1 overflow-hidden relative">

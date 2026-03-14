@@ -16,6 +16,7 @@ export const ROLE_ROUTE_MAP: Record<UserRole, string[]> = {
     "/doctors",
     "/opd",
     "/ipd",
+    "/laboratory",
   ],
   nurse: [
     "/dashboard",
@@ -43,6 +44,7 @@ export const ROLE_ROUTE_MAP: Record<UserRole, string[]> = {
     "/pos",
     "/billing",
     "/payments",
+    "/laboratory",
   ],
   accountant: [
     "/dashboard",

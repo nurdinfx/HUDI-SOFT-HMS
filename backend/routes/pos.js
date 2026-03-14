@@ -301,8 +301,8 @@ router.post('/checkout', async (req, res) => {
                 );
         }
 
-        // 6. Account entry for payment
-        if (paidAmount > 0) {
+        // 6. Account entry for payment (only if not credit)
+        if (paidAmount > 0 && paymentMethod !== 'credit') {
             await db.prepare(`
                 INSERT INTO account_entries (id, date, type, category, description, amount, payment_method, reference_id, department, status, user_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -310,6 +310,51 @@ router.post('/checkout', async (req, res) => {
                 uuidv4(), today, 'income', 'POS Checkout',
                 `POS Payment for ${invoiceUID} (${actualPatientName})`,
                 paidAmount, paymentMethod || 'cash', invoiceUID, 'Billing', 'completed', req.user.id
+            );
+        }
+
+        // 7. Handle Credit Transaction
+        if (paymentMethod === 'credit') {
+            const { creditCustomerId } = req.body;
+            if (!creditCustomerId) {
+                throw new Error('Credit Customer ID is required for credit transactions');
+            }
+
+            const customer = await db.prepare('SELECT * FROM credit_customers WHERE id = ?').get(creditCustomerId);
+            if (!customer) throw new Error('Credit Customer not found');
+
+            const transactionId = uuidv4();
+            const transactionUID = `CR-TXN-${uuidv4().slice(0, 8).toUpperCase()}`;
+            const remainingBalance = total - paidAmount;
+
+            // Record Credit Transaction
+            await db.prepare(`
+                INSERT INTO credit_transactions (id, transaction_id, customer_id, invoice_id, invoice_number, items_summary, total_amount, amount_paid, remaining_balance, status, staff_id, staff_name)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(
+                transactionId, transactionUID, creditCustomerId, invoiceDbId, invoiceUID,
+                invoiceItems.map(i => `${i.quantity}x ${i.description}`).join(', '),
+                total, paidAmount, remainingBalance, remainingBalance <= 0 ? 'paid' : 'unpaid',
+                req.user.id, req.user.name
+            );
+
+            // Update Customer Balance
+            const newBalance = parseFloat(customer.outstanding_balance) + remainingBalance;
+            const newTotalCredit = parseFloat(customer.total_credit_taken) + total;
+            
+            await db.prepare(`
+                UPDATE credit_customers 
+                SET outstanding_balance = ?, total_credit_taken = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            `).run(newBalance, newTotalTotalCredit || newTotalCredit, creditCustomerId);
+
+            // Add to Ledger
+            await db.prepare(`
+                INSERT INTO credit_ledger (id, customer_id, date, description, type, amount, running_balance, reference_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(
+                uuidv4(), creditCustomerId, today, `POS Credit Purchase: ${invoiceUID}`,
+                'debit', total, newBalance, transactionUID
             );
         }
 
