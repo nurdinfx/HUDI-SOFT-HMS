@@ -35,6 +35,11 @@ export function LaboratoryContent({ initialLabTests }: Props) {
   const isDoctor = user?.role === 'doctor'
   const isReceptionist = user?.role === 'receptionist'
 
+  // Set receptionists to catalog tab by default
+  useEffect(() => {
+    if (isReceptionist) setActiveTab('catalog')
+  }, [isReceptionist])
+
   // Modals
   const [selectedTest, setSelectedTest] = useState<LabTest | null>(null)
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false)
@@ -356,19 +361,19 @@ export function LaboratoryContent({ initialLabTests }: Props) {
               Tests Queue
             </Button>
           )}
-          {!isDoctor && !isReceptionist && (
+          {!isDoctor && (
             <Button variant={activeTab === 'catalog' ? 'default' : 'outline'} className="rounded-xl h-12 px-6 font-bold" onClick={() => setActiveTab('catalog')}>
               <Database className="size-4 mr-2" />
               Master Catalog
             </Button>
           )}
-          {activeTab === 'queue' && !isDoctor && (
+          {activeTab === 'queue' && !isDoctor && !isReceptionist && (
             <Button className="rounded-xl h-12 px-8 font-black shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]" onClick={() => { fetchDropdowns(); setIsOrderModalOpen(true); }}>
               <Plus className="size-5 mr-2" />
               NEW LAB ORDER
             </Button>
           )}
-          {activeTab === 'catalog' && !isDoctor && !isReceptionist && (
+          {activeTab === 'catalog' && !isDoctor && (
             <Button className="rounded-xl h-12 px-8 font-black shadow-xl shadow-primary/20 transition-all bg-emerald-600 hover:bg-emerald-700 hover:scale-[1.02] active:scale-[0.98]" onClick={() => openCatalogModal()}>
               <Plus className="size-5 mr-2" />
               ADD NEW TEST
@@ -376,27 +381,6 @@ export function LaboratoryContent({ initialLabTests }: Props) {
           )}
         </div>
       </div>
-
-      {/* RECEPTIONIST - Simplified View */}
-      {isReceptionist && (
-        <div className="flex flex-col items-center justify-center gap-8 py-16">
-          <div className="p-6 rounded-3xl bg-primary/5 border border-primary/10">
-            <FlaskConical className="size-16 text-primary opacity-60" />
-          </div>
-          <div className="text-center space-y-2">
-            <h2 className="text-2xl font-black text-slate-900">Lab Order Desk</h2>
-            <p className="text-slate-500 font-medium">Register new laboratory investigations for patients</p>
-          </div>
-          <Button
-            size="lg"
-            className="rounded-2xl h-16 px-12 text-lg font-black shadow-2xl shadow-primary/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
-            onClick={() => { fetchDropdowns(); setIsOrderModalOpen(true); }}
-          >
-            <Plus className="size-6 mr-3" />
-            NEW LAB ORDER
-          </Button>
-        </div>
-      )}
 
       {/* DASHBOARD STATS */}
       {activeTab === 'queue' ? (
