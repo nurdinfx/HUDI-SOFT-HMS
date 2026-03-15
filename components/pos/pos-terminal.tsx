@@ -22,6 +22,7 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/lib/auth-context"
 
 interface CatalogItem {
     id: string;
@@ -33,6 +34,7 @@ interface CatalogItem {
 }
 
 export function POSTerminal() {
+    const { user } = useAuth()
     const [catalog, setCatalog] = useState<CatalogItem[]>([])
     const [searchTerm, setSearchTerm] = useState("")
     const [categoryFilter, setCategoryFilter] = useState("all")

@@ -365,12 +365,9 @@ router.post('/checkout', async (req, res) => {
         logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'POS', `POS Checkout: ${invoiceUID}`, req.ip);
 
         res.status(201).json({
-            id: invoiceDbId,
-            invoiceId: invoiceUID,
-            patientName: actualPatientName,
-            total,
-            paidAmount,
-            status: invoiceStatus
+            status: invoiceStatus,
+            items: invoiceItems,
+            userName: req.user.name
         });
 
     } catch (err) {
