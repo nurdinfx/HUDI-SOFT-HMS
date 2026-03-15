@@ -45,6 +45,8 @@ export const ROLE_ROUTE_MAP: Record<UserRole, string[]> = {
     "/billing",
     "/payments",
     "/laboratory",
+    "/daily-operations",
+    "/credit",
   ],
   accountant: [
     "/dashboard",
@@ -56,6 +58,7 @@ export const ROLE_ROUTE_MAP: Record<UserRole, string[]> = {
     "/inventory",
     "/pos",
     "/audit-logs",
+    "/daily-operations",
   ]
 }
 

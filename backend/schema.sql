@@ -385,3 +385,20 @@ ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
 INSERT INTO hospital_settings (id, name, tagline, currency, tax_rate)
 VALUES (1, 'Hudi Hospital', 'Care with Excellence', 'USD', 10)
 ON CONFLICT (id) DO NOTHING;
+
+-- 24. Daily Operations
+CREATE TABLE IF NOT EXISTS daily_operations (
+    id UUID PRIMARY KEY,
+    employee_id UUID REFERENCES employees(id),
+    employee_name TEXT NOT NULL,
+    department TEXT,
+    transaction_type TEXT NOT NULL,
+    lab_test_id UUID REFERENCES lab_catalog(id),
+    lab_test_name TEXT,
+    amount NUMERIC DEFAULT 0,
+    description TEXT,
+    date DATE DEFAULT CURRENT_DATE,
+    recorded_by TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP
+);

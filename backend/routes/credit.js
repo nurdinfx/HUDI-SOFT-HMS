@@ -74,12 +74,24 @@ router.put('/customers/:id', async (req, res) => {
 
 // Delete customer
 router.delete('/customers/:id', async (req, res) => {
+    const { id } = req.params;
     try {
-        const { id } = req.params;
+        await db.exec('BEGIN');
+        
+        console.log(`🗑️ Deleting customer ${id} and all related records...`);
+        
+        await db.prepare("DELETE FROM credit_payments WHERE customer_id = ?").run(id);
+        await db.prepare("DELETE FROM credit_ledger WHERE customer_id = ?").run(id);
         await db.prepare("DELETE FROM credit_transactions WHERE customer_id = ?").run(id);
         await db.prepare("DELETE FROM credit_customers WHERE id = ?").run(id);
-        res.json({ message: "Customer deleted successfully" });
+        
+        await db.exec('COMMIT');
+        
+        logAction(req.user.id, req.user.name, req.user.role, 'DELETE', 'Credit', `Deleted customer: ${id}`, req.ip);
+        res.json({ message: "Customer and all history records deleted successfully" });
     } catch (err) {
+        await db.exec('ROLLBACK');
+        console.error('❌ Delete Customer Error:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
@@ -158,6 +170,92 @@ router.get('/transactions', async (req, res) => {
         `).all();
         res.json(transactions);
     } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// PUT /api/credit/transactions/:id/pay - Pay off a specific transaction partially or fully
+router.put('/transactions/:id/pay', async (req, res) => {
+    const { id } = req.params;
+    const { paymentMethod, referenceNotes, amount } = req.body;
+    
+    try {
+        console.log(`💳 Processing payment for transaction ${id}, amount: ${amount}, method: ${paymentMethod}`);
+        await db.exec('BEGIN');
+        
+        const txn = await db.prepare('SELECT * FROM credit_transactions WHERE id = ?').get(id);
+        if (!txn) {
+            console.warn(`⚠️ Transaction ${id} not found`);
+            throw new Error('Transaction not found');
+        }
+        if (parseFloat(txn.remaining_balance) <= 0) throw new Error('Transaction already paid');
+        
+        // Determine amount to pay: either the provided amount or the full remaining balance
+        const requestAmount = amount ? parseFloat(amount) : parseFloat(txn.remaining_balance);
+        if (requestAmount <= 0) throw new Error('Invalid payment amount');
+        
+        const amt = Math.min(requestAmount, parseFloat(txn.remaining_balance)); // Don't allow overpaying the transaction
+        const customerId = txn.customer_id;
+        
+        const customer = await db.prepare('SELECT * FROM credit_customers WHERE id = ?').get(customerId);
+        if (!customer) throw new Error('Customer not found');
+
+        // Update transaction
+        const oldAmountPaid = parseFloat(txn.amount_paid) || 0;
+        const oldRemaining = parseFloat(txn.remaining_balance);
+        const newAmountPaid = oldAmountPaid + amt;
+        const newRemaining = oldRemaining - amt;
+        const newStatus = newRemaining <= 0 ? 'paid' : 'partial';
+
+        await db.prepare(`
+            UPDATE credit_transactions 
+            SET amount_paid = ?, remaining_balance = ?, status = ?
+            WHERE id = ?
+        `).run(newAmountPaid, newRemaining, newStatus, id);
+
+        const paymentId = uuidv4();
+        const paymentUID = `PAY-CR-${Math.floor(10000 + Math.random() * 90000)}`;
+        const payDate = new Date().toISOString().split('T')[0];
+
+        // 1. Record payment
+        await db.prepare(`
+            INSERT INTO credit_payments (id, payment_id, customer_id, amount, payment_method, reference_notes, date, staff_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(paymentId, paymentUID, customerId, amt, paymentMethod || 'cash', referenceNotes || `Paid Txn: ${txn.transaction_id}`, payDate, req.user.id);
+
+        // 2. Update customer balance
+        const newBalance = parseFloat(customer.outstanding_balance) - amt;
+        const totalPayments = parseFloat(customer.total_payments_made) + amt;
+        
+        await db.prepare(`
+            UPDATE credit_customers 
+            SET outstanding_balance = ?, total_payments_made = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `).run(newBalance, totalPayments, customerId);
+
+        // 3. Add to ledger
+        await db.prepare(`
+            INSERT INTO credit_ledger (id, customer_id, date, description, type, amount, running_balance, reference_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(uuidv4(), customerId, payDate, `Repayment (Txn ${txn.transaction_id})`, 'credit', amt, newBalance, paymentUID);
+
+        // 4. Record as income in main accounts
+        await db.prepare(`
+            INSERT INTO account_entries (id, date, type, category, description, amount, payment_method, reference_id, department, status, user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+            uuidv4(), payDate, 'income', 'Credit Repayment',
+            `Credit Repayment from ${customer.full_name} (${paymentUID})`,
+            amt, paymentMethod || 'cash', paymentUID, 'Finance', 'completed', req.user.id
+        );
+
+        await db.exec('COMMIT');
+        
+        logAction(req.user.id, req.user.name, req.user.role, 'UPDATE', 'Credit', `Paid transaction ${txn.transaction_id}`, req.ip);
+        
+        res.status(200).json({ message: 'Transaction paid successfully', newBalance });
+    } catch (err) {
+        await db.exec('ROLLBACK');
         res.status(500).json({ error: err.message });
     }
 });

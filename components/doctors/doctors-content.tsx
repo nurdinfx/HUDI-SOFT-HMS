@@ -36,6 +36,7 @@ import {
 import { doctorsApi, type Doctor, type DoctorStats } from "@/lib/api"
 import { DoctorForm } from "./doctor-form"
 import { DoctorDetails } from "./doctor-details"
+import { useAuth } from "@/lib/auth-context"
 
 interface Props {
   doctors?: Doctor[]
@@ -43,6 +44,9 @@ interface Props {
 }
 
 export function DoctorsContent({ doctors = [], onRefresh }: Props) {
+  const { user } = useAuth()
+  const isReceptionist = user?.role === "receptionist"
+
   const [activeTab, setActiveTab] = useState("overview")
   const [search, setSearch] = useState("")
   const [deptFilter, setDeptFilter] = useState("all")
@@ -265,15 +269,15 @@ export function DoctorsContent({ doctors = [], onRefresh }: Props) {
                             <DropdownMenuItem onClick={() => setViewingDoctor(doc)}>
                               <Users className="mr-2 size-4" /> Profile View
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setEditingDoctor(doc)}>
-                              <Edit className="mr-2 size-4" /> Edit Profile
-                            </DropdownMenuItem>
                             <DropdownMenuItem asChild>
                               <Link href={`/appointments?doctorId=${doc.id}`}>
                                 <Calendar className="mr-2 size-4" /> Schedule Appointment
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => setEditingDoctor(doc)}>
+                              <Edit className="mr-2 size-4" /> Edit Profile
+                            </DropdownMenuItem>
                             <DropdownMenuItem className="text-rose-500" onClick={() => handleDelete(doc.id)}>
                               <Trash2 className="mr-2 size-4" /> Delete Access
                             </DropdownMenuItem>

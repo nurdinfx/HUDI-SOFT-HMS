@@ -106,10 +106,31 @@ router.delete('/:id', async (req, res) => {
     try {
         const row = await db.prepare('SELECT * FROM patients WHERE id = ?').get(req.params.id);
         if (!row) return res.status(404).json({ error: 'Patient not found' });
-        await db.prepare('DELETE FROM patients WHERE id = ?').run(req.params.id);
+        
+        // Manual cascade delete for all dependent tables
+        const pid = req.params.id;
+        db.prepare('BEGIN TRANSACTION').run();
+        
+        await db.prepare('DELETE FROM appointments WHERE patient_id = ?').run(pid);
+        await db.prepare('DELETE FROM prescriptions WHERE patient_id = ?').run(pid);
+        await db.prepare('DELETE FROM lab_tests WHERE patient_id = ?').run(pid);
+        await db.prepare('DELETE FROM invoices WHERE patient_id = ?').run(pid);
+        await db.prepare('DELETE FROM opd_visits WHERE patient_id = ?').run(pid);
+        await db.prepare('DELETE FROM ipd_admissions WHERE patient_id = ?').run(pid);
+        await db.prepare('UPDATE beds SET status = \'available\', patient_id = NULL WHERE patient_id = ?').run(pid);
+        await db.prepare('DELETE FROM nurse_notes WHERE patient_id = ?').run(pid);
+        await db.prepare('DELETE FROM doctor_rounds WHERE patient_id = ?').run(pid);
+        await db.prepare('DELETE FROM patient_insurance_policies WHERE patient_id = ?').run(pid);
+        await db.prepare('DELETE FROM insurance_claims WHERE patient_id = ?').run(pid);
+
+        await db.prepare('DELETE FROM patients WHERE id = ?').run(pid);
+        
+        db.prepare('COMMIT').run();
+
         logAction(req.user.id, req.user.name, req.user.role, 'DELETE', 'Patients', `Patient deleted: ${row.first_name} ${row.last_name}`, req.ip);
         res.json({ message: 'Patient deleted successfully' });
     } catch (err) {
+        db.prepare('ROLLBACK').run();
         res.status(500).json({ error: err.message });
     }
 });

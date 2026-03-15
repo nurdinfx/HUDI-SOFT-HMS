@@ -23,9 +23,12 @@ const authenticate = async (req, res, next) => {
         req.user = user;
         next();
     } catch (err) {
-        if (err.message.includes('timeout') || err.message.includes('terminated')) {
-            console.error('❌ Auth DB Error:', err.message);
-            return res.status(500).json({ error: 'Database connection issue during authentication' });
+        if (err.message.includes('timeout') || err.message.includes('terminated') || err.message.includes('connection')) {
+            console.error('❌ Auth DB Error (Timeout/Connection):', err.message);
+            return res.status(503).json({ 
+                error: 'Database connection issue', 
+                message: 'The server is experiencing high latency or connectivity issues with the database. Please try again in a few seconds.' 
+            });
         }
         console.warn('🔍 Auth: Invalid or expired token');
         return res.status(401).json({ error: 'Invalid or expired token' });

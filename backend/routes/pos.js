@@ -198,14 +198,16 @@ router.post('/checkout', async (req, res) => {
             subtotal += (up * q);
         }
 
-        const settings = await db.prepare('SELECT tax_rate FROM hospital_settings WHERE id = 1').get();
-        const taxRate = settings ? settings.tax_rate : 10;
         const disc = parseFloat(discount) || 0;
-        const tax = subtotal * (taxRate / 100);
+        const tax = 0; // Tax removed as requested
         const total = Math.max(0, subtotal + tax - disc);
-        const paidAmount = (amountPaid !== undefined && amountPaid !== null && !isNaN(parseFloat(amountPaid)))
-            ? parseFloat(amountPaid)
-            : total;
+        
+        let paidAmount = 0;
+        if (paymentMethod !== 'credit') {
+            paidAmount = (amountPaid !== undefined && amountPaid !== null && !isNaN(parseFloat(amountPaid)))
+                ? parseFloat(amountPaid)
+                : total;
+        }
 
         // 2. Resolve Patient Information
         let actualPatientId = patientId || null;
@@ -346,7 +348,7 @@ router.post('/checkout', async (req, res) => {
                 UPDATE credit_customers 
                 SET outstanding_balance = ?, total_credit_taken = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
-            `).run(newBalance, newTotalTotalCredit || newTotalCredit, creditCustomerId);
+            `).run(newBalance, newTotalCredit, creditCustomerId);
 
             // Add to Ledger
             await db.prepare(`

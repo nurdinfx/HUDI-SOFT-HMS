@@ -159,10 +159,11 @@ export function PaymentsContent({ payments, onRefresh }: PaymentsContentProps) {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Methods</SelectItem>
-                                    <SelectItem value="cash">Cash</SelectItem>
-                                    <SelectItem value="card">Card</SelectItem>
+                                    <SelectItem value="cash">ZAAD</SelectItem>
+                                    <SelectItem value="card">SAHAL</SelectItem>
+                                    <SelectItem value="mobile">EDAHAB</SelectItem>
+                                    <SelectItem value="bank">MYCASH</SelectItem>
                                     <SelectItem value="insurance">Insurance</SelectItem>
-                                    <SelectItem value="mpesa">MPesa</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

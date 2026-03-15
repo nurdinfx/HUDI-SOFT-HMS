@@ -33,6 +33,8 @@ export function CreditManagementContent() {
     const [stats, setStats] = useState<any>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
+    const [txnSearch, setTxnSearch] = useState("")
+    const [txnFilter, setTxnFilter] = useState("all")
     
     // New Customer Dialog
     const [showNewCustomer, setShowNewCustomer] = useState(false)
@@ -57,6 +59,11 @@ export function CreditManagementContent() {
         paymentMethod: "cash",
         referenceNotes: ""
     })
+
+    // Transaction Payment Dialog
+    const [showTxnPayment, setShowTxnPayment] = useState(false)
+    const [selectedTxn, setSelectedTxn] = useState<any>(null)
+    const [txnPaymentAmount, setTxnPaymentAmount] = useState("")
 
     useEffect(() => {
         loadData()
@@ -87,6 +94,17 @@ export function CreditManagementContent() {
             c.phone?.includes(searchQuery)
         )
     }, [customers, searchQuery])
+
+    const filteredTransactions = useMemo(() => {
+        return transactions.filter(t => {
+            const matchesSearch = t.customer_name?.toLowerCase().includes(txnSearch.toLowerCase()) || 
+                                  t.transaction_id?.toLowerCase().includes(txnSearch.toLowerCase());
+            const matchesFilter = txnFilter === "all" ? true :
+                                  txnFilter === "unpaid" ? parseFloat(t.remaining_balance) > 0 :
+                                  parseFloat(t.remaining_balance) <= 0;
+            return matchesSearch && matchesFilter;
+        });
+    }, [transactions, txnSearch, txnFilter])
 
     const handleUpdateCustomer = async () => {
         if (!editingCustomer.full_name) return toast.error("Full Name is required")
@@ -143,6 +161,23 @@ export function CreditManagementContent() {
             loadData()
         } catch (err) {
             toast.error("Failed to record repayment")
+        }
+    }
+
+    const handlePayTransaction = async () => {
+        if (!selectedTxn) return;
+        const amount = parseFloat(txnPaymentAmount);
+        if (isNaN(amount) || amount <= 0 || amount > parseFloat(selectedTxn.remaining_balance)) {
+             return toast.error("Please enter a valid amount not exceeding the remaining balance.");
+        }
+
+        try {
+            await creditApi.payTransaction(selectedTxn.id, { paymentMethod: 'cash', amount });
+            toast.success(`Payment of $${amount} applied to transaction.`);
+            setShowTxnPayment(false);
+            loadData();
+        } catch (err) {
+             toast.error("Failed to pay transaction");
         }
     }
 
@@ -348,6 +383,29 @@ export function CreditManagementContent() {
                 </TabsContent>
 
                 <TabsContent value="transactions" className="space-y-4 m-0">
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="relative flex-1 max-w-sm">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                            <Input 
+                                placeholder="Search by customer or txn id..." 
+                                className="pl-10 h-10 bg-white border-slate-200 rounded-xl"
+                                value={txnSearch}
+                                onChange={e => setTxnSearch(e.target.value)}
+                            />
+                        </div>
+                        <Select value={txnFilter} onValueChange={setTxnFilter}>
+                            <SelectTrigger className="h-10 w-[180px] bg-white border-slate-200 rounded-xl">
+                                <Filter className="mr-2 h-4 w-4 text-slate-400" /> 
+                                <SelectValue placeholder="Filter Transactions" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                                <SelectItem value="all">All Transactions</SelectItem>
+                                <SelectItem value="unpaid">Unpaid Only</SelectItem>
+                                <SelectItem value="paid">Paid Only</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-white">
                         <CardHeader className="p-6 pb-2">
                             <CardTitle className="text-lg font-bold">Credit Transaction History</CardTitle>
@@ -363,10 +421,11 @@ export function CreditManagementContent() {
                                             <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Items</th>
                                             <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Amount</th>
                                             <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Remaining</th>
+                                            <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
-                                        {transactions.map((txn) => (
+                                        {filteredTransactions.map((txn) => (
                                             <tr key={txn.id} className="hover:bg-slate-50/50 transition-colors">
                                                 <td className="px-6 py-4">
                                                     <p className="text-xs font-bold text-slate-900 leading-none">{format(new Date(txn.date), 'dd MMM yyyy')}</p>
@@ -384,6 +443,25 @@ export function CreditManagementContent() {
                                                         ${parseFloat(txn.remaining_balance).toLocaleString()}
                                                     </Badge>
                                                 </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    {parseFloat(txn.remaining_balance) > 0 ? (
+                                                        <Button 
+                                                            size="sm" 
+                                                            className="h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all hover:-translate-y-0.5"
+                                                            onClick={() => {
+                                                                setSelectedTxn(txn);
+                                                                setTxnPaymentAmount(txn.remaining_balance);
+                                                                setShowTxnPayment(true);
+                                                            }}
+                                                        >
+                                                            Pay
+                                                        </Button>
+                                                    ) : (
+                                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center justify-end gap-1">
+                                                            <CheckCircle2 className="size-3 text-emerald-500" /> Paid
+                                                        </span>
+                                                    )}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -393,6 +471,47 @@ export function CreditManagementContent() {
                     </Card>
                 </TabsContent>
             </Tabs>
+
+            {/* TRANSACTION PAYMENT DIALOG */}
+            <Dialog open={showTxnPayment} onOpenChange={setShowTxnPayment}>
+                <DialogContent className="max-w-md rounded-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-bold">Pay Transaction</DialogTitle>
+                        <DialogDescription>
+                            Apply payment to transaction <b>{selectedTxn?.transaction_id}</b> for <b>{selectedTxn?.customer_name}</b>.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="p-4 bg-slate-50 rounded-2xl flex justify-between items-center mb-2">
+                            <div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Remaining Balance</p>
+                                <p className="text-xl font-black text-rose-600">${parseFloat(selectedTxn?.remaining_balance || 0).toLocaleString()}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Original Total</p>
+                                <p className="text-lg font-bold text-slate-900 text-right">${parseFloat(selectedTxn?.total_amount || 0).toLocaleString()}</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Payment Amount ($)</Label>
+                            <Input 
+                                type="number" 
+                                placeholder="0.00" 
+                                className="h-12 text-lg font-bold"
+                                value={txnPaymentAmount}
+                                onChange={e => setTxnPaymentAmount(e.target.value)}
+                                max={selectedTxn?.remaining_balance}
+                            />
+                            <p className="text-xs text-slate-400">Enter partial amount or full remaining amount.</p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" className="h-10 rounded-xl" onClick={() => setShowTxnPayment(false)}>Cancel</Button>
+                        <Button className="h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 shadow-lg text-white" onClick={handlePayTransaction}>Apply Payment</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* REPAYMENT DIALOG */}
             <Dialog open={showRepayment} onOpenChange={setShowRepayment}>

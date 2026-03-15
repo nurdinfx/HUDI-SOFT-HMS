@@ -53,7 +53,7 @@ const navGroups = [
     items: [
       { title: "Patients", href: "/patients", icon: Users, roles: ["admin", "doctor", "nurse", "receptionist"] },
       { title: "Appointments", href: "/appointments", icon: CalendarDays, roles: ["admin", "doctor", "nurse", "receptionist"] },
-      { title: "Doctors", href: "/doctors", icon: Stethoscope, roles: ["admin", "doctor"] },
+      { title: "Doctors", href: "/doctors", icon: Stethoscope, roles: ["admin", "doctor", "receptionist"] },
       { title: "OPD Queue", href: "/opd", icon: ClipboardPlus, roles: ["admin", "doctor", "nurse", "receptionist"] },
       { title: "IPD", href: "/ipd", icon: BedDouble, roles: ["admin", "doctor", "nurse"] },
     ],
@@ -74,6 +74,7 @@ const navGroups = [
       { title: "Point of Sale", href: "/pos", icon: ShoppingCart, roles: ["admin", "accountant", "pharmacist", "receptionist"] },
       { title: "Billing", href: "/billing", icon: Receipt, roles: ["admin", "accountant", "receptionist"] },
       { title: "Payments", href: "/payments", icon: DollarSign, roles: ["admin", "accountant", "receptionist"] },
+      { title: "Daily Operations", href: "/daily-operations", icon: Activity, roles: ["admin", "accountant", "receptionist"] },
       { title: "Insurance", href: "/insurance", icon: ShieldCheck, roles: ["admin", "accountant"] },
       { title: "Accounts", href: "/accounts", icon: BookOpen, roles: ["admin", "accountant"] },
       { title: "Customer Credit", href: "/credit", icon: History, roles: ["admin", "accountant", "receptionist"] },

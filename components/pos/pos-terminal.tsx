@@ -345,10 +345,10 @@ export function POSTerminal() {
     }
 
     const PAYMENT_METHODS = [
-        { id: 'cash', label: 'Cash', icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-        { id: 'card', label: 'Card', icon: CreditCard, color: 'text-blue-500', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
-        { id: 'mobile', label: 'Mobile', icon: Smartphone, color: 'text-purple-500', bg: 'bg-purple-50 text-purple-700 border-purple-200' },
-        { id: 'bank', label: 'Bank', icon: Landmark, color: 'text-indigo-500', bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+        { id: 'cash', label: 'ZAAD', icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+        { id: 'card', label: 'SAHAL', icon: CreditCard, color: 'text-blue-500', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
+        { id: 'mobile', label: 'EDAHAB', icon: Smartphone, color: 'text-purple-500', bg: 'bg-purple-50 text-purple-700 border-purple-200' },
+        { id: 'bank', label: 'MYCASH', icon: Landmark, color: 'text-indigo-500', bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
         { id: 'insurance', label: 'Insurance', icon: ShieldCheck, color: 'text-cyan-500', bg: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
         { id: 'credit', label: 'Credit', icon: History, color: 'text-rose-500', bg: 'bg-rose-50 text-rose-700 border-rose-200' }
     ]
@@ -445,56 +445,7 @@ export function POSTerminal() {
                 </div>
             </div>
             
-            {/* CREDIT CUSTOMER SELECTION BAR */}
-            <div className="px-6 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                <div className="flex-1 max-w-sm relative">
-                    <Input
-                        placeholder="Search for Credit Customer..."
-                        className="pl-9 h-8 bg-white border-slate-200 rounded-lg text-xs"
-                        value={creditSearch}
-                        onChange={e => setCreditSearch(e.target.value)}
-                    />
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3 text-slate-400" />
-                    {creditSearch && (
-                        <div className="absolute top-10 left-0 right-0 bg-white border border-slate-200 shadow-xl rounded-xl z-50 overflow-hidden max-h-[200px] overflow-y-auto">
-                            {filteredCreditCustomers.length > 0 ? (
-                                filteredCreditCustomers.map((c) => (
-                                    <div
-                                        key={c.id}
-                                        className="p-2 border-b border-slate-50 hover:bg-slate-50 cursor-pointer flex flex-col"
-                                        onClick={() => {
-                                            setSelectedCreditCustomer(c)
-                                            setCreditSearch("")
-                                            setPaymentMethod("credit")
-                                        }}
-                                    >
-                                        <div className="flex justify-between items-center">
-                                            <span className="font-bold text-slate-900 text-xs">{c.full_name}</span>
-                                            <span className="text-[10px] text-rose-600 font-bold">${parseFloat(c.outstanding_balance).toLocaleString()}</span>
-                                        </div>
-                                        <span className="text-[9px] text-slate-500 font-mono italic">{c.customer_id}</span>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="p-3 text-center text-xs text-slate-400">No credit customers found</div>
-                            )}
-                        </div>
-                    )}
-                </div>
-                
-                {selectedCreditCustomer && (
-                    <div className="flex gap-4">
-                        <div className="flex flex-col items-end">
-                            <span className="text-[9px] font-bold text-slate-400 uppercase leading-none">Limit Remaining</span>
-                            <span className={cn("text-xs font-black leading-none mt-1", 
-                                (parseFloat(selectedCreditCustomer.credit_limit) - parseFloat(selectedCreditCustomer.outstanding_balance)) < 100 ? "text-rose-600" : "text-emerald-600"
-                            )}>
-                                ${(parseFloat(selectedCreditCustomer.credit_limit) - parseFloat(selectedCreditCustomer.outstanding_balance)).toLocaleString()}
-                            </span>
-                        </div>
-                    </div>
-                )}
-            </div>
+            {/* CREDIT CUSTOMER SELECTION BAR REMOVED FROM HERE */}
 
             <div className="flex flex-1 overflow-hidden relative">
                 
@@ -697,9 +648,54 @@ export function POSTerminal() {
                                     </div>
                                 )}
                                 
+                                {paymentMethod === 'credit' && (
+                                    <div className="w-1/2 relative space-y-2">
+                                        <Select 
+                                            value={selectedCreditCustomer?.id || ""} 
+                                            onValueChange={(val) => {
+                                                const customer = creditCustomers.find(c => c.id === val);
+                                                setSelectedCreditCustomer(customer || null);
+                                            }}
+                                        >
+                                            <SelectTrigger className="h-14 bg-white border-slate-200 text-slate-900 font-bold rounded-2xl focus:ring-rose-500 shadow-sm w-full">
+                                                <SelectValue placeholder="Select Credit Customer" />
+                                            </SelectTrigger>
+                                            <SelectContent className="max-h-[300px]">
+                                                {creditCustomers.map(c => (
+                                                    <SelectItem key={c.id} value={c.id} className="py-3 cursor-pointer">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-slate-900">{c.full_name}</span>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <Badge variant="outline" className="text-[10px] text-rose-600 border-rose-200 bg-rose-50 font-bold">${parseFloat(c.outstanding_balance).toLocaleString()} owed</Badge>
+                                                                <span className="text-[10px] text-slate-500 font-mono italic">{c.customer_id}</span>
+                                                            </div>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        
+                                        {selectedCreditCustomer && (
+                                            <div className="absolute -top-12 left-0 right-0 bg-white border border-rose-100 rounded-lg p-2 flex justify-between items-center shadow-lg animate-in slide-in-from-bottom-2 z-50">
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Limit Remaining</span>
+                                                <span className={cn("text-xs font-black", 
+                                                    (parseFloat(selectedCreditCustomer.credit_limit) - parseFloat(selectedCreditCustomer.outstanding_balance)) < 100 ? "text-rose-600" : "text-emerald-600"
+                                                )}>
+                                                    ${(parseFloat(selectedCreditCustomer.credit_limit) - parseFloat(selectedCreditCustomer.outstanding_balance)).toLocaleString()}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                
                                 <Button
                                     className="flex-1 h-14 rounded-2xl text-lg font-black tracking-widest uppercase bg-slate-900 text-white hover:bg-slate-800 shadow-xl transition-all hover:translate-y-[-2px] hover:shadow-2xl active:translate-y-[0px] disabled:opacity-50 disabled:hover:translate-y-0"
-                                    disabled={cart.length === 0 || isProcessing || (total > 0 && Number(amountPaid) > 0 && Number(amountPaid) < total)}
+                                    disabled={
+                                        cart.length === 0 || 
+                                        isProcessing || 
+                                        (total > 0 && paymentMethod === 'cash' && Number(amountPaid) > 0 && Number(amountPaid) < total) ||
+                                        (paymentMethod === 'credit' && !selectedCreditCustomer)
+                                    }
                                     onClick={handleCheckout}
                                 >
                                     {isProcessing ? (

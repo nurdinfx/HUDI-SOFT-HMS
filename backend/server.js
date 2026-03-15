@@ -83,6 +83,7 @@ dbModule.promise.then(() => {
     app.use('/api/dashboard', require('./routes/dashboard'));
     app.use('/api/credit', require('./routes/credit'));
     app.use('/api/hr', require('./routes/hr'));
+    app.use('/api/daily-operations', require('./routes/daily_operations'));
 
     // Health check
     app.get('/api/health', (req, res) => {

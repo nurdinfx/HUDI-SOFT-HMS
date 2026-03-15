@@ -281,6 +281,7 @@ export const creditApi = {
     getStats: () => apiFetch<any>('/credit/stats'),
     updateCustomer: (id: string, data: any) => apiFetch<any>(`/credit/customers/${id}`, { method: 'PUT', body: data }),
     deleteCustomer: (id: string) => apiFetch<any>(`/credit/customers/${id}`, { method: 'DELETE' }),
+    payTransaction: (id: string, data?: any) => apiFetch<any>(`/credit/transactions/${id}/pay`, { method: 'PUT', body: data || {} }),
 };
 
 // ===== HR API =====
@@ -633,4 +634,36 @@ export interface Payment {
     patientName: string;
     invoiceTotal: number;
     description: string;
+}
+
+// ===== Daily Operations =====
+export const dailyOperationsApi = {
+    getAll: (params?: QueryParams) => get<DailyOperation[]>(`/daily-operations${toQuery(params)}`),
+    getSummary: () => get<DailyOperationsSummary>('/daily-operations/summary'),
+    getById: (id: string) => get<DailyOperation>(`/daily-operations/${id}`),
+    create: (data: Partial<DailyOperation>) => post<DailyOperation>('/daily-operations', data),
+    update: (id: string, data: Partial<DailyOperation>) => put<DailyOperation>(`/daily-operations/${id}`, data),
+    delete: (id: string) => del(`/daily-operations/${id}`),
+};
+
+export interface DailyOperation {
+    id: string;
+    employeeId: string;
+    employeeName: string;
+    department?: string;
+    transactionType: 'Staff Laboratory Test' | 'Laboratory Internal Use' | 'Operational Expense' | 'Cash Received' | 'Other';
+    labTestId?: string;
+    labTestName?: string;
+    amount: number;
+    description?: string;
+    date: string;
+    recordedBy: string;
+    createdAt: string;
+}
+
+export interface DailyOperationsSummary {
+    expenses: number;
+    cashReceived: number;
+    labTests: number;
+    netBalance: number;
 }
