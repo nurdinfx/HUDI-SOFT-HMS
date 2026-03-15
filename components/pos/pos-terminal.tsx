@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { pharmacyApi, laboratoryApi, patientsApi, posApi, creditApi, type POSItem, type Patient } from "@/lib/api"
+import { pharmacyApi, laboratoryApi, patientsApi, posApi, creditApi, settingsApi, type POSItem, type Patient, type HospitalSettings } from "@/lib/api"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -62,6 +62,7 @@ export function POSTerminal() {
     const [creditCustomers, setCreditCustomers] = useState<any[]>([])
     const [creditSearch, setCreditSearch] = useState("")
     const [selectedCreditCustomer, setSelectedCreditCustomer] = useState<any | null>(null)
+    const [hospitalSettings, setHospitalSettings] = useState<HospitalSettings | null>(null)
 
     // Load Initial Data
     useEffect(() => {
@@ -93,6 +94,14 @@ export function POSTerminal() {
                 setCatalog([...formattedMeds, ...formattedLabs])
                 setPatients(pats || [])
                 
+                // Load Hospital Settings
+                try {
+                    const settings = await settingsApi.get()
+                    setHospitalSettings(settings)
+                } catch (err) {
+                    console.error("Failed to load settings", err)
+                }
+
                 // Load Credit Customers
                 const credits = await creditApi.getCustomers()
                 setCreditCustomers(Array.isArray(credits) ? credits : [])
@@ -931,19 +940,19 @@ export function POSTerminal() {
                     <div className="hidden">
                         <div id="thermal-receipt-content" className="thermal-receipt">
                             <div className="thermal-header">
-                                <div className="thermal-title">GarGaar Hospital</div>
-                                <div className="thermal-subtitle">Health & Care Center</div>
+                                <div className="thermal-title">{hospitalSettings?.name || 'GarGaar Hospital'}</div>
+                                <div className="thermal-subtitle">{hospitalSettings?.tagline || 'Health & Care Center'}</div>
                                 <div className="thermal-payment-codes">
-                                    ZAAD: 515735 - SAHAL: 523080<br />
-                                    E-DAHAB: 742298 - MyCash: 931539
+                                    {hospitalSettings?.zaad && `ZAAD: ${hospitalSettings.zaad}`} {hospitalSettings?.sahal && `- SAHAL: ${hospitalSettings.sahal}`}<br />
+                                    {hospitalSettings?.edahab && `E-DAHAB: ${hospitalSettings.edahab}`} {hospitalSettings?.mycash && `- MyCash: ${hospitalSettings.mycash}`}
                                 </div>
                             </div>
 
                             <div className="thermal-info">
                                 <div><span className="thermal-label">Receipt Number : </span>{lastInvoice?.invoiceId}</div>
-                                <div><span className="thermal-label">Served By : </span>{localStorage.getItem('userName') || 'Cashier'}</div>
+                                <div><span className="thermal-label">Served By : </span>{lastInvoice?.userName || localStorage.getItem('userName') || 'Cashier'}</div>
                                 <div><span className="thermal-label">Customer : </span>{lastInvoice?.patientName || 'Walking Customer'}</div>
-                                <div><span className="thermal-label">Date : </span>{lastInvoice ? new Date(lastInvoice.date).toLocaleDateString('en-GB') + ' ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}</div>
+                                <div><span className="thermal-label">Date : </span>{lastInvoice ? format(new Date(), "dd/MM/yyyy HH:mm") : ''}</div>
                             </div>
 
                             <table className="thermal-table">
@@ -994,7 +1003,7 @@ export function POSTerminal() {
                                     <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${lastInvoice?.invoiceId}`} className="qr-image" alt="QR Code" />
                                 </div>
                                 <div style={{ marginBottom: '5px', textTransform: 'uppercase' }}>Thank you for visiting us</div>
-                                <div style={{ fontSize: '12px' }}>Powered by HUDI-SOFT</div>
+                                <div style={{ fontSize: '10px' }}>Powered by {hospitalSettings?.name || 'HUDI-SOFT'}</div>
                             </div>
                         </div>
                     </div>

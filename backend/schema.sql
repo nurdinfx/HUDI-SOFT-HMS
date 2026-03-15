@@ -316,7 +316,11 @@ CREATE TABLE IF NOT EXISTS hospital_settings (
     website TEXT,
     currency TEXT DEFAULT 'USD',
     tax_rate NUMERIC DEFAULT 10,
-    logo TEXT
+    logo TEXT,
+    zaad TEXT,
+    sahal TEXT,
+    edahab TEXT,
+    mycash TEXT
 );
 
 -- 20. Audit Logs

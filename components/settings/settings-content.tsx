@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PageHeader } from "@/components/shared/page-header"
+import { settingsApi } from "@/lib/api"
 import type { HospitalSettings } from "@/lib/api"
+import { toast } from "sonner"
 
 interface SettingsContentProps {
   settings: HospitalSettings
@@ -14,6 +16,19 @@ interface SettingsContentProps {
 
 export function SettingsContent({ settings }: SettingsContentProps) {
   const [form, setForm] = useState(settings)
+  const [isSaving, setIsSaving] = useState(false)
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      await settingsApi.update(form)
+      toast.success("Settings updated successfully")
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update settings")
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -97,7 +112,45 @@ export function SettingsContent({ settings }: SettingsContentProps) {
               />
             </div>
           </div>
-          <Button type="button">Save Changes</Button>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label>ZAAD Account</Label>
+              <Input
+                value={form.zaad ?? ""}
+                onChange={(e) => setForm((p) => ({ ...p, zaad: e.target.value }))}
+                placeholder="ZAAD Number"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>SAHAL Account</Label>
+              <Input
+                value={form.sahal ?? ""}
+                onChange={(e) => setForm((p) => ({ ...p, sahal: e.target.value }))}
+                placeholder="SAHAL Number"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label>EDAHAB Account</Label>
+              <Input
+                value={form.edahab ?? ""}
+                onChange={(e) => setForm((p) => ({ ...p, edahab: e.target.value }))}
+                placeholder="EDAHAB Number"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>MYCASH Account</Label>
+              <Input
+                value={form.mycash ?? ""}
+                onChange={(e) => setForm((p) => ({ ...p, mycash: e.target.value }))}
+                placeholder="MYCASH Number"
+              />
+            </div>
+          </div>
+          <Button type="button" onClick={handleSave} disabled={isSaving}>
+            {isSaving ? "Saving..." : "Save Changes"}
+          </Button>
         </CardContent>
       </Card>
     </div>
