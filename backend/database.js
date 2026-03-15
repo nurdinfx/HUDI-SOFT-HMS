@@ -32,9 +32,9 @@ const pool = new Pool({
   },
   // Force IPv4 to avoid ENETUNREACH errors on environments with poor IPv6 support
   family: 4,
-  connectionTimeoutMillis: 30000, // Increased to 30 seconds
-  max: 30, 
-  idleTimeoutMillis: 60000 // Increased to 60 seconds
+  connectionTimeoutMillis: 30000, 
+  max: 10, // Decreased to 10 to avoid Supabase pooler limits
+  idleTimeoutMillis: 10000 // Decreased to 10 seconds to release connections faster
 });
 
 pool.on('error', (err) => {
