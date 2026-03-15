@@ -1005,7 +1005,7 @@ export function POSTerminal() {
                                     <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${lastInvoice?.invoiceId}`} className="qr-image" alt="QR Code" />
                                 </div>
                                 <div style={{ marginBottom: '5px', textTransform: 'uppercase' }}>Thank you for visiting us</div>
-                                <div style={{ fontSize: '10px' }}>Powered by {hospitalSettings?.name || 'HUDI-SOFT'}</div>
+                                <div style={{ fontSize: '10px' }}>Powered by HUDI-SOFT</div>
                             </div>
                         </div>
                     </div>
