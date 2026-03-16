@@ -45,4 +45,17 @@ const logAction = (userId, userName, userRole, action, module, details, ip = '12
     }
 };
 
-module.exports = { authenticate, logAction };
+const authorize = (allowedRoles = []) => {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({ error: 'Authentication required' });
+        }
+        if (!allowedRoles.includes(req.user.role)) {
+            console.warn(`🔍 Auth: Forbidden - Role ${req.user.role} not in [${allowedRoles.join(', ')}]`);
+            return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
+        }
+        next();
+    };
+};
+
+module.exports = { authenticate, logAction, authorize };
