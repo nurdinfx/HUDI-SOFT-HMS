@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { dailyOperationsApi, hrApi, laboratoryApi, revenueAnalyticsApi, type DailyOperation, type LabCatalogItem, type Department, type ServiceCategory } from "@/lib/api";
 import { toast } from "sonner";
-import { Loader2, Plus, X, ListFilter } from "lucide-react";
+import { Loader2, Plus, X, ListFilter, TestTube2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -175,7 +175,10 @@ export function DailyOperationForm({ open, onOpenChange, operation, onSuccess }:
     }
   };
 
-  const needsLabTest = formData.transactionType === "Staff Laboratory Test" || formData.transactionType === "Laboratory Internal Use";
+  const needsLabTest = useMemo(() => {
+    const t = (formData.transactionType || "").toLowerCase();
+    return t.includes("lab") || t.includes("test");
+  }, [formData.transactionType]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -236,61 +239,80 @@ export function DailyOperationForm({ open, onOpenChange, operation, onSuccess }:
                         <SelectValue placeholder="Select Category" />
                     </SelectTrigger>
                     <SelectContent>
-                        {categories.map(cat => (
-                          <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                        {/* Deduplicate and filter categories */}
+                        {Array.from(new Set([
+                          ...categories.map(c => c.name),
+                          "Operational Expense",
+                          "Other"
+                        ])).map(catName => (
+                          <SelectItem key={catName} value={catName}>{catName}</SelectItem>
                         ))}
-                        <SelectItem value="Lab Tests">Lab Tests</SelectItem>
-                        <SelectItem value="Operational Expense">Operational Expense</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                     </Select>
                 </div>
             </div>
 
             {needsLabTest && (
-                <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200 animate-in fade-in slide-in-from-top-2 duration-200 border-primary/20 bg-primary/5">
                     <div className="flex items-center justify-between">
-                        <Label className="flex items-center gap-2">
-                            <ListFilter className="h-4 w-4 text-primary" />
-                            Multi-Test Selection
+                        <Label className="flex items-center gap-2 text-primary font-bold">
+                            <ListFilter className="h-4 w-4" />
+                            Select Laboratory Tests (Max 5)
                         </Label>
-                        <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Lab Records</span>
+                        <span className="text-[10px] text-primary/60 font-bold uppercase tracking-wider">Required</span>
                     </div>
                     
                     <Select onValueChange={addTest} disabled={isSubmitting}>
-                        <SelectTrigger className="bg-white">
-                            <SelectValue placeholder="Choose a test to add..." />
+                        <SelectTrigger className="bg-white border-primary/20 focus:ring-primary shadow-sm h-11">
+                            <SelectValue placeholder="🔎 Search or select tests from catalog..." />
                         </SelectTrigger>
-                        <SelectContent>
-                            <ScrollArea className="h-64">
-                                {labTests.map(test => (
-                                    <SelectItem key={test.id} value={test.id} disabled={selectedTests.some(t => t.id === test.id)}>
-                                        <div className="flex justify-between items-center w-full min-w-[200px]">
-                                            <span>{test.name}</span>
-                                            <span className="text-muted-foreground mr-6">${test.cost}</span>
-                                        </div>
-                                    </SelectItem>
-                                ))}
+                        <SelectContent className="max-h-[300px]">
+                            <ScrollArea className="h-full">
+                                {labTests.length > 0 ? (
+                                  labTests.map(test => (
+                                      <SelectItem key={test.id} value={test.id} disabled={selectedTests.some(t => t.id === test.id)}>
+                                          <div className="flex justify-between items-center w-full min-w-[240px]">
+                                              <span className="font-medium">{test.name}</span>
+                                              <Badge variant="outline" className="ml-2 font-mono text-[10px] border-primary/20 text-primary">
+                                                  ${test.cost}
+                                              </Badge>
+                                          </div>
+                                      </SelectItem>
+                                  ))
+                                ) : (
+                                  <div className="p-4 text-center text-xs text-muted-foreground">No lab tests available in catalog</div>
+                                )}
                             </ScrollArea>
                         </SelectContent>
                     </Select>
 
-                    {selectedTests.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-2 max-h-32 overflow-y-auto p-1">
-                            {selectedTests.map(test => (
-                                <Badge key={test.id} variant="secondary" className="pl-2 pr-1 py-1 gap-1 bg-white border-slate-200 shadow-sm">
-                                    <span className="text-xs">{test.name} (${test.amount})</span>
-                                    <Button 
-                                        type="button" 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        className="h-4 w-4 p-0 hover:bg-red-50 hover:text-red-500 rounded-full"
-                                        onClick={() => removeTest(test.id)}
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </Button>
-                                </Badge>
-                            ))}
+                    {selectedTests.length > 0 ? (
+                        <div className="space-y-2 mt-2">
+                            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1">
+                                {selectedTests.map(test => (
+                                    <Badge key={test.id} variant="secondary" className="pl-3 pr-1 py-1.5 gap-2 bg-white border-primary/30 text-primary shadow-sm hover:bg-red-50 hover:border-red-200 transition-colors group">
+                                        <span className="text-xs font-semibold">{test.name}</span>
+                                        <Badge variant="outline" className="bg-slate-50 border-none px-1 text-[10px] text-muted-foreground">${test.amount}</Badge>
+                                        <Button 
+                                            type="button" 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-5 w-5 p-0 group-hover:text-red-500 rounded-full"
+                                            onClick={() => removeTest(test.id)}
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </Button>
+                                    </Badge>
+                                ))}
+                            </div>
+                            <div className="text-[10px] text-primary/70 italic px-1">
+                                Total for {selectedTests.length} test(s): <span className="font-bold underline">${calculatedTotal.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-primary/10 rounded-md bg-white/50 text-muted-foreground">
+                            <TestTube2 className="h-8 w-8 mb-2 opacity-20" />
+                            <p className="text-[11px] font-medium">Please add at least one test to proceed</p>
                         </div>
                     )}
                 </div>
