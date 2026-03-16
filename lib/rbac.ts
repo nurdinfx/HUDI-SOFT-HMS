@@ -62,6 +62,7 @@ export const ROLE_ROUTE_MAP: Record<UserRole, string[]> = {
     "/pos",
     "/audit-logs",
     "/daily-operations",
+    "/reports/revenue-analytics",
   ]
 }
 

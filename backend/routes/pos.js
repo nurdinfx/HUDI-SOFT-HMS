@@ -2,6 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
 const { authenticate, logAction } = require('../middleware/auth');
+const { recordGranularPayment } = require('../utils/finance');
 
 const router = express.Router();
 router.use(authenticate);
@@ -305,14 +306,14 @@ router.post('/checkout', async (req, res) => {
 
         // 6. Account entry for payment (only if not credit)
         if (paidAmount > 0 && paymentMethod !== 'credit') {
-            await db.prepare(`
-                INSERT INTO account_entries (id, date, type, category, description, amount, payment_method, reference_id, department, status, user_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(
-                uuidv4(), today, 'income', 'POS Checkout',
-                `POS Payment for ${invoiceUID} (${actualPatientName})`,
-                paidAmount, paymentMethod || 'cash', invoiceUID, 'Billing', 'completed', req.user.id
-            );
+            await recordGranularPayment({
+                invoiceId: invoiceUID,
+                dbInvoiceId: invoiceDbId,
+                patientName: actualPatientName,
+                paymentAmount: paidAmount,
+                paymentMethod: paymentMethod || 'cash',
+                userId: req.user.id
+            });
         }
 
         // 7. Handle Credit Transaction

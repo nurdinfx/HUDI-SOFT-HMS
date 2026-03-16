@@ -2,6 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
 const { authenticate, logAction } = require('../middleware/auth');
+const { recordGranularPayment } = require('../utils/finance');
 
 const router = express.Router();
 router.use(authenticate);
@@ -128,24 +129,15 @@ router.put('/:id', async (req, res) => {
         await db.prepare('UPDATE invoices SET status=?, paid_amount=?, payment_method=?, notes=?, discount=?, total=? WHERE id=?')
             .run(newStatus, paid, paymentMethod ?? row.payment_method, notes ?? row.notes, disc, total, req.params.id);
 
-        if (paymentIncrement > 0) {
-            const entryId = uuidv4();
-            await db.prepare(`
-                INSERT INTO account_entries (id, date, type, category, description, amount, payment_method, reference_id, department, status, user_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(
-                entryId,
-                new Date().toISOString().split('T')[0],
-                'income',
-                'Patient Payment',
-                `Payment for Invoice ${row.invoice_id} (${row.patient_name})`,
-                paymentIncrement,
-                paymentMethod || 'cash',
-                row.invoice_id,
-                'Billing',
-                'completed',
-                req.user.id
-            );
+        if (paymentIncrement > 1e-6) {
+            await recordGranularPayment({
+                invoiceId: row.invoice_id,
+                dbInvoiceId: row.id,
+                patientName: row.patient_name,
+                paymentAmount: paymentIncrement,
+                paymentMethod: paymentMethod || 'cash',
+                userId: req.user.id
+            });
         }
 
         await db.exec('COMMIT');

@@ -79,6 +79,7 @@ const navGroups = [
       { title: "Accounts", href: "/accounts", icon: BookOpen, roles: ["admin", "accountant"] },
       { title: "Customer Credit", href: "/credit", icon: History, roles: ["admin", "accountant", "pharmacist", "receptionist"] },
       { title: "Reports", href: "/reports", icon: BarChart3, roles: ["admin", "accountant"] },
+      { title: "Revenue Analytics", href: "/reports/revenue-analytics", icon: DollarSign, roles: ["admin", "accountant"] },
     ],
   },
   {
@@ -86,6 +87,7 @@ const navGroups = [
     roles: ["admin", "accountant"],
     items: [
       { title: "Employee Management", href: "/hr", icon: Users, roles: ["admin", "accountant"] },
+      { title: "Departments", href: "/departments", icon: Warehouse, roles: ["admin"] },
       { title: "Users", href: "/users", icon: UserCog, roles: ["admin"] },
       { title: "Audit Logs", href: "/audit-logs", icon: ScrollText },
       { title: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },

@@ -84,6 +84,7 @@ dbModule.promise.then(() => {
     app.use('/api/credit', require('./routes/credit'));
     app.use('/api/hr', require('./routes/hr'));
     app.use('/api/daily-operations', require('./routes/daily_operations'));
+    app.use('/api/revenue-analytics', require('./routes/revenue_analytics'));
 
     // Health check
     app.get('/api/health', (req, res) => {

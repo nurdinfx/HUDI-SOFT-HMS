@@ -2,6 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
 const { authenticate, logAction } = require('../middleware/auth');
+const { recordSimpleEntry } = require('../utils/finance');
 
 const router = express.Router();
 router.use(authenticate);
@@ -14,6 +15,7 @@ const fmtOps = (row) => ({
     transactionType: row.transaction_type,
     labTestId: row.lab_test_id,
     labTestName: row.lab_test_name,
+    selectedTests: JSON.parse(row.selected_tests || '[]'),
     amount: parseFloat(row.amount || 0),
     description: row.description,
     date: row.date,
@@ -82,7 +84,7 @@ router.get('/:id', async (req, res) => {
 
 // POST new record
 router.post('/', async (req, res) => {
-    const { employeeId, department, transactionType, labTestId, amount, description, date } = req.body;
+    const { employeeId, department, transactionType, labTestId, amount, description, date, selectedTests } = req.body;
     
     if (!employeeId || !transactionType) {
         return res.status(400).json({ error: 'employeeId and transactionType are required' });
@@ -104,13 +106,26 @@ router.post('/', async (req, res) => {
         await db.prepare(`
             INSERT INTO daily_operations (
                 id, employee_id, employee_name, department, transaction_type, 
-                lab_test_id, lab_test_name, amount, description, date, recorded_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                lab_test_id, lab_test_name, selected_tests, amount, description, date, recorded_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
             id, employeeId, emp.full_name, department || null, transactionType,
-            labTestId || null, labTestName, amount || 0, description || null,
+            labTestId || null, labTestName, JSON.stringify(selectedTests || []), amount || 0, description || null,
             opDate, req.user.name
         );
+
+        // Create account entry
+        await recordSimpleEntry({
+            date: opDate,
+            type: transactionType === 'Operational Expense' ? 'expense' : 'income',
+            category: transactionType,
+            description: `${transactionType} record for ${emp.full_name}${description ? ': ' + description : ''}`,
+            amount: parseFloat(amount || 0),
+            department: department || 'General',
+            userId: req.user.id,
+            userName: req.user.name,
+            referenceId: id
+        });
 
         const newRow = await db.prepare('SELECT * FROM daily_operations WHERE id = ?').get(id);
         logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'Daily Operations', `Created ${transactionType} record for ${emp.full_name}`, req.ip);
@@ -123,7 +138,7 @@ router.post('/', async (req, res) => {
 
 // PUT update record
 router.put('/:id', async (req, res) => {
-    const { employeeId, department, transactionType, labTestId, amount, description, date } = req.body;
+    const { employeeId, department, transactionType, labTestId, amount, description, date, selectedTests } = req.body;
     try {
         const row = await db.prepare('SELECT * FROM daily_operations WHERE id = ?').get(req.params.id);
         if (!row) return res.status(404).json({ error: 'Record not found' });
@@ -143,7 +158,7 @@ router.put('/:id', async (req, res) => {
         await db.prepare(`
             UPDATE daily_operations SET 
                 employee_id = ?, employee_name = ?, department = ?, transaction_type = ?,
-                lab_test_id = ?, lab_test_name = ?, amount = ?, description = ?, date = ?,
+                lab_test_id = ?, lab_test_name = ?, selected_tests = ?, amount = ?, description = ?, date = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         `).run(
@@ -153,11 +168,44 @@ router.put('/:id', async (req, res) => {
             transactionType || row.transaction_type,
             labTestId !== undefined ? labTestId : row.lab_test_id,
             labTestName,
+            JSON.stringify(selectedTests || JSON.parse(row.selected_tests || '[]')),
             amount !== undefined ? amount : row.amount,
             description !== undefined ? description : row.description,
             date || row.date,
             req.params.id
         );
+
+        // Update or Create account entry
+        const existingEntry = await db.prepare('SELECT id FROM account_entries WHERE reference_id = ?').get(req.params.id);
+        if (existingEntry) {
+            await db.prepare(`
+                UPDATE account_entries SET 
+                    date = ?, type = ?, category = ?, description = ?, amount = ?, 
+                    department = ?, user_id = ?
+                WHERE id = ?
+            `).run(
+                date || row.date,
+                transactionType === 'Operational Expense' ? 'expense' : 'income',
+                transactionType || row.transaction_type,
+                `${transactionType || row.transaction_type} record for ${empName}${description ? ': ' + description : (row.description ? ': ' + row.description : '')}`,
+                parseFloat(amount !== undefined ? amount : row.amount),
+                department !== undefined ? department : row.department,
+                req.user.id,
+                existingEntry.id
+            );
+        } else {
+            await recordSimpleEntry({
+                date: date || row.date,
+                type: (transactionType || row.transaction_type) === 'Operational Expense' ? 'expense' : 'income',
+                category: transactionType || row.transaction_type,
+                description: `${transactionType || row.transaction_type} record for ${empName}${description ? ': ' + description : (row.description ? ': ' + row.description : '')}`,
+                amount: parseFloat(amount !== undefined ? amount : row.amount),
+                department: department !== undefined ? department : row.department,
+                userId: req.user.id,
+                userName: req.user.name,
+                referenceId: req.params.id
+            });
+        }
 
         logAction(req.user.id, req.user.name, req.user.role, 'UPDATE', 'Daily Operations', `Updated record ${req.params.id}`, req.ip);
         

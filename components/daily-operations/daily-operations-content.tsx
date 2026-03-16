@@ -24,8 +24,10 @@ import {
   Calendar as CalendarIcon,
   Trash2,
   Edit,
-  Download
+  Download,
+  TestTube2
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { dailyOperationsApi, type DailyOperation, type DailyOperationsSummary } from "@/lib/api";
 import { toast } from "sonner";
 import { DailyOperationForm } from "./daily-operation-form";
@@ -247,10 +249,20 @@ export function DailyOperationsContent() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="max-w-[250px] truncate" title={op.description}>
-                          {op.description || (op.labTestName ? op.labTestName : "No details")}
+                        <div className="max-w-[300px] truncate font-medium text-slate-700" title={op.description}>
+                          {op.description || (op.selectedTests && op.selectedTests.length > 0 ? op.selectedTests.map(t => t.name).join(", ") : (op.labTestName ? op.labTestName : "No details"))}
                         </div>
-                        {op.labTestName && <div className="text-xs text-muted-foreground">Test: {op.labTestName}</div>}
+                        {op.selectedTests && op.selectedTests.length > 0 ? (
+                           <div className="flex flex-wrap gap-1 mt-1">
+                             {op.selectedTests.map(t => (
+                               <Badge key={t.id} variant="outline" className="text-[10px] px-1 py-0 bg-slate-50 border-slate-200">
+                                 {t.name}
+                               </Badge>
+                             ))}
+                           </div>
+                        ) : op.labTestName && (
+                          <div className="text-xs text-muted-foreground mt-0.5 font-medium">Test: {op.labTestName}</div>
+                        )}
                       </TableCell>
                       <TableCell className={`text-right font-medium ${
                         op.transactionType === 'Cash Received' ? 'text-green-600 dark:text-green-400' :

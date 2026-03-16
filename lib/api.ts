@@ -299,6 +299,42 @@ export const hrApi = {
     deleteEmployee: (id: string) => apiFetch<any>(`/hr/employees/${id}`, { method: 'DELETE' }),
 };
 
+// ===== Revenue Analytics =====
+export const revenueAnalyticsApi = {
+    getDepartments: () => get<Department[]>('/revenue-analytics/departments'),
+    createDepartment: (data: { name: string; code?: string }) => post<Department>('/revenue-analytics/departments', data),
+    getServiceCategories: () => get<ServiceCategory[]>('/revenue-analytics/service-categories'),
+    createServiceCategory: (data: { name: string; description?: string }) => post<ServiceCategory>('/revenue-analytics/service-categories', data),
+    getReport: (params?: { startDate?: string; endDate?: string }) => get<RevenueReport>('/revenue-analytics/report' + toQuery(params)),
+};
+
+export interface Department {
+    id: string;
+    name: string;
+    code?: string;
+    isActive: boolean;
+    createdAt: string;
+}
+
+export interface ServiceCategory {
+    id: string;
+    name: string;
+    description?: string;
+    isActive: boolean;
+    createdAt: string;
+}
+
+export interface RevenueReport {
+    columns: string[];
+    rows: {
+        department: string;
+        totals: Record<string, number>;
+        rowTotal: number;
+    }[];
+    columnTotals: Record<string, number>;
+    grandTotal: number;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────
 type QueryParams = Record<string, string | number | boolean | undefined>;
 
@@ -655,6 +691,7 @@ export interface DailyOperation {
     transactionType: 'Staff Laboratory Test' | 'Laboratory Internal Use' | 'Operational Expense' | 'Cash Received' | 'Other';
     labTestId?: string;
     labTestName?: string;
+    selectedTests?: { id: string; name: string; amount: number }[];
     amount: number;
     description?: string;
     date: string;
