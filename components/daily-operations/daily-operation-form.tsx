@@ -123,6 +123,10 @@ export function DailyOperationForm({ open, onOpenChange, operation, onSuccess }:
   };
 
   const addTest = (testId: string) => {
+    if (selectedTests.length >= 5) {
+      toast.error("Maximum 5 tests allowed per record");
+      return;
+    }
     const test = labTests.find(t => t.id === testId);
     if (test && !selectedTests.find(st => st.id === testId)) {
       setSelectedTests(prev => [...prev, { id: test.id, name: test.name, amount: test.cost }]);
@@ -235,6 +239,7 @@ export function DailyOperationForm({ open, onOpenChange, operation, onSuccess }:
                         {categories.map(cat => (
                           <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
                         ))}
+                        <SelectItem value="Lab Tests">Lab Tests</SelectItem>
                         <SelectItem value="Operational Expense">Operational Expense</SelectItem>
                         <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
