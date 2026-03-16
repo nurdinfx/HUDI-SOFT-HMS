@@ -121,7 +121,7 @@ export function DailyOperationsContent() {
             <TrendingDown className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${summary?.expenses.toFixed(2) || "0.00"}</div>
+            <div className="text-2xl font-bold">${Number(summary?.expenses || 0).toFixed(2)}</div>
           </CardContent>
         </Card>
         
@@ -131,7 +131,7 @@ export function DailyOperationsContent() {
             <DollarSign className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${summary?.cashReceived.toFixed(2) || "0.00"}</div>
+            <div className="text-2xl font-bold">${Number(summary?.cashReceived || 0).toFixed(2)}</div>
           </CardContent>
         </Card>
 
@@ -152,7 +152,7 @@ export function DailyOperationsContent() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${(summary?.netBalance || 0) < 0 ? 'text-red-500' : 'text-green-500'}`}>
-              ${summary?.netBalance.toFixed(2) || "0.00"}
+              ${Number(summary?.netBalance || 0).toFixed(2)}
             </div>
           </CardContent>
         </Card>
@@ -269,7 +269,7 @@ export function DailyOperationsContent() {
                         op.transactionType === 'Operational Expense' ? 'text-red-500' :
                         'text-gray-700 dark:text-gray-300'
                       }`}>
-                        ${op.amount.toFixed(2)}
+                        ${Number(op.amount || 0).toFixed(2)}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">

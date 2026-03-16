@@ -54,7 +54,7 @@ export function DailyOperationForm({ open, onOpenChange, operation, onSuccess }:
   const [selectedTests, setSelectedTests] = useState<SelectedTest[]>([]);
 
   const calculatedTotal = useMemo(() => {
-    return selectedTests.reduce((sum, t) => sum + t.amount, 0);
+    return selectedTests.reduce((sum, t) => sum + Number(t.amount || 0), 0);
   }, [selectedTests]);
 
   const displayAmount = formData.useManualAmount ? formData.manualAmount : calculatedTotal.toString();
@@ -306,7 +306,7 @@ export function DailyOperationForm({ open, onOpenChange, operation, onSuccess }:
                                 ))}
                             </div>
                             <div className="text-[10px] text-primary/70 italic px-1">
-                                Total for {selectedTests.length} test(s): <span className="font-bold underline">${calculatedTotal.toFixed(2)}</span>
+                                Total for {selectedTests.length} test(s): <span className="font-bold underline">${Number(calculatedTotal || 0).toFixed(2)}</span>
                             </div>
                         </div>
                     ) : (

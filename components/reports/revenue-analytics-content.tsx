@@ -89,7 +89,6 @@ export function RevenueAnalyticsContent({ report, loading, onRefresh }: RevenueA
         <PageHeader 
           title="Revenue Analytics" 
           description="Detailed financial breakdown by department and service category" 
-          icon={<LayoutDashboard className="h-4 w-4 text-primary" />}
         />
         <div className="flex items-center gap-2">
             <Button variant="outline" onClick={handlePrint} className="hidden sm:flex">
@@ -200,7 +199,7 @@ export function RevenueAnalyticsContent({ report, loading, onRefresh }: RevenueA
                 <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Revenue</CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="text-3xl font-bold text-slate-900">${report?.grandTotal.toLocaleString() || "0"}</div>
+                <div className="text-3xl font-bold text-slate-900">${Number(report?.grandTotal || 0).toLocaleString()}</div>
                 <div className="flex items-center mt-2 text-xs font-medium text-emerald-600">
                     <ArrowUpRight className="h-3 w-3 mr-1" />
                     Global Income
@@ -266,14 +265,14 @@ export function RevenueAnalyticsContent({ report, loading, onRefresh }: RevenueA
                       {report.columns.map(col => (
                         <TableCell key={col} className="text-center font-mono text-slate-600 px-4">
                           {row.totals[col] > 0 ? (
-                              <span className="font-medium text-slate-900">${row.totals[col].toLocaleString()}</span>
+                              <span className="font-medium text-slate-900">${Number(row.totals[col] || 0).toLocaleString()}</span>
                           ) : (
                               <span className="text-slate-300 font-light">$0</span>
                           )}
                         </TableCell>
                       ))}
                       <TableCell className="text-right font-black text-slate-900 bg-slate-50 sticky right-0 z-10 border-l border-slate-200 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                        ${row.rowTotal.toLocaleString()}
+                        ${Number(row.rowTotal || 0).toLocaleString()}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -285,11 +284,11 @@ export function RevenueAnalyticsContent({ report, loading, onRefresh }: RevenueA
                     </TableCell>
                     {report.columns.map(col => (
                       <TableCell key={col} className="text-center font-black text-slate-100 bg-slate-800">
-                        ${report.columnTotals[col].toLocaleString()}
+                        ${Number(report.columnTotals[col] || 0).toLocaleString()}
                       </TableCell>
                     ))}
                     <TableCell className="text-right font-black text-emerald-400 bg-slate-950 sticky right-0 z-10 ring-1 ring-slate-800 border-l border-emerald-900">
-                      ${report.grandTotal.toLocaleString()}
+                      ${Number(report.grandTotal || 0).toLocaleString()}
                     </TableCell>
                   </TableRow>
                 </>
