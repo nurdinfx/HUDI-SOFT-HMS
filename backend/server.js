@@ -56,7 +56,16 @@ app.use((req, res, next) => {
 
 // Wait for DB to be ready, then mount routes
 const dbModule = require('./database');
-dbModule.promise.then(() => {
+dbModule.promise.then(async () => {
+    // Run Migrations
+    console.log('📦 Running Database Migrations...');
+    try {
+        await require('./migrate_revenue_analytics')();
+        await require('./migrate_multi_test')();
+    } catch (err) {
+        console.error('⚠️ Migration warning:', err.message);
+    }
+
     // Routes
     app.use('/api/auth', require('./routes/auth'));
     app.use('/api/pos', require('./routes/pos'));

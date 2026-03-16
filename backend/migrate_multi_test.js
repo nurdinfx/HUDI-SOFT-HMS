@@ -11,4 +11,7 @@ async function migrateMultiTest() {
     }
 }
 
-migrateMultiTest();
+module.exports = migrateMultiTest;
+if (require.main === module) {
+    migrateMultiTest();
+}
