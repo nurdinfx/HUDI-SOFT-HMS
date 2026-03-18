@@ -114,6 +114,8 @@ export const pharmacyApi = {
     createPrescription: (data: Partial<Prescription>) => post<Prescription>('/pharmacy/prescriptions', data),
     updatePrescription: (id: string, data: Partial<Prescription>) => put<Prescription>(`/pharmacy/prescriptions/${id}`, data),
     dispense: (id: string) => put<{ message: string; rxId: string; invoiceId: string }>(`/pharmacy/prescriptions/${id}/dispense`, {}),
+    getCategories: () => get<{ id: string; name: string }[]>('/pharmacy/categories'),
+    createCategory: (name: string) => post<{ id: string; name: string }>('/pharmacy/categories', { name }),
 };
 
 // ─── Laboratory ──────────────────────────────────────────────────

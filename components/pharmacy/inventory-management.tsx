@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import {
     Plus,
     Search,
@@ -56,6 +56,35 @@ export function InventoryManagement({ medicines, onRefresh }: Props) {
     const [search, setSearch] = useState("")
     const [isAdding, setIsAdding] = useState(false)
     const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null)
+    const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
+    const [showAddCategory, setShowAddCategory] = useState(false)
+    const [newCategoryName, setNewCategoryName] = useState("")
+
+    useEffect(() => {
+        loadCategories()
+    }, [])
+
+    const loadCategories = async () => {
+        try {
+            const cats = await pharmacyApi.getCategories()
+            setCategories(cats)
+        } catch (error) {
+            console.error("Failed to load categories")
+        }
+    }
+
+    const handleAddCategory = async () => {
+        if (!newCategoryName.trim()) return
+        try {
+            await pharmacyApi.createCategory(newCategoryName.trim())
+            toast.success("Category added")
+            setNewCategoryName("")
+            setShowAddCategory(false)
+            await loadCategories()
+        } catch (error: any) {
+            toast.error(error.message || "Failed to add category")
+        }
+    }
 
     const [formData, setFormData] = useState<Partial<Medicine>>({
         name: "",
@@ -70,6 +99,8 @@ export function InventoryManagement({ medicines, onRefresh }: Props) {
         sellingPrice: 0,
         unit: "tablet"
     })
+
+    const initialCategory = categories.length > 0 ? categories[0].name : "Tablet"
 
     const filtered = useMemo(() => {
         return medicines.filter(m =>
@@ -123,7 +154,7 @@ export function InventoryManagement({ medicines, onRefresh }: Props) {
                     </Button>
                     <Button size="sm" className="gap-2" onClick={() => {
                         setFormData({
-                            name: "", genericName: "", category: "Tablet", manufacturer: "",
+                            name: "", genericName: "", category: initialCategory, manufacturer: "",
                             batchNumber: "", expiryDate: "", quantity: 0, reorderLevel: 10,
                             unitPrice: 0, sellingPrice: 0, unit: "tablet"
                         })
@@ -229,15 +260,24 @@ export function InventoryManagement({ medicines, onRefresh }: Props) {
                                 <Input value={formData.genericName} onChange={e => setFormData({ ...formData, genericName: e.target.value })} />
                             </div>
                             <div className="space-y-2">
-                                <Label>Category</Label>
+                                <div className="flex items-center justify-between">
+                                    <Label>Category</Label>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 px-2 text-[10px] gap-1"
+                                        onClick={() => setShowAddCategory(true)}
+                                    >
+                                        <Plus className="size-3" /> Add New
+                                    </Button>
+                                </div>
                                 <Select value={formData.category} onValueChange={v => setFormData({ ...formData, category: v })}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Tablet">Tablet</SelectItem>
-                                        <SelectItem value="Syrup">Syrup</SelectItem>
-                                        <SelectItem value="Injection">Injection</SelectItem>
-                                        <SelectItem value="Ointment">Ointment</SelectItem>
-                                        <SelectItem value="Capsule">Capsule</SelectItem>
+                                        {categories.map(cat => (
+                                            <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -275,6 +315,28 @@ export function InventoryManagement({ medicines, onRefresh }: Props) {
                             <Button type="submit">Save Medicine</Button>
                         </DialogFooter>
                     </form>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={showAddCategory} onOpenChange={setShowAddCategory}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Add New Category</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Category Name</Label>
+                            <Input
+                                placeholder="Enter category name (e.g. Cream, Lotion)"
+                                value={newCategoryName}
+                                onChange={e => setNewCategoryName(e.target.value)}
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowAddCategory(false)}>Cancel</Button>
+                        <Button onClick={handleAddCategory}>Add Category</Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

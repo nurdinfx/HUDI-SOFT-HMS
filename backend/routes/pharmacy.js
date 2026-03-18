@@ -6,6 +6,56 @@ const { authenticate, logAction } = require('../middleware/auth');
 const router = express.Router();
 router.use(authenticate);
 
+// ── Table Initialization ──────────────────────────────────────────────
+async function initTables() {
+    try {
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS medicine_categories (
+                id UUID PRIMARY KEY,
+                name TEXT UNIQUE NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        
+        // Seed initial categories if none exist
+        const countRes = await db.query('SELECT COUNT(*) as count FROM medicine_categories');
+        if (parseInt(countRes.rows[0].count) === 0) {
+            const defaults = ['Tablet', 'Syrup', 'Injection', 'Ointment', 'Capsule'];
+            for (const name of defaults) {
+                await db.prepare('INSERT INTO medicine_categories (id, name) VALUES (?, ?)').run(uuidv4(), name);
+            }
+        }
+    } catch (err) {
+        console.error('❌ Pharmacy Table Init Error:', err.message);
+    }
+}
+initTables();
+
+// ── Categories ───────────────────────────────────────────────────────────
+router.get('/categories', async (req, res) => {
+    try {
+        const rows = await db.prepare('SELECT * FROM medicine_categories ORDER BY name').all();
+        res.json(rows.map(r => ({ id: r.id, name: r.name })));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.post('/categories', async (req, res) => {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'Category name required' });
+    try {
+        const id = uuidv4();
+        await db.prepare('INSERT INTO medicine_categories (id, name) VALUES (?, ?)').run(id, name);
+        res.status(201).json({ id, name });
+    } catch (err) {
+        if (err.message.includes('unique constraint')) {
+            return res.status(400).json({ error: 'Category already exists' });
+        }
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ── Medicines ──────────────────────────────────────────────────────────────
 const fmtMed = (m) => ({
     id: m.id, name: m.name, genericName: m.generic_name, category: m.category,
