@@ -17,6 +17,54 @@ async function initTables() {
             )
         `);
         
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS pharmacy_transactions (
+                id UUID PRIMARY KEY,
+                invoice_id TEXT UNIQUE NOT NULL,
+                patient_id UUID,
+                patient_name TEXT,
+                total_amount DECIMAL(15,2) DEFAULT 0,
+                paid_amount DECIMAL(15,2) DEFAULT 0,
+                credit_amount DECIMAL(15,2) DEFAULT 0,
+                payment_method TEXT,
+                status TEXT,
+                created_by TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS pharmacy_transaction_items (
+                id UUID PRIMARY KEY,
+                transaction_id UUID REFERENCES pharmacy_transactions(id),
+                medicine_id UUID,
+                medicine_name TEXT,
+                quantity INTEGER,
+                unit_price DECIMAL(15,2),
+                total_price DECIMAL(15,2)
+            )
+        `);
+
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS patient_credits (
+                id UUID PRIMARY KEY,
+                patient_id UUID UNIQUE,
+                balance DECIMAL(15,2) DEFAULT 0,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS pharmacy_returns (
+                id UUID PRIMARY KEY,
+                transaction_id UUID REFERENCES pharmacy_transactions(id),
+                item_id UUID REFERENCES pharmacy_transaction_items(id),
+                quantity INTEGER,
+                amount DECIMAL(15,2),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
         // Seed initial categories if none exist
         const countRes = await db.query('SELECT COUNT(*) as count FROM medicine_categories');
         if (parseInt(countRes.rows[0].count) === 0) {
@@ -30,6 +78,154 @@ async function initTables() {
     }
 }
 initTables();
+
+// ── Transactions ────────────────────────────────────────────────────────
+router.get('/transactions', async (req, res) => {
+    const { patientId, status, paymentMethod, startDate, endDate } = req.query;
+    let q = 'SELECT * FROM pharmacy_transactions WHERE 1=1';
+    const params = [];
+
+    if (patientId) { q += ' AND patient_id = ?'; params.push(patientId); }
+    if (status) { q += ' AND status = ?'; params.push(status); }
+    if (paymentMethod) { q += ' AND payment_method = ?'; params.push(paymentMethod); }
+    if (startDate) { q += ' AND created_at >= ?'; params.push(startDate); }
+    if (endDate) { q += ' AND created_at <= ?'; params.push(endDate); }
+
+    q += ' ORDER BY created_at DESC';
+
+    try {
+        const rows = await db.prepare(q).all(...params);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.post('/transactions', async (req, res) => {
+    const { patientId, patientName, items, totalAmount, paidAmount, paymentMethod, status } = req.body;
+    
+    try {
+        const txId = uuidv4();
+        const countRes = await db.query('SELECT COUNT(*) as count FROM pharmacy_transactions');
+        const invoiceId = `PHARM-INV-${String(parseInt(countRes.rows[0].count) + 1).padStart(4, '0')}`;
+        
+        await db.run('BEGIN TRANSACTION');
+
+        const creditAmount = totalAmount - paidAmount;
+
+        // Insert Transaction
+        await db.prepare(`INSERT INTO pharmacy_transactions 
+            (id, invoice_id, patient_id, patient_name, total_amount, paid_amount, credit_amount, payment_method, status, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+            .run(txId, invoiceId, patientId || null, patientName, totalAmount, paidAmount, creditAmount, paymentMethod, status, req.user.name);
+
+        // Insert Items & Update Stock
+        for (const item of items) {
+            const itemId = uuidv4();
+            await db.prepare(`INSERT INTO pharmacy_transaction_items 
+                (id, transaction_id, medicine_id, medicine_name, quantity, unit_price, total_price)
+                VALUES (?, ?, ?, ?, ?, ?, ?)`)
+                .run(itemId, txId, item.medicineId, item.medicineName, item.quantity, item.unitPrice, item.totalPrice);
+
+            // Stock Check & Update
+            const med = await db.prepare('SELECT quantity FROM medicines WHERE id = ?').get(item.medicineId);
+            if (!med || med.quantity < item.quantity) {
+                throw new Error(`Insufficient stock for ${item.medicineName}`);
+            }
+            await db.prepare('UPDATE medicines SET quantity = quantity - ? WHERE id = ?').run(item.quantity, item.medicineId);
+        }
+
+        // Handle Patient Credit
+        if (patientId && creditAmount > 0) {
+            await db.prepare(`INSERT INTO patient_credits (id, patient_id, balance) 
+                VALUES (?, ?, ?) 
+                ON CONFLICT(patient_id) DO UPDATE SET balance = balance + ?, last_updated = CURRENT_TIMESTAMP`)
+                .run(uuidv4(), patientId, creditAmount, creditAmount);
+        }
+
+        await db.run('COMMIT');
+        logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'Pharmacy', `Transaction ${invoiceId} created`, req.ip);
+        res.status(201).json({ id: txId, invoiceId });
+    } catch (err) {
+        await db.run('ROLLBACK');
+        res.status(400).json({ error: err.message });
+    }
+});
+
+router.post('/transactions/:id/return', async (req, res) => {
+    const { items } = req.body; // Array of { itemId, quantity, amount }
+    
+    try {
+        const tx = await db.prepare('SELECT * FROM pharmacy_transactions WHERE id = ?').get(req.params.id);
+        if (!tx) return res.status(404).json({ error: 'Transaction not found' });
+
+        await db.run('BEGIN TRANSACTION');
+
+        let totalReturnedAmount = 0;
+
+        for (const rItem of items) {
+            const item = await db.prepare('SELECT * FROM pharmacy_transaction_items WHERE id = ?').get(rItem.itemId);
+            if (!item) throw new Error('Transaction item not found');
+
+            const returnId = uuidv4();
+            await db.prepare('INSERT INTO pharmacy_returns (id, transaction_id, item_id, quantity, amount) VALUES (?, ?, ?, ?, ?)')
+                .run(returnId, req.params.id, rItem.itemId, rItem.quantity, rItem.amount);
+
+            // Update Stock
+            await db.prepare('UPDATE medicines SET quantity = quantity + ? WHERE id = ?').run(rItem.quantity, item.medicine_id);
+            totalReturnedAmount += rItem.amount;
+        }
+
+        // Add to credit balance if patient exists
+        if (tx.patient_id) {
+            await db.prepare(`INSERT INTO patient_credits (id, patient_id, balance) 
+                VALUES (?, ?, ?) 
+                ON CONFLICT(patient_id) DO UPDATE SET balance = balance + ?, last_updated = CURRENT_TIMESTAMP`)
+                .run(uuidv4(), tx.patient_id, totalReturnedAmount, totalReturnedAmount);
+        }
+
+        await db.run('COMMIT');
+        logAction(req.user.id, req.user.name, req.user.role, 'UPDATE', 'Pharmacy', `Return processed for transaction ${tx.invoice_id}`, req.ip);
+        res.json({ message: 'Return processed' });
+    } catch (err) {
+        await db.run('ROLLBACK');
+        res.status(400).json({ error: err.message });
+    }
+});
+
+router.get('/stats/revenue', async (req, res) => {
+    const today = new Date().toISOString().split('T')[0] + '%';
+    try {
+        const stats = {
+            totalSales: (await db.prepare("SELECT SUM(total_amount) as s FROM pharmacy_transactions WHERE created_at LIKE ?").get(today)).s || 0,
+            totalReturns: (await db.prepare("SELECT SUM(amount) as s FROM pharmacy_returns WHERE created_at LIKE ?").get(today)).s || 0,
+            transactionCount: (await db.prepare("SELECT COUNT(*) as c FROM pharmacy_transactions WHERE created_at LIKE ?").get(today)).c,
+            outstandingCredit: (await db.query("SELECT SUM(balance) as s FROM patient_credits")).rows[0].s || 0,
+            breakdown: await db.prepare("SELECT payment_method, SUM(total_amount) as amount FROM pharmacy_transactions WHERE created_at LIKE ? GROUP BY payment_method").all(today)
+        };
+        res.json(stats);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/credits/:patientId', async (req, res) => {
+    try {
+        const row = await db.prepare('SELECT * FROM patient_credits WHERE patient_id = ?').get(req.params.patientId);
+        res.json(row || { balance: 0 });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/transactions/:id/items', async (req, res) => {
+    try {
+        const rows = await db.prepare('SELECT * FROM pharmacy_transaction_items WHERE transaction_id = ?').all(req.params.id);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // ── Categories ───────────────────────────────────────────────────────────
 router.get('/categories', async (req, res) => {

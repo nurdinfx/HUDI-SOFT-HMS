@@ -116,6 +116,12 @@ export const pharmacyApi = {
     dispense: (id: string) => put<{ message: string; rxId: string; invoiceId: string }>(`/pharmacy/prescriptions/${id}/dispense`, {}),
     getCategories: () => get<{ id: string; name: string }[]>('/pharmacy/categories'),
     createCategory: (name: string) => post<{ id: string; name: string }>('/pharmacy/categories', { name }),
+    getTransactions: (filters?: any) => get<any[]>(`/pharmacy/transactions${toQuery(filters)}`),
+    getTransactionItems: (id: string) => get<any[]>(`/pharmacy/transactions/${id}/items`),
+    createTransaction: (data: any) => post<{ id: string; invoiceId: string }>('/pharmacy/transactions', data),
+    processReturn: (id: string, items: any[]) => post<any>(`/pharmacy/transactions/${id}/return`, { items }),
+    getRevenueStats: () => get<any>('/pharmacy/stats/revenue'),
+    getPatientCredits: (patientId: string) => get<{ balance: number }>(`/pharmacy/credits/${patientId}`),
 };
 
 // ─── Laboratory ──────────────────────────────────────────────────
