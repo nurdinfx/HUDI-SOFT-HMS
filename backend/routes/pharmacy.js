@@ -88,8 +88,8 @@ router.get('/transactions', async (req, res) => {
     if (patientId) { q += ' AND patient_id = ?'; params.push(patientId); }
     if (status) { q += ' AND status = ?'; params.push(status); }
     if (paymentMethod) { q += ' AND payment_method = ?'; params.push(paymentMethod); }
-    if (startDate) { q += ' AND created_at >= ?'; params.push(startDate); }
-    if (endDate) { q += ' AND created_at <= ?'; params.push(endDate); }
+    if (startDate) { q += ' AND DATE(created_at) >= ?'; params.push(startDate); }
+    if (endDate) { q += ' AND DATE(created_at) <= ?'; params.push(endDate); }
 
     q += ' ORDER BY created_at DESC';
 
@@ -194,14 +194,13 @@ router.post('/transactions/:id/return', async (req, res) => {
 });
 
 router.get('/stats/revenue', async (req, res) => {
-    const today = new Date().toISOString().split('T')[0] + '%';
     try {
         const stats = {
-            totalSales: (await db.prepare("SELECT SUM(total_amount) as s FROM pharmacy_transactions WHERE created_at LIKE ?").get(today)).s || 0,
-            totalReturns: (await db.prepare("SELECT SUM(amount) as s FROM pharmacy_returns WHERE created_at LIKE ?").get(today)).s || 0,
-            transactionCount: (await db.prepare("SELECT COUNT(*) as c FROM pharmacy_transactions WHERE created_at LIKE ?").get(today)).c,
+            totalSales: (await db.prepare("SELECT SUM(total_amount) as s FROM pharmacy_transactions WHERE DATE(created_at) = CURRENT_DATE").get()).s || 0,
+            totalReturns: (await db.prepare("SELECT SUM(amount) as s FROM pharmacy_returns WHERE DATE(created_at) = CURRENT_DATE").get()).s || 0,
+            transactionCount: (await db.prepare("SELECT COUNT(*) as c FROM pharmacy_transactions WHERE DATE(created_at) = CURRENT_DATE").get()).c || 0,
             outstandingCredit: (await db.query("SELECT SUM(balance) as s FROM patient_credits")).rows[0].s || 0,
-            breakdown: await db.prepare("SELECT payment_method, SUM(total_amount) as amount FROM pharmacy_transactions WHERE created_at LIKE ? GROUP BY payment_method").all(today)
+            breakdown: await db.prepare("SELECT payment_method, SUM(total_amount) as amount FROM pharmacy_transactions WHERE DATE(created_at) = CURRENT_DATE GROUP BY payment_method").all()
         };
         res.json(stats);
     } catch (err) {
