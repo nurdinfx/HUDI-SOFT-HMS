@@ -6,6 +6,59 @@ const { authenticate, logAction } = require('../middleware/auth');
 const router = express.Router();
 router.use(authenticate);
 
+// ── Table Initialization ──────────────────────────────────────────────
+async function initTables() {
+    try {
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS lab_categories (
+                id UUID PRIMARY KEY,
+                name TEXT UNIQUE NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        
+        // Seed initial categories if none exist
+        const countRes = await db.query('SELECT COUNT(*) as count FROM lab_categories');
+        if (parseInt(countRes.rows[0].count) === 0) {
+            const defaults = [
+                'Hematology', 'Biochemistry', 'Microbiology', 'Serology', 
+                'Endocrinology', 'Clinical Pathology', 'Radiology', 'Molecular Biology'
+            ];
+            for (const name of defaults) {
+                await db.prepare('INSERT INTO lab_categories (id, name) VALUES (?, ?)').run(uuidv4(), name);
+            }
+        }
+    } catch (err) {
+        console.error('❌ Laboratory Table Init Error:', err.message);
+    }
+}
+initTables();
+
+// ── Categories ───────────────────────────────────────────────────────────
+router.get('/categories', async (req, res) => {
+    try {
+        const rows = await db.prepare('SELECT * FROM lab_categories ORDER BY name').all();
+        res.json(rows.map(r => ({ id: r.id, name: r.name })));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.post('/categories', async (req, res) => {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'Category name required' });
+    try {
+        const id = uuidv4();
+        await db.prepare('INSERT INTO lab_categories (id, name) VALUES (?, ?)').run(id, name);
+        res.status(201).json({ id, name });
+    } catch (err) {
+        if (err.message.includes('unique constraint')) {
+            return res.status(400).json({ error: 'Category already exists' });
+        }
+        res.status(500).json({ error: err.message });
+    }
+});
+
 const fmt = (t) => ({
     id: t.id, testId: t.test_id, patientId: t.patient_id, patientName: t.patient_name,
     doctorId: t.doctor_id, doctorName: t.doctor_name, testName: t.test_name,

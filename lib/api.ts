@@ -131,6 +131,8 @@ export const laboratoryApi = {
     createCatalogItem: (data: Partial<LabCatalogItem>) => post<LabCatalogItem>('/laboratory/catalog', data),
     updateCatalogItem: (id: string, data: Partial<LabCatalogItem>) => put<LabCatalogItem>(`/laboratory/catalog/${id}`, data),
     deleteCatalogItem: (id: string) => del(`/laboratory/catalog/${id}`),
+    getCategories: () => get<{ id: string; name: string }[]>('/laboratory/categories'),
+    createCategory: (name: string) => post<{ id: string; name: string }>('/laboratory/categories', { name }),
 };
 
 // ─── Billing ─────────────────────────────────────────────────────

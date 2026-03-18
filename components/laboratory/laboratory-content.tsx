@@ -134,6 +134,9 @@ export function LaboratoryContent({ initialLabTests }: Props) {
     normalRange: "",
     cost: 0
   })
+  const [labCategories, setLabCategories] = useState<{ id: string; name: string }[]>([])
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState("")
 
   const fetchStats = async () => {
     try {
@@ -151,9 +154,32 @@ export function LaboratoryContent({ initialLabTests }: Props) {
     } catch (e) { }
   }
 
+  const fetchCategories = async () => {
+    try {
+      const cats = await laboratoryApi.getCategories()
+      setLabCategories(cats)
+    } catch (e) {
+      console.error("Failed to fetch lab categories", e)
+    }
+  }
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return
+    try {
+      await laboratoryApi.createCategory(newCategoryName.trim())
+      toast.success("Category added successfully")
+      setNewCategoryName("")
+      setShowAddCategoryModal(false)
+      await fetchCategories()
+    } catch (e: any) {
+      toast.error(e.message || "Failed to add category")
+    }
+  }
+
   useEffect(() => {
     fetchStats()
     fetchCatalog()
+    fetchCategories()
   }, [])
 
   const fetchDropdowns = async () => {
@@ -173,6 +199,7 @@ export function LaboratoryContent({ initialLabTests }: Props) {
       setLabTests(updatedTests)
       fetchStats()
       fetchCatalog()
+      fetchCategories()
     } catch (e) { }
   }
 
@@ -217,7 +244,7 @@ export function LaboratoryContent({ initialLabTests }: Props) {
       setEditingCatalogItem(null)
       setCatalogForm({
         name: "",
-        category: "",
+        category: labCategories.length > 0 ? labCategories[0].name : "",
         sampleType: "Blood",
         normalRange: "",
         cost: 0
@@ -1053,14 +1080,25 @@ export function LaboratoryContent({ initialLabTests }: Props) {
                 <Input placeholder="e.g. Complete Blood Count (CBC)" className="h-12 rounded-2xl border-slate-200 font-bold focus:ring-primary/20" value={catalogForm.name} onChange={(e) => setCatalogForm({ ...catalogForm, name: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Category</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Category</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[10px] gap-1 text-primary hover:text-primary/80"
+                    onClick={() => setShowAddCategoryModal(true)}
+                  >
+                    <Plus className="size-3" /> Add New
+                  </Button>
+                </div>
                 <Select value={catalogForm.category} onValueChange={(v) => setCatalogForm({ ...catalogForm, category: v })}>
                   <SelectTrigger className="h-12 rounded-2xl border-slate-200 font-bold">
                     <SelectValue placeholder="Select Category" />
                   </SelectTrigger>
                   <SelectContent className="rounded-2xl border-slate-200">
-                    {['Hematology', 'Biochemistry', 'Microbiology', 'Serology', 'Endocrinology', 'Clinical Pathology', 'Radiology', 'Molecular Biology'].map(c => (
-                      <SelectItem key={c} value={c} className="font-bold py-3 rounded-xl">{c}</SelectItem>
+                    {labCategories.map(c => (
+                      <SelectItem key={c.id} value={c.name} className="font-bold py-3 rounded-xl">{c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1084,6 +1122,33 @@ export function LaboratoryContent({ initialLabTests }: Props) {
             <Button className="rounded-2xl h-12 px-10 font-black shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]" onClick={handleSaveCatalogItem}>
               <Save className="size-5 mr-2" />
               {editingCatalogItem ? 'UPDATE INVESTIGATION' : 'SAVE TO MASTER CATALOG'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ADD CATEGORY MODAL */}
+      <Dialog open={showAddCategoryModal} onOpenChange={setShowAddCategoryModal}>
+        <DialogContent className="max-w-md rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="p-8 bg-slate-900 text-white">
+            <DialogTitle className="text-xl font-black uppercase tracking-tighter italic">Add New category</DialogTitle>
+          </DialogHeader>
+          <div className="p-8 space-y-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Category Name</Label>
+              <Input
+                placeholder="e.g. Immunology, Genetics"
+                className="h-12 rounded-2xl border-slate-200 font-bold focus:ring-primary/20"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter className="p-8 bg-slate-50 flex gap-3">
+            <Button variant="ghost" className="rounded-2xl h-11 px-6 font-black text-slate-400 hover:text-slate-900" onClick={() => setShowAddCategoryModal(false)}>CANCEL</Button>
+            <Button className="rounded-2xl h-11 px-8 font-black shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]" onClick={handleAddCategory}>
+              ADD CATEGORY
             </Button>
           </DialogFooter>
         </DialogContent>
