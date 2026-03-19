@@ -594,9 +594,8 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* NEW TRANSACTION MODAL */}
       <Dialog open={isSaleModalOpen} onOpenChange={setIsSaleModalOpen}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
+        <DialogContent className="max-w-6xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
           <DialogHeader className="p-8 bg-slate-900 text-white">
             <div className="flex justify-between items-start">
               <div className="space-y-1">
@@ -656,16 +655,16 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
               </div>
 
               <ScrollArea className="flex-1 bg-white border border-slate-100 rounded-3xl shadow-inner p-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {medicines.filter(m => m.name?.toLowerCase().includes(search.toLowerCase()) || m.genericName?.toLowerCase().includes(search.toLowerCase())).map(m => (
                     <button 
                       key={m.id} 
-                      className="p-4 rounded-2xl border border-transparent hover:border-primary/20 hover:bg-slate-50 transition-all flex flex-col text-left group disabled:opacity-50"
+                      className="p-4 rounded-2xl border border-transparent hover:border-primary/20 hover:bg-slate-50 transition-all flex flex-col text-left group disabled:opacity-30"
                       onClick={() => addToCart(m)}
                       disabled={m.quantity < 1}
                     >
-                      <div className="flex justify-between items-start w-full">
-                        <p className="font-black text-slate-900 uppercase tracking-tight truncate">{m.name}</p>
+                      <div className="flex justify-between items-start w-full gap-2">
+                        <p className="font-bold text-slate-900 uppercase tracking-tight leading-tight">{m.name}</p>
                         <Badge variant="outline" className={`${m.quantity > 10 ? 'text-emerald-600' : 'text-rose-600'} text-[9px] font-black border-none bg-slate-100 group-hover:bg-white`}>
                           Stock: {m.quantity}
                         </Badge>
@@ -695,7 +694,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                   {cart.map((item, idx) => (
                     <div key={idx} className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm relative group overflow-hidden">
                       <div className="flex justify-between items-start mb-2">
-                        <p className="font-bold text-xs text-slate-800 line-clamp-1 pr-4">{item.name}</p>
+                        <p className="font-bold text-xs text-slate-800 line-clamp-2 pr-4 leading-tight">{item.name}</p>
                         <button onClick={() => setCart(cart.filter((_, i) => i !== idx))} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-500 transition-all">
                           <X className="size-4" />
                         </button>
