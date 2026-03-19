@@ -595,7 +595,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
       </Dialog>
 
       <Dialog open={isSaleModalOpen} onOpenChange={setIsSaleModalOpen}>
-        <DialogContent className="max-w-[95vw] w-[1400px] h-[90vh] p-0 overflow-hidden border-none shadow-2xl rounded-3xl flex flex-col">
+        <DialogContent className="sm:max-w-[95vw] w-[95vw] max-w-[1400px] h-[90vh] p-0 overflow-hidden border-none shadow-2xl rounded-3xl flex flex-col focus:outline-none">
           <DialogHeader className="p-8 bg-slate-900 text-white">
             <div className="flex justify-between items-start">
               <div className="space-y-1">
@@ -654,8 +654,8 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                 </div>
               </div>
 
-              <ScrollArea className="flex-1 bg-white border border-slate-100 rounded-3xl shadow-inner p-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <ScrollArea className="flex-1 bg-white border border-slate-100 rounded-3xl shadow-inner p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {medicines.filter(m => m.name?.toLowerCase().includes(search.toLowerCase()) || m.genericName?.toLowerCase().includes(search.toLowerCase())).map(m => (
                     <button 
                       key={m.id} 
