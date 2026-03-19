@@ -114,7 +114,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
       const matchSearch = !search || 
-        t.invoice_id.toLowerCase().includes(search.toLowerCase()) ||
+        t.invoice_id?.toLowerCase().includes(search.toLowerCase()) ||
         t.patient_name?.toLowerCase().includes(search.toLowerCase())
       const matchStatus = statusFilter === "all" || t.status === statusFilter
       const matchMethod = activePaymentMethod === "all" || t.payment_method === activePaymentMethod
@@ -392,7 +392,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                         {tx.payment_method}
                       </Badge>
                     </TableCell>
-                    <TableCell><StatusBadge status={tx.status.toLowerCase()} /></TableCell>
+                    <TableCell><StatusBadge status={tx.status?.toLowerCase() || "pending"} /></TableCell>
                     <TableCell className="text-right pr-6">
                       <div className="flex justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
                         <Button 
@@ -657,7 +657,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
 
               <ScrollArea className="flex-1 bg-white border border-slate-100 rounded-3xl shadow-inner p-2">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {medicines.filter(m => m.name.toLowerCase().includes(search.toLowerCase()) || m.genericName.toLowerCase().includes(search.toLowerCase())).map(m => (
+                  {medicines.filter(m => m.name?.toLowerCase().includes(search.toLowerCase()) || m.genericName?.toLowerCase().includes(search.toLowerCase())).map(m => (
                     <button 
                       key={m.id} 
                       className="p-4 rounded-2xl border border-transparent hover:border-primary/20 hover:bg-slate-50 transition-all flex flex-col text-left group disabled:opacity-50"
