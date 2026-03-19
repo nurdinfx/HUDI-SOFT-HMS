@@ -107,6 +107,9 @@ module.exports = {
   async query(sql, params = []) {
     return pool.query(sql, params);
   },
+  async run(sql) {
+    return this.exec(sql);
+  },
   get ready() { return true; }, // Pool is ready on creation
   get promise() { return Promise.resolve(); } // Shim for server.js
 };
