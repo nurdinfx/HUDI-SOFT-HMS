@@ -254,10 +254,24 @@ router.post('/checkout', async (req, res) => {
                 // In a real system, you'd probably link them.
             }
 
-            // Stock management for medicines
+            // Stock management for medicines (FIFO Batch Deduction)
             if (item.type === 'medicine') {
                 const medicineIdToUpdate = item.medicineId ? item.medicineId : (item.isFromPrescription || item.prescriptionId ? null : item.id);
                 if (medicineIdToUpdate) {
+                    let remainingToDeduct = item.quantity;
+                    
+                    // 1. Get batches for this medicine, ordered by expiry (FIFO)
+                    const batches = await db.prepare('SELECT * FROM pharmacy_batches WHERE medicine_id = ? AND quantity_remaining > 0 AND status != \'expired\' ORDER BY expiry_date ASC').all(medicineIdToUpdate);
+                    
+                    for (const batch of batches) {
+                        if (remainingToDeduct === 0) break;
+                        
+                        const deduct = Math.min(batch.quantity_remaining, remainingToDeduct);
+                        await db.prepare('UPDATE pharmacy_batches SET quantity_remaining = quantity_remaining - ? WHERE id = ?').run(deduct, batch.id);
+                        remainingToDeduct -= deduct;
+                    }
+
+                    // 2. Update Medicine Total Stock
                     const med = await db.prepare('SELECT quantity, reorder_level FROM medicines WHERE id = ?').get(medicineIdToUpdate);
                     if (med) {
                         const newQty = Math.max(0, med.quantity - item.quantity);

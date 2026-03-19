@@ -131,6 +131,32 @@ export const pharmacyApi = {
     getPatientCredits: (patientId: string) => get<{ balance: number }>(`/pharmacy/credits/${patientId}`),
 };
 
+// ─── Pharmacy Purchase Hub ───────────────────────────────────────
+export const pharmacyPurchaseApi = {
+    getSuppliers: () => get<Supplier[]>('/pharmacy/purchase/suppliers'),
+    createSupplier: (data: Partial<Supplier>) => post<Supplier>('/pharmacy/purchase/suppliers', data),
+    updateSupplier: (id: string, data: Partial<Supplier>) => put<Supplier>(`/pharmacy/purchase/suppliers/${id}`, data),
+    
+    getOrders: (params?: QueryParams) => get<PurchaseOrder[]>(`/pharmacy/purchase/orders${toQuery(params)}`),
+    getOrder: (id: string) => get<PurchaseOrder & { items: PurchaseItem[] }>(`/pharmacy/purchase/orders/${id}`),
+    createOrder: (data: any) => post<{ id: string; poNumber: string }>('/pharmacy/purchase/orders', data),
+    updateOrderStatus: (id: string, status: string, receiveData?: any[]) => put<{ message: string }>(`/pharmacy/purchase/orders/${id}/status`, { status, receiveData }),
+    
+    getBatches: (params?: QueryParams) => get<Batch[]>(`/pharmacy/purchase/batches${toQuery(params)}`),
+    refreshBatchStatus: () => post<{ message: string }>('/pharmacy/purchase/batches/refresh-status', {}),
+    
+    getReturns: () => get<SupplierReturn[]>('/pharmacy/purchase/returns'),
+    createReturn: (data: any) => post<{ id: string }>('/pharmacy/purchase/returns', data),
+    
+    getStats: () => get<{
+        totalPurchases: number;
+        expiringCount: number;
+        expiredCount: number;
+        returnedAmount: number;
+        stockValue: number;
+    }>('/pharmacy/purchase/stats'),
+};
+
 // ─── Laboratory ──────────────────────────────────────────────────
 export const laboratoryApi = {
     getAll: (params?: QueryParams) => get<LabTest[]>(`/laboratory${toQuery(params)}`),
@@ -721,4 +747,66 @@ export interface DailyOperationsSummary {
     cashReceived: number;
     labTests: number;
     netBalance: number;
+}
+
+// ===== Purchase Hub Types =====
+export interface Supplier {
+    id: string;
+    name: string;
+    contactPerson?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+    createdAt: string;
+}
+
+export interface PurchaseOrder {
+    id: string;
+    poNumber: string;
+    supplierId: string;
+    supplierName?: string;
+    orderDate: string;
+    totalAmount: number;
+    status: 'pending' | 'received' | 'cancelled';
+    notes?: string;
+    createdBy: string;
+    createdAt: string;
+    items?: PurchaseItem[];
+}
+
+export interface PurchaseItem {
+    id: string;
+    poId: string;
+    medicineId: string;
+    medicineName: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+}
+
+export interface Batch {
+    id: string;
+    medicineId: string;
+    medicineName?: string;
+    batchNumber: string;
+    quantityReceived: number;
+    quantityRemaining: number;
+    expiryDate: string;
+    poId?: string;
+    supplierId?: string;
+    status: 'valid' | 'near-expiry' | 'expired';
+    createdAt: string;
+}
+
+export interface SupplierReturn {
+    id: string;
+    supplierId: string;
+    supplierName?: string;
+    batchId: string;
+    itemName: string;
+    quantity: number;
+    amount: number;
+    reason?: string;
+    returnDate: string;
+    createdAt: string;
 }

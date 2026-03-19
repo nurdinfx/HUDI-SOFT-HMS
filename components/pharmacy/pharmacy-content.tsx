@@ -28,6 +28,7 @@ import { pharmacyApi, type Prescription, type Medicine } from "@/lib/api"
 import { toast } from "sonner"
 import { InventoryManagement } from "./inventory-management"
 import { PharmacyTransactions } from "./pharmacy-transactions"
+import { PurchaseHub } from "./purchase-hub"
 
 interface Props {
   prescriptions: Prescription[]
@@ -88,6 +89,7 @@ export function PharmacyContent({ prescriptions, medicines, onRefresh }: Props) 
         <TabsList className="bg-transparent border-b rounded-none h-12 w-full justify-start gap-8 p-0 mb-6">
           <TabsTrigger value="queue" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0">Dispensing Queue</TabsTrigger>
           <TabsTrigger value="inventory" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0">Inventory Hub</TabsTrigger>
+          <TabsTrigger value="purchase" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0">Purchase Hub</TabsTrigger>
           <TabsTrigger value="financials" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0">Financial Hub</TabsTrigger>
           <TabsTrigger value="alerts" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0">Risk Alerts</TabsTrigger>
         </TabsList>
@@ -158,6 +160,10 @@ export function PharmacyContent({ prescriptions, medicines, onRefresh }: Props) 
 
         <TabsContent value="financials" className="mt-0">
           <PharmacyTransactions medicines={medicines} onRefresh={onRefresh} />
+        </TabsContent>
+
+        <TabsContent value="purchase" className="mt-0">
+          <PurchaseHub medicines={medicines} onRefresh={onRefresh} />
         </TabsContent>
 
         <TabsContent value="alerts" className="mt-0 space-y-6">

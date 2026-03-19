@@ -52,8 +52,9 @@ app.use('/api/push', require('./routes/push'));
 app.use('/api/patients', require('./routes/patients'));
 app.use('/api/doctors', require('./routes/doctors'));
 app.use('/api/appointments', require('./routes/appointments'));
-app.use('/api/pharmacy', require('./routes/pharmacy'));
-app.use('/api/laboratory', require('./routes/laboratory'));
+app.use(apiPath + '/pharmacy', require('./routes/pharmacy'));
+app.use(apiPath + '/pharmacy/purchase', require('./routes/pharmacy_purchase'));
+app.use(apiPath + '/laboratory', require('./routes/laboratory'));
 app.use('/api/billing', require('./routes/billing'));
 app.use('/api/opd', require('./routes/opd'));
 app.use('/api/ipd', require('./routes/ipd'));
@@ -83,6 +84,7 @@ dbModule.promise.then(async () => {
     try {
         await require('./migrate_revenue_analytics')();
         await require('./migrate_multi_test')();
+        await require('./migrate_purchase_hub')();
     } catch (err) {
         console.error('⚠️ Migration warning:', err.message);
     }
