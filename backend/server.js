@@ -5,17 +5,29 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// 1. CORS - MUST BE FIRST
+// 1. CORS - Robust Configuration
+const allowedOrigins = [
+    'https://hudi-soft-hms.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://hudi-soft-hms.onrender.com'
+];
+
 app.use(cors({
-    origin: true,
+    origin: function (origin, callback) {
+        // allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1) {
+            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            return callback(new Error(msg), false);
+        }
+        return callback(null, true);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
     optionsSuccessStatus: 200
 }));
-
-// Handle preflight globally
-app.options('*', cors());
 
 // Middleware
 app.use(express.json());
@@ -91,7 +103,5 @@ app.use((err, req, res, next) => {
     console.error('❌ Server Error:', err);
     res.status(500).json({ error: 'Internal server error', message: err.message });
 });
-
-module.exports = app;
 
 module.exports = app;
