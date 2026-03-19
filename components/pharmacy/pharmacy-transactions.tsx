@@ -595,7 +595,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
       </Dialog>
 
       <Dialog open={isSaleModalOpen} onOpenChange={setIsSaleModalOpen}>
-        <DialogContent className="max-w-6xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
+        <DialogContent className="max-w-[95vw] w-[1400px] h-[90vh] p-0 overflow-hidden border-none shadow-2xl rounded-3xl flex flex-col">
           <DialogHeader className="p-8 bg-slate-900 text-white">
             <div className="flex justify-between items-start">
               <div className="space-y-1">
@@ -607,7 +607,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
             </div>
           </DialogHeader>
 
-          <div className="grid grid-cols-12 h-[600px]">
+          <div className="grid grid-cols-12 flex-1 overflow-hidden">
             {/* Left: Search & Medicine Selection */}
             <div className="col-span-12 md:col-span-8 p-8 flex flex-col gap-6 border-r border-slate-100">
               <div className="space-y-4">
@@ -659,9 +659,14 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                   {medicines.filter(m => m.name?.toLowerCase().includes(search.toLowerCase()) || m.genericName?.toLowerCase().includes(search.toLowerCase())).map(m => (
                     <button 
                       key={m.id} 
-                      className="p-4 rounded-2xl border border-transparent hover:border-primary/20 hover:bg-slate-50 transition-all flex flex-col text-left group disabled:opacity-30"
-                      onClick={() => addToCart(m)}
-                      disabled={m.quantity < 1}
+                      className="p-4 rounded-2xl border border-transparent hover:border-primary/20 hover:bg-slate-50 transition-all flex flex-col text-left group disabled:bg-slate-50/50"
+                      onClick={() => {
+                        if (m.quantity < 1) {
+                          toast.error(`${m.name} is out of stock`)
+                          return
+                        }
+                        addToCart(m)
+                      }}
                     >
                       <div className="flex justify-between items-start w-full gap-2">
                         <p className="font-bold text-slate-900 uppercase tracking-tight leading-tight">{m.name}</p>
