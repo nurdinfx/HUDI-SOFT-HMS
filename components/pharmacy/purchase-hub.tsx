@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -241,6 +242,8 @@ export function PurchaseHub({ medicines, onRefresh }: Props) {
 function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders: PurchaseOrder[], suppliers: Supplier[], medicines: Medicine[], onRefresh: () => void }) {
   const [showAdd, setShowAdd] = useState(false)
   const [showReceive, setShowReceive] = useState<PurchaseOrder | null>(null)
+  const [showAddMed, setShowAddMed] = useState(false)
+  const [activeIdx, setActiveIdx] = useState<number | null>(null)
   
   // Create Order State
   const [supplierId, setSupplierId] = useState("")
@@ -366,20 +369,36 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
                         <div key={idx} className="grid grid-cols-12 gap-2 items-end">
                             <div className="col-span-4 space-y-1">
                                 <label className="text-[10px] uppercase text-muted-foreground">Medicine</label>
-                                <Select onValueChange={(val) => {
-                                    const med = medicines.find(m => m.id === val);
-                                    const newItems = [...items];
-                                    newItems[idx].medicine_id = val;
-                                    newItems[idx].medicine_name = med?.name || "";
-                                    newItems[idx].unit_price = med?.unitPrice || 0;
-                                    newItems[idx].total_price = newItems[idx].unit_price * newItems[idx].quantity;
-                                    setItems(newItems);
-                                }}>
-                                    <SelectTrigger><SelectValue placeholder="Select Medicine..." /></SelectTrigger>
-                                    <SelectContent>
-                                        {medicines.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
+                                <div className="flex gap-2">
+                                    <Select 
+                                        value={item.medicine_id}
+                                        onValueChange={(val) => {
+                                            const med = medicines.find(m => m.id === val);
+                                            const newItems = [...items];
+                                            newItems[idx].medicine_id = val;
+                                            newItems[idx].medicine_name = med?.name || "";
+                                            newItems[idx].unit_price = med?.unitPrice || 0;
+                                            newItems[idx].total_price = newItems[idx].unit_price * newItems[idx].quantity;
+                                            setItems(newItems);
+                                        }}
+                                    >
+                                        <SelectTrigger className="flex-1"><SelectValue placeholder="Select Medicine..." /></SelectTrigger>
+                                        <SelectContent>
+                                            {medicines.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                    <Button 
+                                        variant="outline" 
+                                        size="icon" 
+                                        className="size-10 rounded-xl flex-shrink-0"
+                                        onClick={() => {
+                                            setActiveIdx(idx)
+                                            setShowAddMed(true)
+                                        }}
+                                    >
+                                        <Plus className="size-4" />
+                                    </Button>
+                                </div>
                             </div>
                             <div className="col-span-2 space-y-1">
                                 <label className="text-[10px] uppercase text-muted-foreground">Quantity</label>
@@ -481,6 +500,24 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AddMedicineDialog 
+        open={showAddMed} 
+        onOpenChange={setShowAddMed}
+        onSuccess={(newMed) => {
+            onRefresh()
+            if (activeIdx !== null) {
+                const newItems = [...items]
+                newItems[activeIdx].medicine_id = newMed.id
+                newItems[activeIdx].medicine_name = newMed.name
+                newItems[activeIdx].unit_price = newMed.unitPrice || 0
+                newItems[activeIdx].total_price = newItems[activeIdx].unit_price * newItems[activeIdx].quantity
+                setItems(newItems)
+            }
+            setShowAddMed(false)
+            setActiveIdx(null)
+        }}
+      />
     </Card>
   )
 }
@@ -660,6 +697,89 @@ function BatchControl({ batches, onRefresh }: { batches: Batch[], onRefresh: () 
         </CardContent>
     </Card>
   )
+}
+
+function AddMedicineDialog({ open, onOpenChange, onSuccess }: { open: boolean, onOpenChange: (v: boolean) => void, onSuccess: (med: Medicine) => void }) {
+    const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
+    const [loading, setLoading] = useState(false)
+    const [formData, setFormData] = useState({
+        name: "",
+        genericName: "",
+        category: "Tablet",
+        unit: "tablet",
+        manufacturer: "",
+        unitPrice: 0,
+        sellingPrice: 0,
+        reorderLevel: 10
+    })
+
+    useEffect(() => {
+        if (open) pharmacyApi.getCategories().then(setCategories).catch(() => {})
+    }, [open])
+
+    const handleSave = async () => {
+        if (!formData.name || !formData.category) return toast.error("Name and Category required")
+        setLoading(true)
+        try {
+            const res = await pharmacyApi.createMedicine({ ...formData, quantity: 0 })
+            toast.success("New medicine registered")
+            onSuccess(res)
+        } catch (error: any) {
+            toast.error(error.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-md rounded-3xl p-0 overflow-hidden">
+                <DialogHeader className="p-8 bg-slate-900 text-white">
+                    <DialogTitle className="text-xl font-black italic tracking-tighter uppercase">Quick Register Medicine</DialogTitle>
+                    <DialogDescription className="text-slate-400">Add a new item to the master inventory list.</DialogDescription>
+                </DialogHeader>
+                <div className="p-8 space-y-4">
+                    <div className="space-y-1.5">
+                        <Label className="text-[10px] uppercase font-bold text-slate-500">Medicine Name</Label>
+                        <Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Paracetamol 500mg" />
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label className="text-[10px] uppercase font-bold text-slate-500">Generic Name</Label>
+                        <Input value={formData.genericName} onChange={e => setFormData({ ...formData, genericName: e.target.value })} placeholder="e.g. Acetaminophen" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase font-bold text-slate-500">Category</Label>
+                            <Select value={formData.category} onValueChange={v => setFormData({ ...formData, category: v })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {categories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase font-bold text-slate-500">Unit Type</Label>
+                            <Select value={formData.unit} onValueChange={v => setFormData({ ...formData, unit: v })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="tablet">Tablet / Pcs</SelectItem>
+                                    <SelectItem value="syrup">Syrup / Bottle</SelectItem>
+                                    <SelectItem value="injection">Vial / Inject</SelectItem>
+                                    <SelectItem value="box">Box / Packet</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                </div>
+                <DialogFooter className="p-8 bg-slate-50 border-t items-center">
+                    <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button onClick={handleSave} disabled={loading} className="bg-slate-900 shadow-xl shadow-slate-200 min-w-32">
+                        {loading ? "Saving..." : "Register Medicine"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
 }
 
 function ReturnsManagement({ returns, batches, suppliers, onRefresh }: { returns: SupplierReturn[], batches: Batch[], suppliers: Supplier[], onRefresh: () => void }) {
