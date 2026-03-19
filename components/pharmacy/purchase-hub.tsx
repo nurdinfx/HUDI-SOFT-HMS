@@ -97,7 +97,7 @@ export function PurchaseHub({ medicines, onRefresh }: Props) {
             <ShoppingCart className="size-4 text-blue-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-black text-slate-900">${stats?.totalPurchases?.toLocaleString() || 0}</div>
+            <div className="text-2xl font-black text-slate-900">${Number(stats?.totalPurchases || 0).toLocaleString()}</div>
             <p className="text-[10px] text-slate-500 mt-1">Total received purchase value</p>
           </CardContent>
         </Card>
@@ -108,7 +108,7 @@ export function PurchaseHub({ medicines, onRefresh }: Props) {
             <Warehouse className="size-4 text-amber-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-black text-slate-900">${stats?.stockValue?.toLocaleString() || 0}</div>
+            <div className="text-2xl font-black text-slate-900">${Number(stats?.stockValue || 0).toLocaleString()}</div>
             <p className="text-[10px] text-slate-500 mt-1">Estimated asset value in batches</p>
           </CardContent>
         </Card>
@@ -130,7 +130,7 @@ export function PurchaseHub({ medicines, onRefresh }: Props) {
             <RotateCcw className="size-4 text-emerald-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-black text-slate-900">${stats?.returnedAmount?.toLocaleString() || 0}</div>
+            <div className="text-2xl font-black text-slate-900">${Number(stats?.returnedAmount || 0).toLocaleString()}</div>
             <p className="text-[10px] text-slate-500 mt-1">Value of stock returned to suppliers</p>
           </CardContent>
         </Card>
@@ -170,7 +170,7 @@ export function PurchaseHub({ medicines, onRefresh }: Props) {
                         <TableCell className="font-mono text-xs">{o.poNumber}</TableCell>
                         <TableCell className="font-medium">{o.supplierName}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{o.orderDate}</TableCell>
-                        <TableCell className="font-bold">${o.totalAmount.toLocaleString()}</TableCell>
+                        <TableCell className="font-bold">${Number(o.totalAmount || 0).toLocaleString()}</TableCell>
                         <TableCell><StatusBadge status={o.status} /></TableCell>
                       </TableRow>
                     ))}
@@ -310,7 +310,7 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
                 <TableCell className="font-mono text-xs pl-6">{o.poNumber}</TableCell>
                 <TableCell className="font-bold">{o.supplierName}</TableCell>
                 <TableCell>{o.orderDate}</TableCell>
-                <TableCell className="font-black">${o.totalAmount.toLocaleString()}</TableCell>
+                <TableCell className="font-black">${Number(o.totalAmount || 0).toLocaleString()}</TableCell>
                 <TableCell><StatusBadge status={o.status} /></TableCell>
                 <TableCell className="text-right pr-6 space-x-2">
                   {o.status === 'pending' && (
@@ -401,7 +401,7 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
                             </div>
                             <div className="col-span-3 space-y-1">
                                 <label className="text-[10px] uppercase text-muted-foreground">Total ($)</label>
-                                <Input readOnly value={item.total_price.toFixed(2)} className="bg-muted" />
+                                <Input readOnly value={Number(item.total_price || 0).toFixed(2)} className="bg-muted" />
                             </div>
                             <div className="col-span-1">
                                 <Button variant="ghost" size="icon" onClick={() => setItems(items.filter((_, i) => i !== idx))} className="text-rose-500 hover:text-rose-600 h-10">
@@ -416,7 +416,7 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
           <DialogFooter className="pt-4 border-t">
             <div className="flex-1 flex flex-col items-start gap-1">
                 <p className="text-[10px] uppercase font-bold text-muted-foreground">Grand Total</p>
-                <span className="text-xl font-black">${items.reduce((sum, i) => sum + i.total_price, 0).toFixed(2)}</span>
+                <span className="text-xl font-black">${Number(items.reduce((sum, i) => sum + (Number(i.total_price) || 0), 0)).toFixed(2)}</span>
             </div>
             <Button variant="ghost" onClick={() => setShowAdd(false)}>Cancel</Button>
             <Button onClick={handleCreateOrder} disabled={items.length === 0} className="bg-slate-900">Finalize Request</Button>
@@ -713,7 +713,7 @@ function ReturnsManagement({ returns, batches, suppliers, onRefresh }: { returns
                                 </div>
                             </TableCell>
                             <TableCell className="font-medium">{r.quantity} units</TableCell>
-                            <TableCell className="text-rose-600 font-black">-${r.amount.toLocaleString()}</TableCell>
+                            <TableCell className="text-rose-600 font-black">-${Number(r.amount || 0).toLocaleString()}</TableCell>
                         </TableRow>
                     ))}
                     {returns.length === 0 && (

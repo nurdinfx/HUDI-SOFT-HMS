@@ -248,19 +248,19 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard 
           title="Revenue Today" 
-          value={`$${revenueStats?.totalSales?.toLocaleString() || '0'}`} 
+          value={`$${Number(revenueStats?.totalSales || 0).toLocaleString()}`} 
           icon={TrendingUp} 
           iconClassName="bg-emerald-100 text-emerald-600" 
         />
         <StatCard 
           title="Net Revenue" 
-          value={`$${netRevenue.toLocaleString()}`} 
+          value={`$${Number(netRevenue || 0).toLocaleString()}`} 
           icon={Banknote} 
           iconClassName="bg-indigo-100 text-indigo-600" 
         />
         <StatCard 
           title="Returns Value" 
-          value={`$${revenueStats?.totalReturns?.toLocaleString() || '0'}`} 
+          value={`$${Number(revenueStats?.totalReturns || 0).toLocaleString()}`} 
           icon={RotateCcw} 
           iconClassName="bg-amber-100 text-amber-600" 
         />
@@ -272,7 +272,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
         />
         <StatCard 
           title="Outstanding Credit" 
-          value={`$${revenueStats?.outstandingCredit?.toLocaleString() || '0'}`} 
+          value={`$${Number(revenueStats?.outstandingCredit || 0).toLocaleString()}`} 
           icon={Wallet} 
           iconClassName="bg-rose-100 text-rose-600" 
         />
@@ -381,9 +381,9 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                       </div>
                     </TableCell>
                     <TableCell className="text-xs text-slate-600 max-w-[200px] truncate" title={tx.items_summary}>{tx.items_summary}</TableCell>
-                    <TableCell className="font-bold text-sm text-slate-900">${parseFloat(tx.total_amount).toLocaleString()}</TableCell>
-                    <TableCell className="text-emerald-600 font-medium text-xs">${parseFloat(tx.paid_amount).toLocaleString()}</TableCell>
-                    <TableCell className="text-rose-600 font-medium text-xs">${parseFloat(tx.credit_amount).toLocaleString()}</TableCell>
+                    <TableCell className="font-bold text-sm text-slate-900">${Number(tx.total_amount || 0).toLocaleString()}</TableCell>
+                    <TableCell className="text-emerald-600 font-medium text-xs">${Number(tx.paid_amount || 0).toLocaleString()}</TableCell>
+                    <TableCell className="text-rose-600 font-medium text-xs">${Number(tx.credit_amount || 0).toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-[10px] font-bold rounded-sm h-5 flex items-center gap-1 w-fit">
                         {tx.payment_method === 'Cash' && <Banknote className="size-3" />}
@@ -477,7 +477,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
             <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 flex justify-between items-center">
                <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">Total Credit to Issue</span>
                <span className="text-xl font-black text-amber-600">
-                 ${returnItems.reduce((sum, i) => sum + (i.returnQty * i.unit_price), 0).toLocaleString()}
+                 ${Number(returnItems.reduce((sum, i) => sum + (i.returnQty * i.unit_price), 0)).toLocaleString()}
                </span>
             </div>
 
@@ -549,7 +549,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                     {/* Note: Ideally we'd have the items here. For the print view we might fetch them when Print is clicked */}
                     <div className="px-4 flex justify-between items-center">
                        <p className="text-xs font-bold text-slate-800">{invoiceToPrint?.items_summary || '... pharmaceutical items as per transaction ...'}</p>
-                       <p className="text-xl font-black tracking-tighter">${parseFloat(invoiceToPrint?.total_amount || 0).toLocaleString()}</p>
+                       <p className="text-xl font-black tracking-tighter">${Number(invoiceToPrint?.total_amount || 0).toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
@@ -560,16 +560,16 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                <div className="flex gap-12">
                  <div className="space-y-1">
                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Amount Paid</p>
-                   <p className="text-lg font-black">${parseFloat(invoiceToPrint?.paid_amount || 0).toLocaleString()}</p>
+                   <p className="text-lg font-black">${Number(invoiceToPrint?.paid_amount || 0).toLocaleString()}</p>
                  </div>
                  <div className="space-y-1">
                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Balance Due</p>
-                   <p className="text-lg font-black text-rose-400">${parseFloat(invoiceToPrint?.credit_amount || 0).toLocaleString()}</p>
+                   <p className="text-lg font-black text-rose-400">${Number(invoiceToPrint?.credit_amount || 0).toLocaleString()}</p>
                  </div>
                </div>
                <div className="text-right space-y-1">
                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Net Payable</p>
-                 <p className="text-5xl font-black italic tracking-tighter tracking-[-0.05em]">${parseFloat(invoiceToPrint?.total_amount || 0).toLocaleString()}</p>
+                 <p className="text-5xl font-black italic tracking-tighter tracking-[-0.05em]">${Number(invoiceToPrint?.total_amount || 0).toLocaleString()}</p>
                </div>
              </div>
 
@@ -723,7 +723,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                         </div>
                         <div className="text-right">
                           <p className="text-[10px] text-slate-400">${item.unitPrice} ea</p>
-                          <p className="font-black text-sm text-slate-900">${item.total.toLocaleString()}</p>
+                          <p className="font-black text-sm text-slate-900">${Number(item.total || 0).toLocaleString()}</p>
                         </div>
                       </div>
                     </div>
@@ -742,14 +742,14 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
               <div className="space-y-4 pt-2">
                 <div className="flex justify-between items-center px-2">
                   <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total Payable</span>
-                  <span className="text-2xl font-black text-slate-900 tracking-tighter">${cartTotal.toLocaleString()}</span>
+                  <span className="text-2xl font-black text-slate-900 tracking-tighter">${Number(cartTotal || 0).toLocaleString()}</span>
                 </div>
 
                 {selectedPatientId && patientCredit > 0 && (
                   <div className="flex items-center justify-between px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-xl">
                     <div className="flex flex-col">
                       <span className="text-[10px] font-black uppercase text-indigo-600 tracking-widest">Available Credit</span>
-                      <span className="text-sm font-bold text-indigo-900">${patientCredit.toLocaleString()}</span>
+                      <span className="text-sm font-bold text-indigo-900">${Number(patientCredit || 0).toLocaleString()}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Label htmlFor="use-credit" className="text-[10px] font-bold text-indigo-700">Apply Credit</Label>
@@ -766,13 +766,13 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                 {useCredit && (
                   <div className="flex justify-between items-center px-2 py-1 bg-rose-50 rounded-lg text-rose-700">
                     <span className="text-[10px] font-black uppercase tracking-widest">Credit Applied</span>
-                    <span className="text-sm font-black">-${Math.min(patientCredit, cartTotal).toLocaleString()}</span>
+                    <span className="text-sm font-black">-${Number(Math.min(patientCredit, cartTotal) || 0).toLocaleString()}</span>
                   </div>
                 )}
                 {useCredit && (
                   <div className="flex justify-between items-center px-2 pt-2 border-t border-slate-200">
                     <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Net Payable</span>
-                    <span className="text-xl font-black text-rose-600 tracking-tighter">${(cartTotal - (useCredit ? Math.min(patientCredit, cartTotal) : 0)).toLocaleString()}</span>
+                    <span className="text-xl font-black text-rose-600 tracking-tighter">${Number((cartTotal - (useCredit ? Math.min(patientCredit, cartTotal) : 0)) || 0).toLocaleString()}</span>
                   </div>
                 )}
 
