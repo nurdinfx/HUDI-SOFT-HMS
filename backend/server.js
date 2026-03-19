@@ -11,7 +11,8 @@ const allowedOrigins = [
     'http://localhost:3001',
     'http://localhost:3002',
     'http://127.0.0.1:3000',
-    'https://hudi-soft-hms.vercel.app'
+    'https://hudi-soft-hms.vercel.app',
+    'https://hudi-soft-hms-git-main-nurdinfxs-projects.vercel.app'
 ];
 
 if (process.env.FRONTEND_URL) {
@@ -20,30 +21,23 @@ if (process.env.FRONTEND_URL) {
 
 app.use(cors({
     origin: (origin, callback) => {
-        console.log('🔍 CORS Check for Origin:', origin);
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
 
-        const isAllowed = allowedOrigins.indexOf(origin) !== -1 ||
+        const isAllowed = allowedOrigins.includes(origin) ||
             allowedOrigins.some(o => origin.startsWith(o)) ||
-            origin.includes('vercel.app') ||
+            origin.endsWith('.vercel.app') ||
             origin.includes('hudi-soft');
 
         if (isAllowed) {
-            console.log('✅ CORS Allowed');
             return callback(null, true);
         }
-
-        console.warn('❌ CORS Blocked for:', origin);
-        // Temporarily allow it during debug if it matches vercel, but log warning
-        if (origin.includes('vercel.app')) {
-            return callback(null, true);
-        }
+        
         callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
