@@ -23,7 +23,9 @@ import {
   Banknote,
   Smartphone,
   ShieldCheck,
-  FileText
+  FileText,
+  QrCode,
+  Calendar
 } from "lucide-react"
 import { pharmacyApi, patientsApi, type Medicine, type Patient } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -62,6 +64,14 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
   const [paymentMethod, setPaymentMethod] = useState("Cash")
   const [amountPaid, setAmountPaid] = useState<string>("")
   
+  // Filtering & Export
+  const [dateFilter, setDateFilter] = useState({ start: "", end: "" })
+  const [activePaymentMethod, setActivePaymentMethod] = useState("all")
+
+  // Patient Credit
+  const [patientCredit, setPatientCredit] = useState(0)
+  const [useCredit, setUseCredit] = useState(false)
+  
   // Return Modal
   const [selectedTx, setSelectedTx] = useState<any>(null)
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false)
@@ -92,15 +102,29 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
     fetchData()
   }, [])
 
+  useEffect(() => {
+    if (selectedPatientId) {
+      pharmacyApi.getPatientCredits(selectedPatientId).then(res => setPatientCredit(res.balance || 0)).catch(() => setPatientCredit(0))
+    } else {
+      setPatientCredit(0)
+    }
+    setUseCredit(false)
+  }, [selectedPatientId])
+
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
       const matchSearch = !search || 
         t.invoice_id.toLowerCase().includes(search.toLowerCase()) ||
         t.patient_name?.toLowerCase().includes(search.toLowerCase())
       const matchStatus = statusFilter === "all" || t.status === statusFilter
-      return matchSearch && matchStatus
+      const matchMethod = activePaymentMethod === "all" || t.payment_method === activePaymentMethod
+      const txDate = new Date(t.created_at).setHours(0,0,0,0)
+      const matchStart = !dateFilter.start || txDate >= new Date(dateFilter.start).setHours(0,0,0,0)
+      const matchEnd = !dateFilter.end || txDate <= new Date(dateFilter.end).setHours(23,59,59,999)
+      
+      return matchSearch && matchStatus && matchMethod && matchStart && matchEnd
     })
-  }, [transactions, search, statusFilter])
+  }, [transactions, search, statusFilter, activePaymentMethod, dateFilter])
 
   const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + item.total, 0), [cart])
 
@@ -132,8 +156,10 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
       toast.error("Cart is empty")
       return
     }
+    const appliedCreditValue = useCredit ? Math.min(patientCredit, cartTotal) : 0
+    const netPayable = cartTotal - appliedCreditValue
     const paid = parseFloat(amountPaid) || 0
-    const status = paid >= cartTotal ? 'Paid' : (paid > 0 ? 'Partial' : 'Credit')
+    const status = paid >= netPayable ? 'Paid' : (paid > 0 ? 'Partial' : 'Credit')
     
     setLoading(true)
     try {
@@ -149,6 +175,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
         })),
         totalAmount: cartTotal,
         paidAmount: paid,
+        appliedCredit: appliedCreditValue,
         paymentMethod,
         status
       }
@@ -158,6 +185,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
       setIsSaleModalOpen(false)
       setCart([])
       setAmountPaid("")
+      setUseCredit(false)
       fetchData()
       onRefresh()
     } catch (e: any) {
@@ -188,11 +216,36 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
       setLoading(false)
     }
   }
+  const handleExportCSV = () => {
+    if (filteredTransactions.length === 0) return toast.info("No data to export")
+    const headers = ["Invoice ID", "Patient", "Medicines", "Total", "Paid", "Due", "Method", "Status", "Date"]
+    const csvData = filteredTransactions.map(t => [
+      t.invoice_id,
+      t.patient_name || "-",
+      `"${t.items_summary || ''}"`,
+      t.total_amount,
+      t.paid_amount,
+      t.credit_amount,
+      t.payment_method,
+      t.status,
+      format(new Date(t.created_at), 'yyyy-MM-dd HH:mm')
+    ].join(","))
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...csvData].join("\n")
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", `pharmacy_ledger_${format(new Date(), 'yyyyMMdd')}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const netRevenue = (revenueStats?.totalSales || 0) - (revenueStats?.totalReturns || 0)
 
   return (
     <div className="space-y-6">
       {/* DASHBOARD STATS */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard 
           title="Revenue Today" 
           value={`$${revenueStats?.totalSales?.toLocaleString() || '0'}`} 
@@ -200,16 +253,22 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
           iconClassName="bg-emerald-100 text-emerald-600" 
         />
         <StatCard 
-          title="Transactions" 
-          value={revenueStats?.transactionCount || 0} 
-          icon={ShoppingBag} 
-          iconClassName="bg-blue-100 text-blue-600" 
+          title="Net Revenue" 
+          value={`$${netRevenue.toLocaleString()}`} 
+          icon={Banknote} 
+          iconClassName="bg-indigo-100 text-indigo-600" 
         />
         <StatCard 
           title="Returns Value" 
           value={`$${revenueStats?.totalReturns?.toLocaleString() || '0'}`} 
           icon={RotateCcw} 
           iconClassName="bg-amber-100 text-amber-600" 
+        />
+        <StatCard 
+          title="Transactions" 
+          value={revenueStats?.transactionCount || 0} 
+          icon={ShoppingBag} 
+          iconClassName="bg-blue-100 text-blue-600" 
         />
         <StatCard 
           title="Outstanding Credit" 
@@ -247,18 +306,46 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
               />
             </div>
             <div className="flex gap-2">
+              <div className="flex items-center gap-2 border rounded-xl overflow-hidden px-2 h-10 bg-white">
+                <Calendar className="size-4 text-muted-foreground hidden sm:block" />
+                <input 
+                  type="date" 
+                  className="text-xs bg-transparent outline-none max-w-[110px]"
+                  value={dateFilter.start}
+                  onChange={e => setDateFilter(prev => ({ ...prev, start: e.target.value }))}
+                />
+                <span className="text-muted-foreground text-xs">-</span>
+                <input 
+                  type="date" 
+                  className="text-xs bg-transparent outline-none max-w-[110px]"
+                  value={dateFilter.end}
+                  onChange={e => setDateFilter(prev => ({ ...prev, end: e.target.value }))}
+                />
+              </div>
+              <Select value={activePaymentMethod} onValueChange={setActivePaymentMethod}>
+                <SelectTrigger className="w-32 h-10 rounded-xl">
+                  <SelectValue placeholder="Pay Method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any Method</SelectItem>
+                  <SelectItem value="Cash">Cash</SelectItem>
+                  <SelectItem value="Card">Card</SelectItem>
+                  <SelectItem value="Mobile Money">Mobile</SelectItem>
+                  <SelectItem value="Insurance">Insurance</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40 h-10 rounded-xl">
+                <SelectTrigger className="w-32 h-10 rounded-xl">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Every Transaction</SelectItem>
+                  <SelectItem value="all">Every Status</SelectItem>
                   <SelectItem value="Paid">Fully Paid</SelectItem>
                   <SelectItem value="Partial">Partial Payment</SelectItem>
                   <SelectItem value="Credit">Credit / Due</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline" className="h-10 rounded-xl">
+              <Button variant="outline" className="h-10 rounded-xl" onClick={handleExportCSV}>
                 <Download className="size-4 mr-2" />
                 Export Ledger
               </Button>
@@ -271,6 +358,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                 <TableRow>
                   <TableHead className="pl-6">Invoice ID</TableHead>
                   <TableHead>Customer / Patient</TableHead>
+                  <TableHead>Medicines</TableHead>
                   <TableHead>Total Amount</TableHead>
                   <TableHead>Paid</TableHead>
                   <TableHead>Due</TableHead>
@@ -292,6 +380,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                         <span className="text-[10px] text-muted-foreground uppercase">{format(new Date(tx.created_at), 'MMMM dd, p')}</span>
                       </div>
                     </TableCell>
+                    <TableCell className="text-xs text-slate-600 max-w-[200px] truncate" title={tx.items_summary}>{tx.items_summary}</TableCell>
                     <TableCell className="font-bold text-sm text-slate-900">${parseFloat(tx.total_amount).toLocaleString()}</TableCell>
                     <TableCell className="text-emerald-600 font-medium text-xs">${parseFloat(tx.paid_amount).toLocaleString()}</TableCell>
                     <TableCell className="text-rose-600 font-medium text-xs">${parseFloat(tx.credit_amount).toLocaleString()}</TableCell>
@@ -459,7 +548,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                   <div className="space-y-3">
                     {/* Note: Ideally we'd have the items here. For the print view we might fetch them when Print is clicked */}
                     <div className="px-4 flex justify-between items-center">
-                       <p className="text-xs font-bold text-slate-800 italic">... pharmaceutical items as per transaction ...</p>
+                       <p className="text-xs font-bold text-slate-800">{invoiceToPrint?.items_summary || '... pharmaceutical items as per transaction ...'}</p>
                        <p className="text-xl font-black tracking-tighter">${parseFloat(invoiceToPrint?.total_amount || 0).toLocaleString()}</p>
                     </div>
                   </div>
@@ -486,11 +575,11 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
 
              <div className="flex justify-between items-center pt-8">
                 <div className="size-20 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center opacity-30 grayscale">
-                   <Search className="size-8" /> {/* Placeholder for QR */}
+                   <QrCode className="size-10 text-slate-400" />
                 </div>
                 <div className="text-right">
                   <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Authenticated By</p>
-                  <p className="font-black text-sm uppercase italic">AUTHORIZED PHARMACIST</p>
+                  <p className="font-black text-sm uppercase italic">{invoiceToPrint?.created_by || 'AUTHORIZED PHARMACIST'}</p>
                   <p className="text-[8px] text-slate-400 italic">Electronic verification signature (hms-091-px)</p>
                 </div>
              </div>
@@ -651,6 +740,37 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                   <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total Payable</span>
                   <span className="text-2xl font-black text-slate-900 tracking-tighter">${cartTotal.toLocaleString()}</span>
                 </div>
+
+                {selectedPatientId && patientCredit > 0 && (
+                  <div className="flex items-center justify-between px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-xl">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black uppercase text-indigo-600 tracking-widest">Available Credit</span>
+                      <span className="text-sm font-bold text-indigo-900">${patientCredit.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="use-credit" className="text-[10px] font-bold text-indigo-700">Apply Credit</Label>
+                      <input 
+                        type="checkbox" 
+                        id="use-credit"
+                        checked={useCredit}
+                        onChange={(e) => setUseCredit(e.target.checked)}
+                        className="size-4 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                )}
+                {useCredit && (
+                  <div className="flex justify-between items-center px-2 py-1 bg-rose-50 rounded-lg text-rose-700">
+                    <span className="text-[10px] font-black uppercase tracking-widest">Credit Applied</span>
+                    <span className="text-sm font-black">-${Math.min(patientCredit, cartTotal).toLocaleString()}</span>
+                  </div>
+                )}
+                {useCredit && (
+                  <div className="flex justify-between items-center px-2 pt-2 border-t border-slate-200">
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Net Payable</span>
+                    <span className="text-xl font-black text-rose-600 tracking-tighter">${(cartTotal - (useCredit ? Math.min(patientCredit, cartTotal) : 0)).toLocaleString()}</span>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-2">
                   {['Cash', 'Card', 'Mobile Money', 'Insurance'].map(m => (

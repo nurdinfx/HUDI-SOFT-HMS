@@ -29,9 +29,11 @@ async function initTables() {
                 payment_method TEXT,
                 status TEXT,
                 created_by TEXT,
+                items_summary TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+        try { await db.query('ALTER TABLE pharmacy_transactions ADD COLUMN items_summary TEXT'); } catch (e) {}
 
         await db.query(`
             CREATE TABLE IF NOT EXISTS pharmacy_transaction_items (
@@ -102,7 +104,7 @@ router.get('/transactions', async (req, res) => {
 });
 
 router.post('/transactions', async (req, res) => {
-    const { patientId, patientName, items, totalAmount, paidAmount, paymentMethod, status } = req.body;
+    const { patientId, patientName, items, totalAmount, paidAmount, paymentMethod, status, appliedCredit } = req.body;
     
     try {
         const txId = uuidv4();
@@ -111,13 +113,15 @@ router.post('/transactions', async (req, res) => {
         
         await db.run('BEGIN TRANSACTION');
 
-        const creditAmount = totalAmount - paidAmount;
+        const safeAppliedCredit = appliedCredit ? parseFloat(appliedCredit) : 0;
+        const creditAmount = totalAmount - paidAmount - safeAppliedCredit;
+        const itemsSummary = items.map(i => `${i.medicineName} (x${i.quantity})`).join(', ');
 
         // Insert Transaction
         await db.prepare(`INSERT INTO pharmacy_transactions 
-            (id, invoice_id, patient_id, patient_name, total_amount, paid_amount, credit_amount, payment_method, status, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-            .run(txId, invoiceId, patientId || null, patientName, totalAmount, paidAmount, creditAmount, paymentMethod, status, req.user.name);
+            (id, invoice_id, patient_id, patient_name, total_amount, paid_amount, credit_amount, payment_method, status, created_by, items_summary)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+            .run(txId, invoiceId, patientId || null, patientName, totalAmount, paidAmount + safeAppliedCredit, creditAmount, paymentMethod, status, req.user.name, itemsSummary);
 
         // Insert Items & Update Stock
         for (const item of items) {
@@ -136,11 +140,17 @@ router.post('/transactions', async (req, res) => {
         }
 
         // Handle Patient Credit
-        if (patientId && creditAmount > 0) {
-            await db.prepare(`INSERT INTO patient_credits (id, patient_id, balance) 
-                VALUES (?, ?, ?) 
-                ON CONFLICT(patient_id) DO UPDATE SET balance = balance + ?, last_updated = CURRENT_TIMESTAMP`)
-                .run(uuidv4(), patientId, creditAmount, creditAmount);
+        if (patientId) {
+            if (safeAppliedCredit > 0) {
+                await db.prepare('UPDATE patient_credits SET balance = balance - ?, last_updated = CURRENT_TIMESTAMP WHERE patient_id = ?')
+                    .run(safeAppliedCredit, patientId);
+            }
+            if (creditAmount > 0) {
+                await db.prepare(`INSERT INTO patient_credits (id, patient_id, balance) 
+                    VALUES (?, ?, ?) 
+                    ON CONFLICT(patient_id) DO UPDATE SET balance = balance + ?, last_updated = CURRENT_TIMESTAMP`)
+                    .run(uuidv4(), patientId, creditAmount, creditAmount);
+            }
         }
 
         await db.run('COMMIT');
