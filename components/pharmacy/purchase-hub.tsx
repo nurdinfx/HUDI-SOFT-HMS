@@ -653,7 +653,7 @@ function BatchControl({ batches, onRefresh }: { batches: Batch[], onRefresh: () 
   
   const filtered = batches.filter(b => 
     b.medicineName?.toLowerCase().includes(search.toLowerCase()) || 
-    b.batchNumber.toLowerCase().includes(search.toLowerCase())
+    b.batchNumber?.toLowerCase().includes(search.toLowerCase())
   )
 
   const handleRefresh = async () => {
