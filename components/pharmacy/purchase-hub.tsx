@@ -359,12 +359,14 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
                 </div>
             </div>
 
-            <div className="space-y-4">
-                <div className="flex items-center justify-between border-b pb-2">
-                    <h4 className="text-sm font-black uppercase tracking-widest">Medicine Items</h4>
-                    <Button variant="outline" size="sm" onClick={addItem} className="h-7 text-[10px]">Add Medicine</Button>
-                </div>
-                <div className="space-y-3">
+                <div className="space-y-4 overflow-x-hidden">
+                    <div className="flex items-center justify-between border-b pb-2">
+                        <h4 className="text-sm font-black uppercase tracking-widest text-slate-500">Medicine Items</h4>
+                        <Button variant="outline" size="sm" onClick={addItem} className="h-7 text-[10px] rounded-full border-slate-200 hover:bg-slate-50">
+                            <Plus className="size-3 mr-1" /> Add Medicine
+                        </Button>
+                    </div>
+                <div className="space-y-4">
                     {items.map((item, idx) => (
                         <div key={idx} className="grid grid-cols-12 gap-2 items-end">
                             <div className="col-span-4 space-y-1">
@@ -373,6 +375,11 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
                                     <Select 
                                         value={item.medicine_id}
                                         onValueChange={(val) => {
+                                            if (val === "create_new") {
+                                                setActiveIdx(idx)
+                                                setShowAddMed(true)
+                                                return;
+                                            }
                                             const med = medicines.find(m => m.id === val);
                                             const newItems = [...items];
                                             newItems[idx].medicine_id = val;
@@ -384,7 +391,22 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
                                     >
                                         <SelectTrigger className="flex-1"><SelectValue placeholder="Select Medicine..." /></SelectTrigger>
                                         <SelectContent>
+                                            <div className="p-1 border-b mb-1">
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    className="w-full justify-start text-xs font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setActiveIdx(idx);
+                                                        setShowAddMed(true);
+                                                    }}
+                                                >
+                                                    <Plus className="size-3 mr-2" /> Register New Medicine
+                                                </Button>
+                                            </div>
                                             {medicines.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                                            {medicines.length === 0 && <p className="p-4 text-center text-xs text-muted-foreground italic">No medicines found</p>}
                                         </SelectContent>
                                     </Select>
                                     <Button 
@@ -422,8 +444,8 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
                                 <label className="text-[10px] uppercase text-muted-foreground">Total ($)</label>
                                 <Input readOnly value={Number(item.total_price || 0).toFixed(2)} className="bg-muted" />
                             </div>
-                            <div className="col-span-1">
-                                <Button variant="ghost" size="icon" onClick={() => setItems(items.filter((_, i) => i !== idx))} className="text-rose-500 hover:text-rose-600 h-10">
+                             <div className="col-span-1 flex justify-end">
+                                <Button variant="ghost" size="icon" onClick={() => setItems(items.filter((_, i) => i !== idx))} className="text-rose-400 hover:text-rose-600 hover:bg-rose-50 size-9 rounded-full">
                                     <XCircle className="size-4" />
                                 </Button>
                             </div>
