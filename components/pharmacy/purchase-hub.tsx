@@ -858,21 +858,20 @@ function AddMedicineDialog({ open, onOpenChange, onSuccess }: { open: boolean, o
 function ReturnsManagement({ returns, batches, suppliers, medicines, onRefresh }: { returns: SupplierReturn[], batches: Batch[], suppliers: Supplier[], medicines: Medicine[], onRefresh: () => void }) {
   const [showAdd, setShowAdd] = useState(false)
   const [selectedMedId, setSelectedMedId] = useState("")
-  const [formData, setFormData] = useState({ supplier_id: "", batch_id: "", quantity: 0, amount: 0, reason: "" })
+  const [formData, setFormData] = useState({ supplier_id: "", quantity: 0, amount: 0, reason: "" })
 
   const filteredBatches = selectedMedId ? batches.filter(b => b.medicineId === selectedMedId) : []
 
   const handleSubmit = async () => {
     if (!formData.supplier_id) return toast.error("Please select a destination supplier")
     if (!selectedMedId) return toast.error("Please select a medicine")
-    if (!formData.batch_id) return toast.error("Please select a source batch")
     if (!formData.quantity || formData.quantity <= 0) return toast.error("Please enter a valid quantity")
     
     try {
-        await pharmacyPurchaseApi.createReturn(formData)
+        await pharmacyPurchaseApi.createReturn({ ...formData, medicine_id: selectedMedId })
         toast.success("Return processed successfully")
         setShowAdd(false)
-        setFormData({ supplier_id: "", batch_id: "", quantity: 0, amount: 0, reason: "" })
+        setFormData({ supplier_id: "", quantity: 0, amount: 0, reason: "" })
         setSelectedMedId("")
         onRefresh()
     } catch (error: any) {
@@ -948,36 +947,12 @@ function ReturnsManagement({ returns, batches, suppliers, medicines, onRefresh }
 
                     <div className="space-y-1.5">
                         <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Select Medicine</label>
-                        <Select value={selectedMedId} onValueChange={v => {
-                            setSelectedMedId(v)
-                            setFormData({ ...formData, batch_id: "" })
-                        }}>
+                        <Select value={selectedMedId} onValueChange={v => setSelectedMedId(v)}>
                             <SelectTrigger className="rounded-xl h-12 border-slate-200"><SelectValue placeholder="Choose Medicine..." /></SelectTrigger>
                             <SelectContent className="rounded-xl border-slate-200">
                                 {medicines.map(m => (
                                     <SelectItem key={m.id} value={m.id} className="rounded-lg">{m.name}</SelectItem>
                                 ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Source Batch (from PO Arrival)</label>
-                        <Select 
-                            value={formData.batch_id} 
-                            disabled={!selectedMedId}
-                            onValueChange={v => setFormData({ ...formData, batch_id: v })}
-                        >
-                            <SelectTrigger className="rounded-xl h-12 border-slate-200"><SelectValue placeholder={selectedMedId ? "Select Batch to Deduct..." : "First select a medicine"} /></SelectTrigger>
-                            <SelectContent className="rounded-xl border-slate-200">
-                                {filteredBatches.map(b => (
-                                    <SelectItem key={b.id} value={b.id} className="rounded-lg">
-                                        {b.batchNumber} - {b.quantityRemaining} units left
-                                    </SelectItem>
-                                ))}
-                                {selectedMedId && filteredBatches.length === 0 && (
-                                    <p className="p-4 text-center text-xs text-muted-foreground italic">No active batches for this medicine</p>
-                                )}
                             </SelectContent>
                         </Select>
                     </div>

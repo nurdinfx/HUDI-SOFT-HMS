@@ -173,44 +173,70 @@ router.post('/batches/refresh-status', async (req, res) => {
 });
 
 // ─── Returns ──────────────────────────────────────────────────────
+const fmtReturn = (r) => ({
+    id: r.id,
+    supplierId: r.supplier_id,
+    supplierName: r.supplier_name,
+    medicineId: r.medicine_id,
+    batchId: r.batch_id,
+    itemName: r.item_name,
+    quantity: r.quantity,
+    amount: r.amount,
+    reason: r.reason,
+    returnDate: r.return_date,
+    createdAt: r.created_at
+});
+
 router.get('/returns', async (req, res) => {
     try {
         const rows = await db.prepare('SELECT r.*, s.name as supplier_name FROM pharmacy_supplier_returns r JOIN pharmacy_suppliers s ON r.supplier_id = s.id ORDER BY r.created_at DESC').all();
-        res.json(rows);
+        res.json(rows.map(fmtReturn));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
 router.post('/returns', async (req, res) => {
-    const { supplier_id, batch_id, quantity, amount, reason } = req.body;
-    if (!supplier_id || !batch_id || !quantity) return res.status(400).json({ error: 'Required fields missing' });
+    const { supplier_id, medicine_id, quantity, amount, reason } = req.body;
+    if (!supplier_id || !medicine_id || !quantity) return res.status(400).json({ error: 'Required fields missing' });
 
     try {
         await db.exec('BEGIN');
-        const batch = await db.prepare('SELECT * FROM pharmacy_batches WHERE id = ?').get(batch_id);
-        if (!batch || batch.quantity_remaining < quantity) {
-            throw new Error('Insufficient batch quantity or batch not found');
+
+        // 1. Fetch medicine details
+        const med = await db.prepare('SELECT * FROM medicines WHERE id = ?').get(medicine_id);
+        if (!med || med.quantity < quantity) {
+            throw new Error('Insufficient stock for return');
         }
 
-        const med = await db.prepare('SELECT name FROM medicines WHERE id = ?').get(batch.medicine_id);
-
         const returnId = uuidv4();
-        await db.prepare('INSERT INTO pharmacy_supplier_returns (id, supplier_id, batch_id, item_name, quantity, amount, reason) VALUES (?, ?, ?, ?, ?, ?, ?)')
-            .run(returnId, supplier_id, batch_id, med ? med.name : 'Unknown', quantity, amount, reason || null);
+        // Insert return record (batch_id is now optional/null initially)
+        await db.prepare('INSERT INTO pharmacy_supplier_returns (id, supplier_id, medicine_id, item_name, quantity, amount, reason) VALUES (?, ?, ?, ?, ?, ?, ?)')
+            .run(returnId, supplier_id, medicine_id, med.name, quantity, amount, reason || null);
 
-        // Deduct from batch
-        await db.prepare('UPDATE pharmacy_batches SET quantity_remaining = quantity_remaining - ? WHERE id = ?').run(quantity, batch_id);
+        // 2. FIFO Batch Deduction
+        let remainingToDeduct = quantity;
+        const batches = await db.prepare('SELECT * FROM pharmacy_batches WHERE medicine_id = ? AND quantity_remaining > 0 ORDER BY expiry_date ASC, created_at ASC').all(medicine_id);
+        
+        for (const batch of batches) {
+            if (remainingToDeduct === 0) break;
+            const deduct = Math.min(batch.quantity_remaining, remainingToDeduct);
+            
+            await db.prepare('UPDATE pharmacy_batches SET quantity_remaining = quantity_remaining - ? WHERE id = ?').run(deduct, batch.id);
+            remainingToDeduct -= deduct;
+        }
 
-        // Deduct from total medicine stock
-        await db.prepare('UPDATE medicines SET quantity = quantity - ? WHERE id = ?').run(quantity, batch.medicine_id);
+        // 3. Deduct from total medicine stock
+        const newQty = med.quantity - quantity;
+        const newStatus = newQty === 0 ? 'out-of-stock' : newQty <= (med.reorder_level || 10) ? 'low-stock' : 'in-stock';
+        await db.prepare('UPDATE medicines SET quantity = ?, status = ? WHERE id = ?').run(newQty, newStatus, medicine_id);
 
-        // Record as Income reversal or separate entry? Here we'll record as 'income' (reclaiming money from supplier)
-        await db.prepare('INSERT INTO account_entries (id, type, category, description, amount, department, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
-            .run(uuidv4(), 'income', 'Supplier Return', `Return processed for batch ${batch.batch_number}`, amount, 'Pharmacy', req.user.id);
+        // 4. Record as Income/Financial entry (reclaiming money from supplier)
+        await db.prepare('INSERT INTO account_entries (id, type, category, description, amount, department, reference_id, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+            .run(uuidv4(), 'income', 'Supplier Return', `Return processed: ${med.name} (x${quantity})`, amount, 'Pharmacy', returnId, req.user.id);
 
         await db.exec('COMMIT');
-        logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'PharmacyPurchase', `Supplier return processed: ${quantity} units of batch ${batch.batch_number}`, req.ip);
+        logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'PharmacyPurchase', `Supplier return processed: ${quantity} units of ${med.name}`, req.ip);
         res.status(201).json({ id: returnId });
     } catch (err) {
         await db.exec('ROLLBACK');
