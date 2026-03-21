@@ -863,7 +863,11 @@ function ReturnsManagement({ returns, batches, suppliers, medicines, onRefresh }
   const filteredBatches = selectedMedId ? batches.filter(b => b.medicineId === selectedMedId) : []
 
   const handleSubmit = async () => {
-    if (!formData.supplier_id || !formData.batch_id || !formData.quantity) return toast.error("Missing data")
+    if (!formData.supplier_id) return toast.error("Please select a destination supplier")
+    if (!selectedMedId) return toast.error("Please select a medicine")
+    if (!formData.batch_id) return toast.error("Please select a source batch")
+    if (!formData.quantity || formData.quantity <= 0) return toast.error("Please enter a valid quantity")
+    
     try {
         await pharmacyPurchaseApi.createReturn(formData)
         toast.success("Return processed successfully")
