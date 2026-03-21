@@ -230,7 +230,13 @@ export function PurchaseHub({ medicines, onRefresh }: Props) {
         </TabsContent>
 
         <TabsContent value="returns" className="mt-6">
-          <ReturnsManagement returns={returns} batches={batches} suppliers={suppliers} onRefresh={handleRefresh} />
+          <ReturnsManagement 
+            returns={returns} 
+            batches={batches} 
+            suppliers={suppliers} 
+            medicines={medicines}
+            onRefresh={handleRefresh} 
+          />
         </TabsContent>
       </Tabs>
     </div>
@@ -849,13 +855,10 @@ function AddMedicineDialog({ open, onOpenChange, onSuccess }: { open: boolean, o
     )
 }
 
-function ReturnsManagement({ returns, batches, suppliers, onRefresh }: { returns: SupplierReturn[], batches: Batch[], suppliers: Supplier[], onRefresh: () => void }) {
+function ReturnsManagement({ returns, batches, suppliers, medicines, onRefresh }: { returns: SupplierReturn[], batches: Batch[], suppliers: Supplier[], medicines: Medicine[], onRefresh: () => void }) {
   const [showAdd, setShowAdd] = useState(false)
   const [selectedMedId, setSelectedMedId] = useState("")
   const [formData, setFormData] = useState({ supplier_id: "", batch_id: "", quantity: 0, amount: 0, reason: "" })
-
-  const uniqueMedicines = Array.from(new Map(batches.map(b => [b.medicineId, b.medicineName])).entries())
-    .map(([id, name]) => ({ id, name }))
 
   const filteredBatches = selectedMedId ? batches.filter(b => b.medicineId === selectedMedId) : []
 
@@ -880,113 +883,122 @@ function ReturnsManagement({ returns, batches, suppliers, onRefresh }: { returns
                 <CardTitle>Supplier Returns</CardTitle>
                 <CardDescription>Manage stock removals and financial reversals.</CardDescription>
             </div>
-            <Button onClick={() => setShowAdd(true)} className="gap-2 bg-rose-600 hover:bg-rose-700 h-9">
+            <Button onClick={() => setShowAdd(true)} className="gap-2 bg-rose-600 hover:bg-rose-700 h-9 rounded-xl font-bold uppercase text-[10px] tracking-widest">
                 <RotateCcw className="size-4" /> Initialize Return
             </Button>
         </CardHeader>
         <CardContent className="p-0">
             <Table>
                 <TableHeader>
-                    <TableRow>
-                        <TableHead className="pl-6">Return Logic ID</TableHead>
-                        <TableHead>Supplier</TableHead>
-                        <TableHead>Item Details</TableHead>
-                        <TableHead>Quantity</TableHead>
-                        <TableHead>Financial Impact</TableHead>
+                    <TableRow className="bg-slate-50/50">
+                        <TableHead className="pl-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Return Logic ID</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Supplier</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Item Details</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Quantity</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Financial Impact</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {returns.map(r => (
-                        <TableRow key={r.id}>
-                            <TableCell className="font-mono text-xs pl-6">{r.id.slice(0, 8).toUpperCase()}</TableCell>
-                            <TableCell className="font-bold">{r.supplierName}</TableCell>
+                        <TableRow key={r.id} className="group hover:bg-slate-50 transition-colors">
+                            <TableCell className="font-mono text-xs pl-6 text-slate-400">{r.id.slice(0, 8).toUpperCase()}</TableCell>
+                            <TableCell className="font-bold text-slate-900">{r.supplierName}</TableCell>
                             <TableCell>
                                 <div className="space-y-0.5">
                                     <p className="font-bold text-slate-800">{r.itemName}</p>
                                     <p className="text-[10px] text-muted-foreground uppercase">{r.reason}</p>
                                 </div>
                             </TableCell>
-                            <TableCell className="font-medium">{r.quantity} units</TableCell>
+                            <TableCell className="font-medium text-slate-600">{r.quantity} units</TableCell>
                             <TableCell className="text-rose-600 font-black">-${Number(r.amount || 0).toLocaleString()}</TableCell>
                         </TableRow>
                     ))}
                     {returns.length === 0 && (
-                         <TableRow><TableCell colSpan={5} className="text-center py-20 italic">No returns documented.</TableCell></TableRow>
+                         <TableRow><TableCell colSpan={5} className="text-center py-20 italic text-slate-400">No returns documented.</TableCell></TableRow>
                     )}
                 </TableBody>
             </Table>
         </CardContent>
 
         <Dialog open={showAdd} onOpenChange={setShowAdd}>
-            <DialogContent className="max-w-md">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <AlertCircle className="size-5 text-rose-600" /> Stock Discard & Return
+            <DialogContent className="max-w-md p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
+                <DialogHeader className="p-8 bg-rose-600 text-white relative">
+                    <div className="absolute top-0 right-0 p-6 opacity-10">
+                        <RotateCcw className="size-24" />
+                    </div>
+                    <DialogTitle className="flex items-center gap-3 text-xl font-black italic uppercase tracking-tighter">
+                        <AlertCircle className="size-6" /> Stock Discard & Return
                     </DialogTitle>
+                    <DialogDescription className="text-rose-100 italic">Removing inventory from the hospital registry for supplier distribution.</DialogDescription>
                 </DialogHeader>
-                <div className="space-y-5 py-4">
+                <div className="p-8 space-y-6 bg-white">
                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-slate-500">Destination Supplier</label>
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Destination Supplier</label>
                         <Select onValueChange={v => setFormData({ ...formData, supplier_id: v })}>
-                            <SelectTrigger><SelectValue placeholder="Select Recipient..." /></SelectTrigger>
-                            <SelectContent>
-                                {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                            <SelectTrigger className="rounded-xl h-12 border-slate-200"><SelectValue placeholder="Select Recipient..." /></SelectTrigger>
+                            <SelectContent className="rounded-xl border-slate-200">
+                                {suppliers.map(s => <SelectItem key={s.id} value={s.id} className="rounded-lg">{s.name}</SelectItem>)}
                             </SelectContent>
                         </Select>
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-slate-500">Select Medicine</label>
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Select Medicine</label>
                         <Select value={selectedMedId} onValueChange={v => {
                             setSelectedMedId(v)
                             setFormData({ ...formData, batch_id: "" })
                         }}>
-                            <SelectTrigger><SelectValue placeholder="Choose Medicine..." /></SelectTrigger>
-                            <SelectContent>
-                                {uniqueMedicines.map(m => (
-                                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                            <SelectTrigger className="rounded-xl h-12 border-slate-200"><SelectValue placeholder="Choose Medicine..." /></SelectTrigger>
+                            <SelectContent className="rounded-xl border-slate-200">
+                                {medicines.map(m => (
+                                    <SelectItem key={m.id} value={m.id} className="rounded-lg">{m.name}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-slate-500">Source Batch (from PO Arrival)</label>
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Source Batch (from PO Arrival)</label>
                         <Select 
                             value={formData.batch_id} 
                             disabled={!selectedMedId}
                             onValueChange={v => setFormData({ ...formData, batch_id: v })}
                         >
-                            <SelectTrigger><SelectValue placeholder={selectedMedId ? "Select Batch to Deduct..." : "First select a medicine"} /></SelectTrigger>
-                            <SelectContent>
+                            <SelectTrigger className="rounded-xl h-12 border-slate-200"><SelectValue placeholder={selectedMedId ? "Select Batch to Deduct..." : "First select a medicine"} /></SelectTrigger>
+                            <SelectContent className="rounded-xl border-slate-200">
                                 {filteredBatches.map(b => (
-                                    <SelectItem key={b.id} value={b.id}>
-                                        {b.batchNumber} - {b.quantityRemaining} left
+                                    <SelectItem key={b.id} value={b.id} className="rounded-lg">
+                                        {b.batchNumber} - {b.quantityRemaining} units left
                                     </SelectItem>
                                 ))}
+                                {selectedMedId && filteredBatches.length === 0 && (
+                                    <p className="p-4 text-center text-xs text-muted-foreground italic">No active batches for this medicine</p>
+                                )}
                             </SelectContent>
                         </Select>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase text-slate-500">Quantity to Return</label>
-                            <Input type="number" value={formData.quantity} onChange={e => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })} />
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Quantity to Return</label>
+                            <Input type="number" className="rounded-xl h-12 border-slate-200" value={formData.quantity} onChange={e => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })} />
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase text-slate-500">Credit Amount ($)</label>
-                            <Input type="number" value={formData.amount} onChange={e => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })} />
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Credit Amount ($)</label>
+                            <Input type="number" className="rounded-xl h-12 border-slate-200" value={formData.amount} onChange={e => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })} />
                         </div>
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-slate-500">Reason for Disposal / Return</label>
-                        <Input placeholder="Expiry, Damage, Ordering Error..." value={formData.reason} onChange={e => setFormData({ ...formData, reason: e.target.value })} />
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Reason for Disposal / Return</label>
+                        <Input placeholder="Expiry, Damage, Ordering Error..." className="rounded-xl h-12 border-slate-200 italic" value={formData.reason} onChange={e => setFormData({ ...formData, reason: e.target.value })} />
                     </div>
                 </div>
-                <DialogFooter>
-                    <Button variant="ghost" onClick={() => setShowAdd(false)}>Cancel</Button>
-                    <Button onClick={handleSubmit} className="bg-rose-600 hover:bg-rose-700 text-white font-black shadow-lg shadow-rose-100">Finalize Removal</Button>
+                <DialogFooter className="p-8 bg-slate-50 border-t">
+                    <Button variant="ghost" onClick={() => setShowAdd(false)} className="rounded-xl font-bold text-slate-500">Cancel</Button>
+                    <Button onClick={handleSubmit} className="bg-rose-600 hover:bg-rose-700 text-white font-black uppercase text-xs tracking-widest px-8 h-12 rounded-xl shadow-xl shadow-rose-100 transition-all hover:scale-[1.02]">
+                        Finalize Removal
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
