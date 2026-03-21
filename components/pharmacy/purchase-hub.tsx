@@ -99,7 +99,10 @@ export function PurchaseHub({ medicines, onRefresh }: Props) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black text-slate-900">${Number(stats?.totalPurchases || 0).toLocaleString()}</div>
-            <p className="text-[10px] text-slate-500 mt-1">Total received purchase value</p>
+            <div className="flex gap-2 mt-1">
+                <Badge variant="outline" className="text-[9px] font-bold border-blue-100 bg-blue-50/50 text-blue-600">CASH: ${Number(stats?.totalCash || 0).toLocaleString()}</Badge>
+                <Badge variant="outline" className="text-[9px] font-bold border-amber-100 bg-amber-50/50 text-amber-600">LOAN: ${Number(stats?.totalLoan || 0).toLocaleString()}</Badge>
+            </div>
           </CardContent>
         </Card>
 
@@ -162,6 +165,7 @@ export function PurchaseHub({ medicines, onRefresh }: Props) {
                       <TableHead>Supplier</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Amount</TableHead>
+                      <TableHead>Payment</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -171,7 +175,12 @@ export function PurchaseHub({ medicines, onRefresh }: Props) {
                         <TableCell className="font-mono text-xs">{o.poNumber}</TableCell>
                         <TableCell className="font-medium">{o.supplierName}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{o.orderDate}</TableCell>
-                        <TableCell className="font-bold">${Number(o.totalAmount || 0).toLocaleString()}</TableCell>
+                         <TableCell className="font-bold">${Number(o.totalAmount || 0).toLocaleString()}</TableCell>
+                        <TableCell>
+                            <Badge variant="outline" className={`text-[10px] font-bold uppercase ${o.payment_type === 'loan' ? 'text-amber-600 border-amber-200 bg-amber-50' : 'text-blue-600 border-blue-200 bg-blue-50'}`}>
+                                {o.payment_type || 'cash'}
+                            </Badge>
+                        </TableCell>
                         <TableCell><StatusBadge status={o.status} /></TableCell>
                       </TableRow>
                     ))}
@@ -255,6 +264,7 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
   const [supplierId, setSupplierId] = useState("")
   const [items, setItems] = useState<any[]>([])
   const [notes, setNotes] = useState("")
+  const [paymentType, setPaymentType] = useState("cash")
   
   // Receive Order State
   const [receivedItems, setReceivedItems] = useState<any[]>([])
@@ -267,7 +277,7 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
     if (!supplierId || items.length === 0) return toast.error("Missing order data")
     const total = items.reduce((sum, i) => sum + (i.unit_price * i.quantity), 0)
     try {
-      await pharmacyPurchaseApi.createOrder({ supplier_id: supplierId, items, total_amount: total, notes })
+      await pharmacyPurchaseApi.createOrder({ supplier_id: supplierId, items, total_amount: total, notes, payment_type: paymentType })
       toast.success("Purchase order created")
       setShowAdd(false)
       setItems([])
@@ -309,6 +319,7 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
               <TableHead>Supplier</TableHead>
               <TableHead>Order Date</TableHead>
               <TableHead>Total Amount</TableHead>
+              <TableHead>Payment</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right pr-6">Actions</TableHead>
             </TableRow>
@@ -320,6 +331,11 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
                 <TableCell className="font-bold">{o.supplierName}</TableCell>
                 <TableCell>{o.orderDate}</TableCell>
                 <TableCell className="font-black">${Number(o.totalAmount || 0).toLocaleString()}</TableCell>
+                <TableCell>
+                    <Badge variant="outline" className={`text-[10px] font-bold uppercase ${o.payment_type === 'loan' ? 'text-amber-600 border-amber-200 bg-amber-50' : 'text-blue-600 border-blue-200 bg-blue-50'}`}>
+                        {o.payment_type || 'cash'}
+                    </Badge>
+                </TableCell>
                 <TableCell><StatusBadge status={o.status} /></TableCell>
                 <TableCell className="text-right pr-6 space-x-2">
                   {o.status === 'pending' && (
@@ -362,6 +378,16 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
                 <div className="space-y-2">
                     <label className="text-xs font-bold uppercase text-muted-foreground">Notes (Optional)</label>
                     <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Delivery instructions..." />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase text-muted-foreground">Payment Method</label>
+                    <Select value={paymentType} onValueChange={setPaymentType}>
+                        <SelectTrigger><SelectValue placeholder="Select Payment..." /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="cash">CASH PAYMENT</SelectItem>
+                            <SelectItem value="loan">LOAN / CREDIT</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 

@@ -77,8 +77,8 @@ router.post('/orders', async (req, res) => {
         const countData = await db.prepare('SELECT COUNT(*) as c FROM pharmacy_purchase_orders').get();
         const poNumber = `PO-${String(parseInt(countData.c) + 1).padStart(5, '0')}`;
         
-        await db.prepare('INSERT INTO pharmacy_purchase_orders (id, po_number, supplier_id, order_date, total_amount, status, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-            .run(poId, poNumber, supplier_id, order_date || new Date().toISOString().split('T')[0], total_amount, 'pending', notes || null, req.user.name);
+        await db.prepare('INSERT INTO pharmacy_purchase_orders (id, po_number, supplier_id, order_date, total_amount, status, notes, created_by, payment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+            .run(poId, poNumber, supplier_id, order_date || new Date().toISOString().split('T')[0], total_amount, 'pending', notes || null, req.user.name, req.body.payment_type || 'cash');
 
         for (const item of items) {
             await db.prepare('INSERT INTO pharmacy_purchase_items (id, po_id, medicine_id, medicine_name, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?, ?, ?)')
@@ -248,6 +248,8 @@ router.post('/returns', async (req, res) => {
 router.get('/stats', async (req, res) => {
     try {
         const totalPurchases = (await db.prepare("SELECT SUM(total_amount) as s FROM pharmacy_purchase_orders WHERE status = 'received'").get()).s || 0;
+        const totalCash = (await db.prepare("SELECT SUM(total_amount) as s FROM pharmacy_purchase_orders WHERE status = 'received' AND payment_type = 'cash'").get()).s || 0;
+        const totalLoan = (await db.prepare("SELECT SUM(total_amount) as s FROM pharmacy_purchase_orders WHERE status = 'received' AND payment_type = 'loan'").get()).s || 0;
         const expiringCount = (await db.prepare("SELECT COUNT(*) as c FROM pharmacy_batches WHERE status = 'near-expiry' AND quantity_remaining > 0").get()).c || 0;
         const expiredCount = (await db.prepare("SELECT COUNT(*) as c FROM pharmacy_batches WHERE status = 'expired' AND quantity_remaining > 0").get()).c || 0;
         const returnedAmount = (await db.prepare("SELECT SUM(amount) as s FROM pharmacy_supplier_returns").get()).s || 0;
@@ -263,6 +265,8 @@ router.get('/stats', async (req, res) => {
 
         res.json({
             totalPurchases,
+            totalCash,
+            totalLoan,
             expiringCount,
             expiredCount,
             returnedAmount,

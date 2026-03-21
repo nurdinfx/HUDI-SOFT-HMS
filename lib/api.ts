@@ -775,6 +775,7 @@ export interface PurchaseOrder {
     orderDate: string;
     totalAmount: number;
     status: 'pending' | 'received' | 'cancelled';
+    payment_type?: 'cash' | 'loan';
     notes?: string;
     createdBy: string;
     createdAt: string;
