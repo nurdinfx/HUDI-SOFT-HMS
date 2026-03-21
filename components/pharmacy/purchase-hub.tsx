@@ -728,6 +728,8 @@ function BatchControl({ batches, onRefresh }: { batches: Batch[], onRefresh: () 
 function AddMedicineDialog({ open, onOpenChange, onSuccess }: { open: boolean, onOpenChange: (v: boolean) => void, onSuccess: (med: Medicine) => void }) {
     const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
     const [loading, setLoading] = useState(false)
+    const [isAddingCategory, setIsAddingCategory] = useState(false)
+    const [newCategory, setNewCategory] = useState("")
     const [formData, setFormData] = useState({
         name: "",
         genericName: "",
@@ -740,14 +742,30 @@ function AddMedicineDialog({ open, onOpenChange, onSuccess }: { open: boolean, o
     })
 
     useEffect(() => {
-        if (open) pharmacyApi.getCategories().then(setCategories).catch(() => {})
+        if (open) {
+            pharmacyApi.getCategories().then(setCategories).catch(() => {})
+            setIsAddingCategory(false)
+            setNewCategory("")
+        }
     }, [open])
 
     const handleSave = async () => {
-        if (!formData.name || !formData.category) return toast.error("Name and Category required")
+        if (!formData.name) return toast.error("Medicine name required")
+        
+        let targetCategory = formData.category
+        if (isAddingCategory) {
+            if (!newCategory) return toast.error("New category name required")
+            try {
+                const cat = await pharmacyApi.createCategory(newCategory)
+                targetCategory = cat.name
+            } catch (error: any) {
+                return toast.error("Failed to create category: " + error.message)
+            }
+        }
+
         setLoading(true)
         try {
-            const res = await pharmacyApi.createMedicine({ ...formData, quantity: 0 })
+            const res = await pharmacyApi.createMedicine({ ...formData, category: targetCategory, quantity: 0 })
             toast.success("New medicine registered")
             onSuccess(res)
         } catch (error: any) {
@@ -779,12 +797,32 @@ function AddMedicineDialog({ open, onOpenChange, onSuccess }: { open: boolean, o
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                             <Label className="text-[10px] uppercase font-bold text-slate-500">Category</Label>
-                            <Select value={formData.category} onValueChange={v => setFormData({ ...formData, category: v })}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {categories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                            {isAddingCategory ? (
+                                <div className="flex gap-2">
+                                    <Input 
+                                        value={newCategory} 
+                                        onChange={e => setNewCategory(e.target.value)} 
+                                        placeholder="Enter category..." 
+                                        className="h-10"
+                                        autoFocus
+                                    />
+                                    <Button variant="ghost" size="sm" onClick={() => setIsAddingCategory(false)} className="text-[10px] uppercase font-bold">Cancel</Button>
+                                </div>
+                            ) : (
+                                <Select value={formData.category} onValueChange={v => {
+                                    if (v === "NEW_CATEGORY") {
+                                        setIsAddingCategory(true)
+                                    } else {
+                                        setFormData({ ...formData, category: v })
+                                    }
+                                }}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="NEW_CATEGORY" className="text-blue-600 font-bold border-b mb-1">+ Add New Category</SelectItem>
+                                        {categories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            )}
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-[10px] uppercase font-bold text-slate-500">Unit Type</Label>
@@ -813,7 +851,13 @@ function AddMedicineDialog({ open, onOpenChange, onSuccess }: { open: boolean, o
 
 function ReturnsManagement({ returns, batches, suppliers, onRefresh }: { returns: SupplierReturn[], batches: Batch[], suppliers: Supplier[], onRefresh: () => void }) {
   const [showAdd, setShowAdd] = useState(false)
+  const [selectedMedId, setSelectedMedId] = useState("")
   const [formData, setFormData] = useState({ supplier_id: "", batch_id: "", quantity: 0, amount: 0, reason: "" })
+
+  const uniqueMedicines = Array.from(new Map(batches.map(b => [b.medicineId, b.medicineName])).entries())
+    .map(([id, name]) => ({ id, name }))
+
+  const filteredBatches = selectedMedId ? batches.filter(b => b.medicineId === selectedMedId) : []
 
   const handleSubmit = async () => {
     if (!formData.supplier_id || !formData.batch_id || !formData.quantity) return toast.error("Missing data")
@@ -822,6 +866,7 @@ function ReturnsManagement({ returns, batches, suppliers, onRefresh }: { returns
         toast.success("Return processed successfully")
         setShowAdd(false)
         setFormData({ supplier_id: "", batch_id: "", quantity: 0, amount: 0, reason: "" })
+        setSelectedMedId("")
         onRefresh()
     } catch (error: any) {
         toast.error(error.message)
@@ -891,13 +936,32 @@ function ReturnsManagement({ returns, batches, suppliers, onRefresh }: { returns
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-slate-500">Source Batch (from PO Arrival)</label>
-                        <Select onValueChange={v => setFormData({ ...formData, batch_id: v })}>
-                            <SelectTrigger><SelectValue placeholder="Select Batch to Deduct..." /></SelectTrigger>
+                        <label className="text-[10px] font-black uppercase text-slate-500">Select Medicine</label>
+                        <Select value={selectedMedId} onValueChange={v => {
+                            setSelectedMedId(v)
+                            setFormData({ ...formData, batch_id: "" })
+                        }}>
+                            <SelectTrigger><SelectValue placeholder="Choose Medicine..." /></SelectTrigger>
                             <SelectContent>
-                                {batches.map(b => (
+                                {uniqueMedicines.map(m => (
+                                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-slate-500">Source Batch (from PO Arrival)</label>
+                        <Select 
+                            value={formData.batch_id} 
+                            disabled={!selectedMedId}
+                            onValueChange={v => setFormData({ ...formData, batch_id: v })}
+                        >
+                            <SelectTrigger><SelectValue placeholder={selectedMedId ? "Select Batch to Deduct..." : "First select a medicine"} /></SelectTrigger>
+                            <SelectContent>
+                                {filteredBatches.map(b => (
                                     <SelectItem key={b.id} value={b.id}>
-                                        {b.medicineName} ({b.batchNumber}) - {b.quantityRemaining} left
+                                        {b.batchNumber} - {b.quantityRemaining} left
                                     </SelectItem>
                                 ))}
                             </SelectContent>
