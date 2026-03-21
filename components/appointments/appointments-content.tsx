@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { Plus, Search, Eye, Stethoscope, BedDouble } from "lucide-react"
+import { Plus, Search, Eye, Stethoscope, BedDouble, Check, CheckCheck } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,6 +21,33 @@ import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { appointmentsApi, type Appointment, type Doctor, type Patient } from "@/lib/api"
 import { toast } from "sonner"
+import { useAuth } from "@/lib/auth-context"
+
+function playNotificationSound() {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(800, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
+    
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.05);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.2);
+    
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.2);
+  } catch (err) {
+    console.error("Audio playback failed:", err);
+  }
+}
 
 interface Props {
   appointments: Appointment[]
@@ -45,6 +72,7 @@ export function AppointmentsContent({
   const [currentPage, setCurrentPage] = useState(1)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const { user } = useAuth()
   const perPage = 10
 
   const [formData, setFormData] = useState({
@@ -66,6 +94,35 @@ export function AppointmentsContent({
       setDialogOpen(true)
     }
   }, [initialPatientId, initialDoctorId])
+
+  const [prevApptsHash, setPrevApptsHash] = useState<string>("")
+
+  useEffect(() => {
+    if (!initial) return;
+    const currentHash = initial.map(a => `${a.id}-${a.status}-${a.isViewedByDoctor}`).join(',')
+    if (prevApptsHash && currentHash !== prevApptsHash) {
+        playNotificationSound()
+    }
+    setPrevApptsHash(currentHash)
+  }, [initial])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (onRefresh) onRefresh()
+    }, 15000); // 15 seconds polling
+    return () => clearInterval(interval);
+  }, [onRefresh])
+
+  const handleDoctorView = async (appointment: Appointment) => {
+    if (user?.role === 'doctor' && !appointment.isViewedByDoctor) {
+      try {
+        await appointmentsApi.markAsViewed(appointment.id)
+        if (onRefresh) onRefresh()
+      } catch (err) {
+        console.error("Failed to mark appointment as viewed", err)
+      }
+    }
+  }
 
   const appointmentsList = Array.isArray(initial) ? initial : []
   const filtered = useMemo(() => {
@@ -227,7 +284,16 @@ export function AppointmentsContent({
             <TableBody>
               {paginated.map((a) => (
                 <TableRow key={a.id} className="hover:bg-muted/30 transition-colors">
-                  <TableCell className="font-mono text-xs font-bold text-primary px-6">{a.appointmentId}</TableCell>
+                  <TableCell className="px-6">
+                    <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-primary">{a.appointmentId}</span>
+                        {a.isViewedByDoctor ? (
+                            <span title="Viewed by Doctor"><CheckCheck className="size-4 text-blue-500" /></span>
+                        ) : (
+                            <span title="Not viewed yet"><Check className="size-4 text-slate-300" /></span>
+                        )}
+                    </div>
+                  </TableCell>
                   <TableCell className="font-bold">{a.patientName}</TableCell>
                   <TableCell className="font-medium">{a.doctorName}</TableCell>
                   <TableCell className="hidden md:table-cell">{a.department}</TableCell>
@@ -236,17 +302,17 @@ export function AppointmentsContent({
                   <TableCell className="hidden lg:table-cell capitalize font-medium">{a.type.replace("-", " ")}</TableCell>
                   <TableCell className="px-6"><StatusBadge status={a.status} /></TableCell>
                   <TableCell className="px-6 text-right">
-                    <Button variant="ghost" size="icon" title="View Patient Profile" asChild>
+                    <Button variant="ghost" size="icon" title="View Patient Profile" onClick={() => handleDoctorView(a)} asChild>
                       <Link href={`/patients/${a.patientId}`}>
                         <Eye className="size-4 text-muted-foreground" />
                       </Link>
                     </Button>
-                    <Button variant="ghost" size="icon" title="Send to OPD Consult" asChild>
+                    <Button variant="ghost" size="icon" title="Send to OPD Consult" onClick={() => handleDoctorView(a)} asChild>
                       <Link href={`/opd?patientId=${a.patientId}&doctorId=${a.doctorId}`}>
                         <Stethoscope className="size-4 text-primary" />
                       </Link>
                     </Button>
-                    <Button variant="ghost" size="icon" title="Admit to IPD" asChild>
+                    <Button variant="ghost" size="icon" title="Admit to IPD" onClick={() => handleDoctorView(a)} asChild>
                       <Link href={`/ipd?patientId=${a.patientId}&doctorId=${a.doctorId}`}>
                         <BedDouble className="size-4 text-emerald-600" />
                       </Link>

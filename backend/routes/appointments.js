@@ -9,7 +9,8 @@ router.use(authenticate);
 const fmt = (a) => ({
     id: a.id, appointmentId: a.appointment_id, patientId: a.patient_id, patientName: a.patient_name,
     doctorId: a.doctor_id, doctorName: a.doctor_name, department: a.department,
-    date: a.date, time: a.time, type: a.type, status: a.status, notes: a.notes, createdAt: a.created_at
+    date: a.date, time: a.time, type: a.type, status: a.status, notes: a.notes, createdAt: a.created_at,
+    isViewedByDoctor: !!a.is_viewed_by_doctor
 });
 
 router.get('/', async (req, res) => {
@@ -70,6 +71,18 @@ router.put('/:id', async (req, res) => {
         await db.prepare('UPDATE appointments SET date=?, time=?, type=?, status=?, notes=? WHERE id=?')
             .run(date || row.date, time || row.time, type || row.type, status || row.status, notes ?? row.notes, req.params.id);
         logAction(req.user.id, req.user.name, req.user.role, 'UPDATE', 'Appointments', `Appointment ${row.appointment_id} updated`, req.ip);
+        const updatedRow = await db.prepare('SELECT * FROM appointments WHERE id = ?').get(req.params.id);
+        res.json(fmt(updatedRow));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.put('/:id/view', async (req, res) => {
+    try {
+        const row = await db.prepare('SELECT * FROM appointments WHERE id = ?').get(req.params.id);
+        if (!row) return res.status(404).json({ error: 'Appointment not found' });
+        await db.prepare('UPDATE appointments SET is_viewed_by_doctor = 1 WHERE id = ?').run(req.params.id);
         const updatedRow = await db.prepare('SELECT * FROM appointments WHERE id = ?').get(req.params.id);
         res.json(fmt(updatedRow));
     } catch (err) {

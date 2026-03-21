@@ -105,6 +105,7 @@ export const appointmentsApi = {
     getById: (id: string) => get<Appointment>(`/appointments/${id}`),
     create: (data: Partial<Appointment>) => post<Appointment>('/appointments', data),
     update: (id: string, data: Partial<Appointment>) => put<Appointment>(`/appointments/${id}`, data),
+    markAsViewed: (id: string) => put<Appointment>(`/appointments/${id}/view`, {}),
     delete: (id: string) => del(`/appointments/${id}`),
 };
 
@@ -440,7 +441,7 @@ export interface Appointment {
     id: string; appointmentId: string; patientId: string; patientName: string;
     doctorId: string; doctorName: string; department: string;
     date: string; time: string; type: string; status: string;
-    notes?: string; createdAt: string;
+    notes?: string; createdAt: string; isViewedByDoctor?: boolean;
 }
 
 export interface Medicine {
