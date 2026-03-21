@@ -75,7 +75,10 @@ export function PatientsContent({ patients: initialPatients, onRefresh }: Patien
     setIsDeleting(id)
     try {
       await patientsApi.delete(id)
-      toast.success("Patient deleted")
+      toast.success("Patient Profile Deleted", {
+        description: "The patient record has been permanently removed.",
+        icon: "🗑️"
+      })
       if (onRefresh) onRefresh()
     } catch (e: any) {
       toast.error(e.message || "Failed to delete")
@@ -107,7 +110,10 @@ export function PatientsContent({ patients: initialPatients, onRefresh }: Patien
 
     try {
       await patientsApi.update(editingPatient.id, data)
-      toast.success("Patient updated successfully")
+      toast.success("Patient Updated Successfully", {
+        description: "The patient profile has been updated in the system.",
+        icon: "✏️"
+      })
       setEditDialogOpen(false)
       if (onRefresh) onRefresh()
     } catch (error: any) {
@@ -138,7 +144,10 @@ export function PatientsContent({ patients: initialPatients, onRefresh }: Patien
 
     try {
       await patientsApi.create(data)
-      toast.success("Patient registered successfully")
+      toast.success("New Patient Registered", {
+        description: "The patient profile has been securely added to the system.",
+        icon: "🏥"
+      })
       setDialogOpen(false)
       if (onRefresh) onRefresh()
     } catch (error: any) {

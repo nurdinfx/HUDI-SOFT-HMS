@@ -1,6 +1,6 @@
 {
-    "name": "HUDI_SOFT // HSM",
-    "short_name": "HSM",
+    "name": "Hudi-soft-HMS",
+    "short_name": "Hudi-soft-HMS",
     "description": "Hospital Management System by HUDI SOFT",
     "id": "/",
     "start_url": "/dashboard",

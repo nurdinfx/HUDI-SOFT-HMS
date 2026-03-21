@@ -146,7 +146,10 @@ export function AppointmentsContent({
     setSubmitting(true)
     try {
       await appointmentsApi.create(formData)
-      toast.success("Appointment booked successfully")
+      toast.success("Appointment Confirmed", {
+        description: "The appointment has been successfully scheduled.",
+        icon: "📅"
+      })
       setDialogOpen(false)
       setFormData({
         patientId: "",

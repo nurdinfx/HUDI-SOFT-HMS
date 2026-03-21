@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
 import { AuthProvider } from '@/lib/auth-context'
 import { Toaster } from 'sonner'
+import { PwaInstallPrompt } from '@/components/pwa-install-prompt'
 import './globals.css'
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
@@ -54,6 +55,7 @@ export default function RootLayout({
           <AuthProvider>
             {children}
             <Toaster position="top-right" richColors closeButton />
+            <PwaInstallPrompt />
           </AuthProvider>
         </ThemeProvider>
         <Analytics />
