@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Search, Plus, Filter, LayoutGrid, List } from "lucide-react"
+import { Search, Plus, Filter, LayoutGrid, List, Edit, Trash2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PageHeader } from "@/components/shared/page-header"
@@ -37,6 +37,30 @@ export function DepartmentsContent() {
 
   const [deptModalOpen, setDeptModalOpen] = useState(false)
   const [catModalOpen, setCatModalOpen] = useState(false)
+  const [editingDepartment, setEditingDepartment] = useState<Department | null>(null)
+  const [editingCategory, setEditingCategory] = useState<ServiceCategory | null>(null)
+
+  const handleDeleteDepartment = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this department? This action cannot be undone.")) return;
+    try {
+      await revenueAnalyticsApi.deleteDepartment(id);
+      toast.success("Department deleted successfully");
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete department");
+    }
+  }
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this service category? This action cannot be undone.")) return;
+    try {
+      await revenueAnalyticsApi.deleteServiceCategory(id);
+      toast.success("Service category deleted successfully");
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete category");
+    }
+  }
 
   const fetchData = async () => {
     setLoading(true)
@@ -123,6 +147,7 @@ export function DepartmentsContent() {
                   <TableHead className="font-semibold text-slate-700">Code</TableHead>
                   <TableHead className="font-semibold text-slate-700">Status</TableHead>
                   <TableHead className="font-semibold text-slate-700">Created At</TableHead>
+                  <TableHead className="font-semibold text-slate-700 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -145,6 +170,27 @@ export function DepartmentsContent() {
                       <TableCell className="text-slate-500 text-sm">
                         {new Date(dept.createdAt).toLocaleDateString()}
                       </TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-slate-500 hover:text-emerald-600"
+                            onClick={() => {
+                                setEditingDepartment(dept);
+                                setDeptModalOpen(true);
+                            }}
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-slate-500 hover:text-rose-600 ml-1"
+                            onClick={() => handleDeleteDepartment(dept.id)}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -162,6 +208,7 @@ export function DepartmentsContent() {
                   <TableHead className="font-semibold text-slate-700">Description</TableHead>
                   <TableHead className="font-semibold text-slate-700">Status</TableHead>
                   <TableHead className="font-semibold text-slate-700">Created At</TableHead>
+                  <TableHead className="font-semibold text-slate-700 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -184,6 +231,27 @@ export function DepartmentsContent() {
                       <TableCell className="text-slate-500 text-sm">
                         {new Date(cat.createdAt).toLocaleDateString()}
                       </TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-slate-500 hover:text-emerald-600"
+                            onClick={() => {
+                                setEditingCategory(cat);
+                                setCatModalOpen(true);
+                            }}
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-slate-500 hover:text-rose-600 ml-1"
+                            onClick={() => handleDeleteCategory(cat.id)}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -195,13 +263,21 @@ export function DepartmentsContent() {
 
       <DepartmentFormModal 
         open={deptModalOpen} 
-        onOpenChange={setDeptModalOpen} 
+        onOpenChange={(open) => {
+            setDeptModalOpen(open);
+            if (!open) setTimeout(() => setEditingDepartment(null), 200);
+        }} 
         onSuccess={fetchData} 
+        initialData={editingDepartment}
       />
       <ServiceCategoryFormModal 
         open={catModalOpen} 
-        onOpenChange={setCatModalOpen} 
+        onOpenChange={(open) => {
+            setCatModalOpen(open);
+            if (!open) setTimeout(() => setEditingCategory(null), 200);
+        }} 
         onSuccess={fetchData} 
+        initialData={editingCategory}
       />
     </div>
   )

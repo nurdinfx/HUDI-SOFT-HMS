@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { revenueAnalyticsApi } from "@/lib/api"
+import { revenueAnalyticsApi, Department } from "@/lib/api"
 import { 
     Dialog, 
     DialogContent, 
@@ -19,12 +19,20 @@ interface DepartmentFormModalProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     onSuccess: () => void
+    initialData?: Department | null
 }
 
-export function DepartmentFormModal({ open, onOpenChange, onSuccess }: DepartmentFormModalProps) {
-    const [name, setName] = useState("")
-    const [code, setCode] = useState("")
+export function DepartmentFormModal({ open, onOpenChange, onSuccess, initialData }: DepartmentFormModalProps) {
+    const [name, setName] = useState(initialData?.name || "")
+    const [code, setCode] = useState(initialData?.code || "")
     const [loading, setLoading] = useState(false)
+
+    useEffect(() => {
+        if (open) {
+            setName(initialData?.name || "")
+            setCode(initialData?.code || "")
+        }
+    }, [open, initialData])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -32,14 +40,17 @@ export function DepartmentFormModal({ open, onOpenChange, onSuccess }: Departmen
         
         setLoading(true)
         try {
-            await revenueAnalyticsApi.createDepartment({ name, code })
-            toast.success("Department created successfully")
-            setName("")
-            setCode("")
+            if (initialData) {
+                await revenueAnalyticsApi.updateDepartment(initialData.id, { name, code })
+                toast.success("Department updated successfully")
+            } else {
+                await revenueAnalyticsApi.createDepartment({ name, code })
+                toast.success("Department created successfully")
+            }
             onSuccess()
             onOpenChange(false)
         } catch (error: any) {
-            toast.error(error.message || "Failed to create department")
+            toast.error(error.message || "Failed to save department")
         } finally {
             setLoading(false)
         }
@@ -49,7 +60,7 @@ export function DepartmentFormModal({ open, onOpenChange, onSuccess }: Departmen
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[400px]">
                 <DialogHeader>
-                    <DialogTitle>Add New Department</DialogTitle>
+                    <DialogTitle>{initialData ? "Edit Department" : "Add New Department"}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-2">
                     <div className="space-y-2">
@@ -75,7 +86,7 @@ export function DepartmentFormModal({ open, onOpenChange, onSuccess }: Departmen
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
                         <Button type="submit" disabled={loading}>
                             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Create Department
+                            {initialData ? "Update Department" : "Create Department"}
                         </Button>
                     </DialogFooter>
                 </form>

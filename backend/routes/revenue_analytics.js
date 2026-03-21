@@ -33,6 +33,32 @@ router.post('/departments', authorize(['admin']), async (req, res) => {
     }
 });
 
+// PUT /api/revenue-analytics/departments/:id
+router.put('/departments/:id', authorize(['admin']), async (req, res) => {
+    const { name, code, is_active } = req.body;
+    const { id } = req.params;
+    if (!name) return res.status(400).json({ error: 'Department name is required' });
+
+    try {
+        await db.prepare('UPDATE departments SET name = ?, code = ?, is_active = COALESCE(?, is_active) WHERE id = ?').run(name, code || null, is_active !== undefined ? is_active : null, id);
+        const updatedDept = await db.prepare('SELECT * FROM departments WHERE id = ?').get(id);
+        res.json(updatedDept);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DELETE /api/revenue-analytics/departments/:id
+router.delete('/departments/:id', authorize(['admin']), async (req, res) => {
+    const { id } = req.params;
+    try {
+        await db.prepare('DELETE FROM departments WHERE id = ?').run(id);
+        res.json({ message: 'Department deleted successfully' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ─── SERVICE CATEGORIES ──────────────────────────────────────────
 
 // GET /api/revenue-analytics/service-categories
@@ -55,6 +81,32 @@ router.post('/service-categories', authorize(['admin']), async (req, res) => {
         await db.prepare('INSERT INTO service_categories (id, name, description) VALUES (?, ?, ?)').run(id, name, description || null);
         const newCat = await db.prepare('SELECT * FROM service_categories WHERE id = ?').get(id);
         res.status(201).json(newCat);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// PUT /api/revenue-analytics/service-categories/:id
+router.put('/service-categories/:id', authorize(['admin']), async (req, res) => {
+    const { name, description, is_active } = req.body;
+    const { id } = req.params;
+    if (!name) return res.status(400).json({ error: 'Category name is required' });
+
+    try {
+        await db.prepare('UPDATE service_categories SET name = ?, description = ?, is_active = COALESCE(?, is_active) WHERE id = ?').run(name, description || null, is_active !== undefined ? is_active : null, id);
+        const updatedCat = await db.prepare('SELECT * FROM service_categories WHERE id = ?').get(id);
+        res.json(updatedCat);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DELETE /api/revenue-analytics/service-categories/:id
+router.delete('/service-categories/:id', authorize(['admin']), async (req, res) => {
+    const { id } = req.params;
+    try {
+        await db.prepare('DELETE FROM service_categories WHERE id = ?').run(id);
+        res.json({ message: 'Service category deleted successfully' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

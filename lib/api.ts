@@ -345,9 +345,15 @@ export const hrApi = {
 // ===== Revenue Analytics =====
 export const revenueAnalyticsApi = {
     getDepartments: () => get<Department[]>('/revenue-analytics/departments'),
-    createDepartment: (data: { name: string; code?: string }) => post<Department>('/revenue-analytics/departments', data),
+    createDepartment: (data: { name: string; code?: string, isActive?: boolean }) => post<Department>('/revenue-analytics/departments', data),
+    updateDepartment: (id: string, data: Partial<Department>) => put<Department>(`/revenue-analytics/departments/${id}`, data),
+    deleteDepartment: (id: string) => del<{ message: string }>(`/revenue-analytics/departments/${id}`),
+    
     getServiceCategories: () => get<ServiceCategory[]>('/revenue-analytics/service-categories'),
-    createServiceCategory: (data: { name: string; description?: string }) => post<ServiceCategory>('/revenue-analytics/service-categories', data),
+    createServiceCategory: (data: { name: string; description?: string, isActive?: boolean }) => post<ServiceCategory>('/revenue-analytics/service-categories', data),
+    updateServiceCategory: (id: string, data: Partial<ServiceCategory>) => put<ServiceCategory>(`/revenue-analytics/service-categories/${id}`, data),
+    deleteServiceCategory: (id: string) => del<{ message: string }>(`/revenue-analytics/service-categories/${id}`),
+    
     getReport: (params?: { startDate?: string; endDate?: string }) => get<RevenueReport>('/revenue-analytics/report' + toQuery(params)),
 };
 

@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { revenueAnalyticsApi } from "@/lib/api"
+import { revenueAnalyticsApi, ServiceCategory } from "@/lib/api"
 import { 
     Dialog, 
     DialogContent, 
@@ -20,12 +20,20 @@ interface ServiceCategoryFormModalProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     onSuccess: () => void
+    initialData?: ServiceCategory | null
 }
 
-export function ServiceCategoryFormModal({ open, onOpenChange, onSuccess }: ServiceCategoryFormModalProps) {
-    const [name, setName] = useState("")
-    const [description, setDescription] = useState("")
+export function ServiceCategoryFormModal({ open, onOpenChange, onSuccess, initialData }: ServiceCategoryFormModalProps) {
+    const [name, setName] = useState(initialData?.name || "")
+    const [description, setDescription] = useState(initialData?.description || "")
     const [loading, setLoading] = useState(false)
+
+    useEffect(() => {
+        if (open) {
+            setName(initialData?.name || "")
+            setDescription(initialData?.description || "")
+        }
+    }, [open, initialData])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -33,14 +41,17 @@ export function ServiceCategoryFormModal({ open, onOpenChange, onSuccess }: Serv
         
         setLoading(true)
         try {
-            await revenueAnalyticsApi.createServiceCategory({ name, description })
-            toast.success("Service category created successfully")
-            setName("")
-            setDescription("")
+            if (initialData) {
+                await revenueAnalyticsApi.updateServiceCategory(initialData.id, { name, description })
+                toast.success("Service category updated successfully")
+            } else {
+                await revenueAnalyticsApi.createServiceCategory({ name, description })
+                toast.success("Service category created successfully")
+            }
             onSuccess()
             onOpenChange(false)
         } catch (error: any) {
-            toast.error(error.message || "Failed to create category")
+            toast.error(error.message || "Failed to save category")
         } finally {
             setLoading(false)
         }
@@ -50,7 +61,7 @@ export function ServiceCategoryFormModal({ open, onOpenChange, onSuccess }: Serv
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[400px]">
                 <DialogHeader>
-                    <DialogTitle>Add Service Category</DialogTitle>
+                    <DialogTitle>{initialData ? "Edit Service Category" : "Add Service Category"}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-2">
                     <div className="space-y-2">
@@ -77,7 +88,7 @@ export function ServiceCategoryFormModal({ open, onOpenChange, onSuccess }: Serv
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
                         <Button type="submit" disabled={loading}>
                             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Create Category
+                            {initialData ? "Update Category" : "Create Category"}
                         </Button>
                     </DialogFooter>
                 </form>
