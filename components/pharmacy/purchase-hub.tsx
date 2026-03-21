@@ -337,7 +337,7 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
 
       {/* Create Order Dialog */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent className="max-w-[90vw] w-[1200px] max-h-[90vh] overflow-hidden flex flex-col rounded-3xl p-0">
+        <DialogContent className="sm:max-w-[1200px] w-[95vw] max-h-[95vh] overflow-hidden flex flex-col rounded-3xl p-0">
           <DialogHeader className="p-8 bg-slate-900 text-white">
             <DialogTitle className="text-2xl font-black italic tracking-tighter uppercase">Create Purchase Order</DialogTitle>
             <DialogDescription className="text-slate-400">Add medicines to your procurement request. High-accuracy inventory intake.</DialogDescription>
@@ -759,7 +759,7 @@ function AddMedicineDialog({ open, onOpenChange, onSuccess }: { open: boolean, o
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden shadow-2xl border-none">
+            <DialogContent className="sm:max-w-[800px] w-[95vw] rounded-3xl p-0 overflow-hidden shadow-2xl border-none">
                 <DialogHeader className="p-10 bg-slate-900 text-white relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-8 opacity-10">
                         <PackageCheck className="size-32" />
