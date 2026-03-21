@@ -337,12 +337,12 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
 
       {/* Create Order Dialog */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Create Purchase Order</DialogTitle>
-            <DialogDescription>Add medicines to your procurement request.</DialogDescription>
+        <DialogContent className="max-w-[90vw] w-[1200px] max-h-[90vh] overflow-hidden flex flex-col rounded-3xl p-0">
+          <DialogHeader className="p-8 bg-slate-900 text-white">
+            <DialogTitle className="text-2xl font-black italic tracking-tighter uppercase">Create Purchase Order</DialogTitle>
+            <DialogDescription className="text-slate-400">Add medicines to your procurement request. High-accuracy inventory intake.</DialogDescription>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto space-y-6 py-4">
+          <div className="flex-1 overflow-y-auto space-y-8 p-8">
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <label className="text-xs font-bold uppercase text-muted-foreground">Select Supplier</label>
@@ -368,8 +368,8 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
                     </div>
                 <div className="space-y-4">
                     {items.map((item, idx) => (
-                        <div key={idx} className="grid grid-cols-12 gap-2 items-end">
-                            <div className="col-span-4 space-y-1">
+                        <div key={idx} className="grid grid-cols-12 gap-4 items-end bg-slate-50/50 p-4 rounded-2xl border border-slate-100 hover:border-blue-100 transition-colors">
+                            <div className="col-span-5 space-y-1.5">
                                 <label className="text-[10px] uppercase text-muted-foreground">Medicine</label>
                                 <div className="flex gap-2">
                                     <Select 
@@ -412,7 +412,7 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
                                     <Button 
                                         variant="outline" 
                                         size="icon" 
-                                        className="size-10 rounded-xl flex-shrink-0"
+                                        className="size-9 rounded-xl flex-shrink-0 border-slate-200 hover:bg-white hover:text-blue-600 hover:border-blue-200 shadow-sm"
                                         onClick={() => {
                                             setActiveIdx(idx)
                                             setShowAddMed(true)
@@ -422,27 +422,27 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
                                     </Button>
                                 </div>
                             </div>
-                            <div className="col-span-2 space-y-1">
+                            <div className="col-span-2 space-y-1.5">
                                 <label className="text-[10px] uppercase text-muted-foreground">Quantity</label>
-                                <Input type="number" value={item.quantity} onChange={(e) => {
+                                <Input type="number" className="h-9 rounded-lg bg-white" value={item.quantity} onChange={(e) => {
                                     const newItems = [...items];
                                     newItems[idx].quantity = parseInt(e.target.value) || 0;
                                     newItems[idx].total_price = newItems[idx].unit_price * newItems[idx].quantity;
                                     setItems(newItems);
                                 }} />
                             </div>
-                            <div className="col-span-2 space-y-1">
-                                <label className="text-[10px] uppercase text-muted-foreground">Unit Price ($)</label>
-                                <Input type="number" value={item.unit_price} onChange={(e) => {
+                            <div className="col-span-2 space-y-1.5">
+                                <label className="text-[10px] uppercase font-bold text-slate-400">Unit Price ($)</label>
+                                <Input type="number" className="h-9 rounded-lg bg-white" value={item.unit_price} onChange={(e) => {
                                     const newItems = [...items];
                                     newItems[idx].unit_price = parseFloat(e.target.value) || 0;
                                     newItems[idx].total_price = newItems[idx].unit_price * newItems[idx].quantity;
                                     setItems(newItems);
                                 }} />
                             </div>
-                            <div className="col-span-3 space-y-1">
-                                <label className="text-[10px] uppercase text-muted-foreground">Total ($)</label>
-                                <Input readOnly value={Number(item.total_price || 0).toFixed(2)} className="bg-muted" />
+                            <div className="col-span-2 space-y-1.5">
+                                <label className="text-[10px] uppercase font-bold text-slate-400">Total ($)</label>
+                                <Input readOnly value={Number(item.total_price || 0).toFixed(2)} className="bg-slate-100 border-none font-bold text-slate-900 h-9 rounded-lg" />
                             </div>
                              <div className="col-span-1 flex justify-end">
                                 <Button variant="ghost" size="icon" onClick={() => setItems(items.filter((_, i) => i !== idx))} className="text-rose-400 hover:text-rose-600 hover:bg-rose-50 size-9 rounded-full">
@@ -454,13 +454,17 @@ function PurchaseOrderList({ orders, suppliers, medicines, onRefresh }: { orders
                 </div>
             </div>
           </div>
-          <DialogFooter className="pt-4 border-t">
-            <div className="flex-1 flex flex-col items-start gap-1">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Grand Total</p>
-                <span className="text-xl font-black">${Number(items.reduce((sum, i) => sum + (Number(i.total_price) || 0), 0)).toFixed(2)}</span>
+          <DialogFooter className="p-8 bg-slate-50 border-t items-center mt-auto">
+            <div className="flex-1 flex flex-col items-start gap-0.5">
+                <p className="text-[10px] uppercase font-black text-slate-400 tracking-wider">Estimated Grand Total</p>
+                <span className="text-3xl font-black text-slate-900 tracking-tighter">${Number(items.reduce((sum, i) => sum + (Number(i.total_price) || 0), 0)).toFixed(2)}</span>
             </div>
-            <Button variant="ghost" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button onClick={handleCreateOrder} disabled={items.length === 0} className="bg-slate-900">Finalize Request</Button>
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" className="font-bold text-slate-500 hover:text-slate-900 hover:bg-slate-200/50 h-12 px-6" onClick={() => setShowAdd(false)}>Cancel Request</Button>
+              <Button onClick={handleCreateOrder} disabled={items.length === 0} className="bg-slate-900 hover:bg-black text-white px-8 h-12 rounded-xl font-black uppercase text-xs tracking-widest shadow-xl shadow-slate-200">
+                Finalize Purchase Order
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -755,12 +759,15 @@ function AddMedicineDialog({ open, onOpenChange, onSuccess }: { open: boolean, o
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-md rounded-3xl p-0 overflow-hidden">
-                <DialogHeader className="p-8 bg-slate-900 text-white">
-                    <DialogTitle className="text-xl font-black italic tracking-tighter uppercase">Quick Register Medicine</DialogTitle>
-                    <DialogDescription className="text-slate-400">Add a new item to the master inventory list.</DialogDescription>
+            <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden shadow-2xl border-none">
+                <DialogHeader className="p-10 bg-slate-900 text-white relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-8 opacity-10">
+                        <PackageCheck className="size-32" />
+                    </div>
+                    <DialogTitle className="text-2xl font-black italic tracking-tighter uppercase relative z-10">Quick Register Medicine</DialogTitle>
+                    <DialogDescription className="text-slate-400 relative z-10">Add a new item to the master inventory list. Ensure all details are accurate.</DialogDescription>
                 </DialogHeader>
-                <div className="p-8 space-y-4">
+                <div className="p-10 space-y-6 bg-white">
                     <div className="space-y-1.5">
                         <Label className="text-[10px] uppercase font-bold text-slate-500">Medicine Name</Label>
                         <Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Paracetamol 500mg" />
