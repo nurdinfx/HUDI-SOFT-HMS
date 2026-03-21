@@ -492,8 +492,8 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
 
       {/* INVOICE VIEW / PRINT */}
       <Dialog open={!!invoiceToPrint} onOpenChange={() => setInvoiceToPrint(null)}>
-        <DialogContent className="max-w-3xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
-          <div className="p-12 bg-white space-y-8" id="pharmacy-invoice">
+        <DialogContent className="sm:max-w-[900px] w-[95vw] max-h-[90vh] p-0 overflow-hidden border-none shadow-2xl rounded-3xl flex flex-col">
+          <div className="p-12 bg-white space-y-8 overflow-y-auto flex-1" id="pharmacy-invoice">
              {/* Header */}
              <div className="flex justify-between items-start">
                <div className="flex items-center gap-4">
