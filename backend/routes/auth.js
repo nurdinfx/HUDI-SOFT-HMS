@@ -64,7 +64,7 @@ router.get('/me', async (req, res) => {
         if (!user) return res.status(404).json({ error: 'User not found' });
         res.json({ ...user, isActive: user.is_active === 1 });
     } catch (e) {
-        res.status(403).json({ error: 'Invalid token' });
+        res.status(401).json({ error: 'Invalid token' });
     }
 });
 

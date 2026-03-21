@@ -132,24 +132,42 @@ router.post('/transactions', async (req, res) => {
                 VALUES (?, ?, ?, ?, ?, ?, ?)`)
                 .run(itemId, txId, item.medicineId, item.medicineName, item.quantity, item.unitPrice, item.totalPrice);
 
-            // Stock Check & Update
-            const med = await db.prepare('SELECT quantity FROM medicines WHERE id = ?').get(item.medicineId);
+            // Stock Check & Update (with batch fallback)
+            const itemMedId = item.medicineId;
+            const med = await db.prepare('SELECT quantity, reorder_level FROM medicines WHERE id = ?').get(itemMedId);
+            
             if (!med || med.quantity < item.quantity) {
                 throw new Error(`Insufficient stock for ${item.medicineName}`);
             }
-            await db.prepare('UPDATE medicines SET quantity = quantity - ? WHERE id = ?').run(item.quantity, item.medicineId);
+
+            // Deduct from batches if possible
+            let remainingToDeduct = item.quantity;
+            const batches = await db.prepare('SELECT * FROM pharmacy_batches WHERE medicine_id = ? AND quantity_remaining > 0 ORDER BY expiry_date ASC').all(itemMedId);
+            
+            for (const batch of batches) {
+                if (remainingToDeduct === 0) break;
+                const deduct = Math.min(batch.quantity_remaining, remainingToDeduct);
+                await db.prepare('UPDATE pharmacy_batches SET quantity_remaining = quantity_remaining - ? WHERE id = ?').run(deduct, batch.id);
+                remainingToDeduct -= deduct;
+            }
+
+            // Deduct from overall medicine quantity
+            const newQty = med.quantity - item.quantity;
+            const newStatus = newQty === 0 ? 'out-of-stock' : newQty <= med.reorder_level ? 'low-stock' : 'in-stock';
+            await db.prepare('UPDATE medicines SET quantity = ?, status = ? WHERE id = ?')
+                .run(newQty, newStatus, itemMedId);
         }
 
         // Handle Patient Credit
         if (patientId) {
             if (safeAppliedCredit > 0) {
-                await db.prepare('UPDATE patient_credits SET balance = balance - ?, last_updated = CURRENT_TIMESTAMP WHERE patient_id = ?')
+                await db.prepare('UPDATE patient_credits SET balance = patient_credits.balance - ?, last_updated = CURRENT_TIMESTAMP WHERE patient_id = ?')
                     .run(safeAppliedCredit, patientId);
             }
             if (creditAmount > 0) {
                 await db.prepare(`INSERT INTO patient_credits (id, patient_id, balance) 
                     VALUES (?, ?, ?) 
-                    ON CONFLICT(patient_id) DO UPDATE SET balance = balance + ?, last_updated = CURRENT_TIMESTAMP`)
+                    ON CONFLICT(patient_id) DO UPDATE SET balance = patient_credits.balance + ?, last_updated = CURRENT_TIMESTAMP`)
                     .run(uuidv4(), patientId, creditAmount, creditAmount);
             }
         }
@@ -199,7 +217,7 @@ router.post('/transactions/:id/return', async (req, res) => {
         if (tx.patient_id) {
             await db.prepare(`INSERT INTO patient_credits (id, patient_id, balance) 
                 VALUES (?, ?, ?) 
-                ON CONFLICT(patient_id) DO UPDATE SET balance = balance + ?, last_updated = CURRENT_TIMESTAMP`)
+                ON CONFLICT(patient_id) DO UPDATE SET balance = patient_credits.balance + ?, last_updated = CURRENT_TIMESTAMP`)
                 .run(uuidv4(), tx.patient_id, totalReturnedAmount, totalReturnedAmount);
         }
 
@@ -218,7 +236,7 @@ router.get('/stats/revenue', async (req, res) => {
             totalSales: (await db.prepare("SELECT SUM(total_amount) as s FROM pharmacy_transactions WHERE DATE(created_at) = CURRENT_DATE").get()).s || 0,
             totalReturns: (await db.prepare("SELECT SUM(amount) as s FROM pharmacy_returns WHERE DATE(created_at) = CURRENT_DATE").get()).s || 0,
             transactionCount: (await db.prepare("SELECT COUNT(*) as c FROM pharmacy_transactions WHERE DATE(created_at) = CURRENT_DATE").get()).c || 0,
-            outstandingCredit: (await db.query("SELECT SUM(balance) as s FROM patient_credits")).rows[0].s || 0,
+            outstandingCredit: (await db.query("SELECT SUM(patient_credits.balance) as s FROM patient_credits")).rows[0].s || 0,
             breakdown: await db.prepare("SELECT payment_method, SUM(total_amount) as amount FROM pharmacy_transactions WHERE DATE(created_at) = CURRENT_DATE GROUP BY payment_method").all()
         };
         res.json(stats);
@@ -452,30 +470,38 @@ router.put('/prescriptions/:id/dispense', async (req, res) => {
 
         await db.exec('BEGIN');
 
-        for (const med of medicinesPrescribed) {
-            const isCustom = med.medicineId === 'custom';
-            let medicine = null;
-            const qtyDispensed = med.quantity || 1;
+        for (const item of medicinesPrescribed) {
+            const isCustom = item.medicineId === 'custom';
+            let med = null;
+            const qtyDispensed = item.quantity || 1;
 
             if (!isCustom) {
-                medicine = await db.prepare('SELECT * FROM medicines WHERE (name = ? OR generic_name = ? OR id = ?)').get(med.medicineName, med.medicineName, med.medicineId);
-                if (!medicine || medicine.quantity < qtyDispensed) {
-                    await db.exec('ROLLBACK');
-                    throw new Error(`Insufficient stock for ${med.medicineName}`);
+                med = await db.prepare('SELECT * FROM medicines WHERE id = ?').get(item.medicineId);
+                if (!med || med.quantity < qtyDispensed) {
+                    throw new Error(`Insufficient stock for ${item.medicineName}`);
                 }
 
-                const newQty = medicine.quantity - qtyDispensed;
-                const newStatus = newQty === 0 ? 'out-of-stock' : newQty <= medicine.reorder_level ? 'low-stock' : 'in-stock';
+                // Normal stock deduction logic (same as /transactions)
+                let remainingToDeduct = qtyDispensed;
+                const batches = await db.prepare('SELECT * FROM pharmacy_batches WHERE medicine_id = ? AND quantity_remaining > 0 ORDER BY expiry_date ASC').all(item.medicineId);
+                
+                for (const batch of batches) {
+                    if (remainingToDeduct === 0) break;
+                    const deduct = Math.min(batch.quantity_remaining, remainingToDeduct);
+                    await db.prepare('UPDATE pharmacy_batches SET quantity_remaining = quantity_remaining - ? WHERE id = ?').run(deduct, batch.id);
+                    remainingToDeduct -= deduct;
+                }
 
-                await db.prepare('UPDATE medicines SET quantity = ?, status = ? WHERE id = ?')
-                    .run(newQty, newStatus, medicine.id);
+                const newQty = med.quantity - qtyDispensed;
+                const newStatus = newQty === 0 ? 'out-of-stock' : newQty <= med.reorder_level ? 'low-stock' : 'in-stock';
+                await db.prepare('UPDATE medicines SET quantity = ?, status = ? WHERE id = ?').run(newQty, newStatus, med.id);
             }
 
-            const unitPrice = medicine ? (medicine.selling_price || 0) : 0;
+            const unitPrice = med ? (med.selling_price || 0) : 0;
             totalCost += unitPrice * qtyDispensed;
             invoiceItems.push({
-                id: medicine ? medicine.id : 'custom',
-                name: med.medicineName,
+                id: med ? med.id : 'custom',
+                name: item.medicineName,
                 unitPrice: unitPrice,
                 quantity: qtyDispensed,
                 total: unitPrice * qtyDispensed
