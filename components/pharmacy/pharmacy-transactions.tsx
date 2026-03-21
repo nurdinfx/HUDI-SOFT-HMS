@@ -61,7 +61,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)
   const [walkInName, setWalkInName] = useState("")
   const [cart, setCart] = useState<{ medicineId: string; name: string; quantity: number; unitPrice: number; total: number }[]>([])
-  const [paymentMethod, setPaymentMethod] = useState("Cash")
+  const [paymentMethod, setPaymentMethod] = useState("ZAAD")
   const [amountPaid, setAmountPaid] = useState<string>("")
   
   // Filtering & Export
@@ -328,10 +328,10 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Any Method</SelectItem>
-                  <SelectItem value="Cash">Cash</SelectItem>
-                  <SelectItem value="Card">Card</SelectItem>
-                  <SelectItem value="Mobile Money">Mobile</SelectItem>
-                  <SelectItem value="Insurance">Insurance</SelectItem>
+                  <SelectItem value="ZAAD">ZAAD</SelectItem>
+                  <SelectItem value="SAHAL">SAHAL</SelectItem>
+                  <SelectItem value="EDAHAB">EDAHAB</SelectItem>
+                  <SelectItem value="MYCASH">MYCASH</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -386,9 +386,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                     <TableCell className="text-rose-600 font-medium text-xs">${Number(tx.credit_amount || 0).toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-[10px] font-bold rounded-sm h-5 flex items-center gap-1 w-fit">
-                        {tx.payment_method === 'Cash' && <Banknote className="size-3" />}
-                        {tx.payment_method === 'Card' && <CreditCard className="size-3" />}
-                        {tx.payment_method === 'Mobile Money' && <Smartphone className="size-3" />}
+                        {tx.payment_method && <Smartphone className="size-3" />}
                         {tx.payment_method}
                       </Badge>
                     </TableCell>
@@ -777,7 +775,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                 )}
 
                 <div className="grid grid-cols-2 gap-2">
-                  {['Cash', 'Card', 'Mobile Money', 'Insurance'].map(m => (
+                  {['ZAAD', 'SAHAL', 'EDAHAB', 'MYCASH'].map(m => (
                     <button 
                       key={m} 
                       className={`h-11 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex flex-col items-center justify-center gap-1 ${paymentMethod === m ? 'bg-slate-900 text-white border-slate-900 shadow-xl scale-105' : 'bg-white text-slate-500 border-slate-100 hover:border-slate-300'}`}
