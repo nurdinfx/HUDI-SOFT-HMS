@@ -686,13 +686,13 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
             </div>
 
             {/* Right: Cart & Payment */}
-            <div className="col-span-12 md:col-span-4 p-8 bg-slate-50 flex flex-col gap-6">
+            <div className="col-span-12 md:col-span-4 p-8 bg-slate-50 flex flex-col gap-6 overflow-y-auto">
               <div className="flex items-center justify-between">
                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Order Manifest</h4>
                 <div className="font-black text-slate-900 text-xs">{cart.length} ITEMS</div>
               </div>
 
-              <ScrollArea className="flex-1 -mx-2 px-2">
+              <ScrollArea className="flex-1 min-h-[150px] -mx-2 px-2">
                 <div className="space-y-3">
                   {cart.map((item, idx) => (
                     <div key={idx} className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm relative group overflow-hidden">
