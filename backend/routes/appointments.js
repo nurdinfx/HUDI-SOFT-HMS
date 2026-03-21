@@ -2,6 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
 const { authenticate, logAction } = require('../middleware/auth');
+const { sendPushNotification } = require('../utils/push-notify');
 
 const router = express.Router();
 router.use(authenticate);
@@ -56,6 +57,14 @@ router.post('/', async (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
             .run(id, apptId, patientId, `${patient.first_name} ${patient.last_name}`, doctorId, doctor.name, doctor.department, date, time, type || 'consultation', 'scheduled', notes || null, new Date().toISOString());
         logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'Appointments', `Appointment created: ${apptId}`, req.ip);
+        
+        // Trigger social push notification
+        sendPushNotification({
+            title: '📅 New Appointment Booked',
+            message: `${patient.first_name} ${patient.last_name} has a new appointment with Dr. ${doctor.name} at ${time}.`,
+            url: `/appointments?id=${id}`
+        });
+
         const row = await db.prepare('SELECT * FROM appointments WHERE id = ?').get(id);
         res.status(201).json(fmt(row));
     } catch (err) {

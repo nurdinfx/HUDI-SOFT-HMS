@@ -39,10 +39,42 @@ export function PwaInstallPrompt() {
     return () => window.removeEventListener('beforeinstallprompt', handler)
   }, [])
 
+  const subscribeUser = async () => {
+    try {
+      const registration = await navigator.serviceWorker.ready
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: 'BN3M5npdAHbqVJ6eBiKEwQkcXBCRkYd3EzCl5Sl0SfCxM1D8WLNUzIacVzrj5dB37GDGpb2HlM3F6dno2fGmhJw'
+      })
+
+      // Send to backend
+      const res = await fetch('https://hudi-soft-hms.onrender.com/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription })
+      })
+      
+      if (res.ok) {
+        console.log('✅ Push subscription synced with backend')
+      }
+    } catch (err) {
+      console.error('❌ Failed to subscribe to push notifications:', err)
+    }
+  }
+
   const handleInstallClick = async () => {
+    // Request notification permission first (Professional Social Alert Step)
+    if (Notification.permission === 'default') {
+      const permission = await Notification.requestPermission()
+      if (permission === 'granted') {
+        await subscribeUser()
+      }
+    } else if (Notification.permission === 'granted') {
+      await subscribeUser()
+    }
+
     if (!deferredPrompt) {
       if (isIOS) {
-        // Just dismiss if they clicked "Got It" for iOS instructions
         setShowPrompt(false)
         localStorage.setItem('pwaPromptDismissed', 'true')
       }
@@ -88,7 +120,7 @@ export function PwaInstallPrompt() {
               <p className="text-[13px] text-slate-500 leading-snug">
                 {isIOS && !deferredPrompt 
                   ? "Install our app for a faster experience. Tap the 'Share' icon then 'Add to Home Screen'."
-                  : "Install our app to get a faster, more secure and seamless experience."}
+                  : "Enable professional alerts and install our app for a faster, more secure experience."}
               </p>
             </div>
           </div>
@@ -96,7 +128,7 @@ export function PwaInstallPrompt() {
             onClick={handleInstallClick} 
             className="w-full bg-[#f1f3f5] hover:bg-[#e9ecef] text-slate-800 font-bold rounded-xl h-12 shadow-none"
           >
-            Got it!
+            Enable & Install
           </Button>
         </CardContent>
       </Card>

@@ -2,6 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
 const { authenticate, logAction } = require('../middleware/auth');
+const { sendPushNotification } = require('../utils/push-notify');
 
 const router = express.Router();
 router.use(authenticate);
@@ -155,6 +156,14 @@ router.post('/transactions', async (req, res) => {
 
         await db.run('COMMIT');
         logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'Pharmacy', `Transaction ${invoiceId} created`, req.ip);
+        
+        // Trigger social push notification
+        sendPushNotification({
+            title: '🏷️ New Pharmacy Sale',
+            message: `New sale completed: ${invoiceId} for ${patientName || 'Walk-in'}. Total: $${totalAmount}.`,
+            url: `/pharmacy/transactions`
+        });
+
         res.status(201).json({ id: txId, invoiceId });
     } catch (err) {
         await db.run('ROLLBACK');
@@ -399,6 +408,14 @@ router.post('/prescriptions', async (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
             .run(id, rxId, patientId, patient ? `${patient.first_name} ${patient.last_name}` : 'Unknown', doctorId, doctor ? doctor.name : 'Unknown', appointmentId || null, new Date().toISOString().split('T')[0], diagnosis, JSON.stringify(medicines || []), notes || null, 'pending');
         logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'Pharmacy', `Prescription created: ${rxId}`, req.ip);
+        
+        // Trigger social push notification
+        sendPushNotification({
+            title: '💊 New Prescription Issued',
+            message: `New prescription ${rxId} issued for ${patient ? `${patient.first_name} ${patient.last_name}` : 'Patient'}.`,
+            url: `/pharmacy/prescriptions`
+        });
+
         const row = await db.prepare('SELECT * FROM prescriptions WHERE id = ?').get(id);
         res.status(201).json(fmtRx(row));
     } catch (err) {

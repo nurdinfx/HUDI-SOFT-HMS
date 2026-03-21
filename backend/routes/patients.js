@@ -2,6 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
 const { authenticate, logAction } = require('../middleware/auth');
+const { sendPushNotification } = require('../utils/push-notify');
 
 const router = express.Router();
 router.use(authenticate);
@@ -59,6 +60,14 @@ router.post('/', async (req, res) => {
             .run(id, patientId, firstName, lastName, dateOfBirth, gender, bloodGroup || null, phone, email || null, address || null, city || null, emergencyContact || null, emergencyPhone || null, insuranceProvider || null, insurancePolicyNumber || null, JSON.stringify(allergies || []), JSON.stringify(chronicConditions || []), status || 'active', new Date().toISOString(), notes || null);
         const row = await db.prepare('SELECT * FROM patients WHERE id = ?').get(id);
         logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'Patients', `New patient registered: ${firstName} ${lastName}`, req.ip);
+        
+        // Trigger social push notification
+        sendPushNotification({
+            title: '🏥 New Patient Registered',
+            message: `${firstName} ${lastName} has been successfully added to the system.`,
+            url: `/patients/${id}`
+        });
+
         res.status(201).json(fmt(row));
     } catch (err) {
         res.status(500).json({ error: err.message });

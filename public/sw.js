@@ -78,12 +78,15 @@ self.addEventListener('push', (event) => {
         body: data.body,
         icon: '/logo.jpg',
         badge: '/logo.jpg',
-        vibrate: [100, 50, 100],
+        vibrate: [200, 100, 200, 100, 200], // Professional "Social Alert" pulse
+        tag: 'hudi-soft-alert',
+        renotify: true,
+        requireInteraction: true,
         data: {
             url: data.data?.url || '/'
         },
         actions: [
-            { action: 'open', title: 'Open HMS' },
+            { action: 'open', title: 'View Details' },
             { action: 'close', title: 'Dismiss' }
         ]
     };

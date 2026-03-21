@@ -37,9 +37,9 @@ router.post('/subscribe', async (req, res) => {
     }
 });
 
-// Broadcast notification to all (simplified for demo/HUDI SOFT needs)
+// Broadcast notification to all stored subscriptions
 router.post('/notify', async (req, res) => {
-    const { title, message, type, subscription } = req.body;
+    const { title, message, type, url } = req.body;
 
     const payload = JSON.stringify({
         title: title || 'HUDI_SOFT // HSM Notification',
@@ -47,24 +47,35 @@ router.post('/notify', async (req, res) => {
         icon: '/logo.jpg',
         badge: '/logo.jpg',
         data: {
-            url: '/', // Link to navigate to when clicked
+            url: url || '/',
             timestamp: Date.now()
         }
     });
 
     try {
-        if (subscription) {
-            await webpush.sendNotification(subscription, payload);
-            return res.status(200).json({ success: true });
-        }
+        // Fetch all subscriptions from DB
+        const sql = `SELECT subscription FROM push_subscriptions`;
+        const rows = await db.prepare(sql).all();
+        
+        console.log(`📡 Broadcasting to ${rows.length} subscriptions...`);
 
-        // In a real scenario, you'd fetch all subscriptions from DB and loop
-        // await webpush.sendNotification(userSubscriptionFromDb, payload);
+        const pushPromises = rows.map(row => {
+            const sub = JSON.parse(row.subscription);
+            return webpush.sendNotification(sub, payload).catch(err => {
+                if (err.statusCode === 404 || err.statusCode === 410) {
+                    console.log('🗑️ Removing expired subscription');
+                    db.prepare(`DELETE FROM push_subscriptions WHERE subscription = ?`).run(row.subscription);
+                } else {
+                    console.error('❌ Push error:', err.message);
+                }
+            });
+        });
 
-        res.status(200).json({ success: true, message: 'Broadcast initiated.' });
+        await Promise.all(pushPromises);
+        res.status(200).json({ success: true, count: rows.length });
     } catch (error) {
-        console.error('❌ Error sending notification:', error);
-        res.status(500).json({ error: 'Failed to send notification.' });
+        console.error('❌ Error in broadcast:', error);
+        res.status(500).json({ error: 'Failed to broadcast notification.' });
     }
 });
 
