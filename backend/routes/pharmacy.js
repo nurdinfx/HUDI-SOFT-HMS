@@ -286,9 +286,20 @@ router.post('/transactions/:id/return', async (req, res) => {
             const countRes = await db.query('SELECT COUNT(*) as count FROM pharmacy_transactions');
             const exchangeInvoiceId = `PHARM-EXC-${String(parseInt(countRes.rows[0].count) + 1).padStart(4, '0')}`;
             
+            // Calculate total first to insert transaction
             for (const eItem of exchangeItems) {
                 totalExchangeAmount += parseFloat(eItem.totalPrice);
-                
+            }
+
+            const itemsSummaryText = exchangeItems.map(i => `${i.medicineName} (x${i.quantity})`).join(', ');
+            
+            // Insert parent transaction FIRST to satisfy FK
+            await db.prepare(`INSERT INTO pharmacy_transactions 
+                (id, invoice_id, patient_id, patient_name, total_amount, paid_amount, credit_amount, payment_method, status, created_by, items_summary)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+                .run(exchangeTxId, exchangeInvoiceId, tx.patient_id, tx.patient_name, totalExchangeAmount, totalExchangeAmount, 0, paymentMethod || tx.payment_method, 'Exchange', req.user.name, `EXC for ${tx.invoice_id}: ${itemsSummaryText}`);
+
+            for (const eItem of exchangeItems) {
                 // Deduct Stock for New Item
                 const med = await db.prepare('SELECT quantity, reorder_level FROM medicines WHERE id = ?').get(eItem.medicineId);
                 if (!med || med.quantity < eItem.quantity) {
@@ -316,15 +327,6 @@ router.post('/transactions/:id/return', async (req, res) => {
                     VALUES (?, ?, ?, ?, ?, ?, ?)`)
                     .run(exchangeItemId, exchangeTxId, eItem.medicineId, eItem.medicineName, eItem.quantity, eItem.unitPrice, eItem.totalPrice);
             }
-
-            const itemsSummary = exchangeItems.map(i => `${i.medicineName} (x${i.quantity})`).join(', ');
-            
-            // Record the Exchange Transaction
-            // The "total_amount" here adds to today's revenue
-            await db.prepare(`INSERT INTO pharmacy_transactions 
-                (id, invoice_id, patient_id, patient_name, total_amount, paid_amount, credit_amount, payment_method, status, created_by, items_summary)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-                .run(exchangeTxId, exchangeInvoiceId, tx.patient_id, tx.patient_name, totalExchangeAmount, totalExchangeAmount, 0, paymentMethod || tx.payment_method, 'Exchange', req.user.name, `EXC for ${tx.invoice_id}: ${itemsSummary}`);
         }
 
         // 3. Handle Financial Balance Adjustment
