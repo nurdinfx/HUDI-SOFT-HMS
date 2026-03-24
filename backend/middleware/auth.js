@@ -35,13 +35,17 @@ const authenticate = async (req, res, next) => {
     }
 };
 
-const logAction = (userId, userName, userRole, action, module, details, ip = '127.0.0.1') => {
+const isValidUUID = (str) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+const logAction = async (userId, userName, userRole, action, module, details, ip = '127.0.0.1') => {
     try {
-        db.prepare(`INSERT INTO audit_logs (id, user_id, user_name, user_role, action, module, details, timestamp, ip_address)
+        const validUserId = isValidUUID(userId) ? userId : null;
+        await db.prepare(`INSERT INTO audit_logs (id, user_id, user_name, user_role, action, module, details, timestamp, ip_address)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-            .run(uuidv4(), userId, userName, userRole, action, module, details, new Date().toISOString(), ip);
+            .run(uuidv4(), validUserId, userName, userRole, action, module, details, new Date().toISOString(), ip);
     } catch (e) {
-        // silent fail for audit logging
+        // silent fail for audit logging, just log to console
+        console.error('Audit Log Silent Fail:', e.message);
     }
 };
 

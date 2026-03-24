@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
 const { authenticate, logAction } = require('../middleware/auth');
@@ -8,7 +8,7 @@ const { recordGranularPayment } = require('../utils/finance');
 const router = express.Router();
 router.use(authenticate);
 
-// ── Table Initialization ──────────────────────────────────────────────
+// â”€â”€ Table Initialization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function initTables() {
     try {
         await db.query(`
@@ -78,12 +78,12 @@ async function initTables() {
             }
         }
     } catch (err) {
-        console.error('❌ Pharmacy Table Init Error:', err.message);
+        console.error('âŒ Pharmacy Table Init Error:', err.message);
     }
 }
 initTables();
 
-// ── Transactions ────────────────────────────────────────────────────────
+// â”€â”€ Transactions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.get('/transactions', async (req, res) => {
     const { patientId, status, paymentMethod, startDate, endDate } = req.query;
     let q = 'SELECT * FROM pharmacy_transactions WHERE 1=1';
@@ -131,13 +131,18 @@ router.post('/transactions', async (req, res) => {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
             .run(txId, invoiceId, patientId || null, patientName, totalAmount, (parseFloat(paidAmount) || 0) + safeAppliedCredit, Math.max(0, creditAmount), paymentMethod, status || 'Completed', req.user.name, itemsSummary);
 
+        const isValidUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
         // Insert Items & Update Stock/Linked Records
         for (const item of items) {
             const itemId = uuidv4();
+            const resolvedMedId = item.medicineId || item.id;
+            const finalMedId = isValidUUID(resolvedMedId) ? resolvedMedId : null;
+
             await db.prepare(`INSERT INTO pharmacy_transaction_items 
                 (id, transaction_id, medicine_id, medicine_name, quantity, unit_price, total_price)
                 VALUES (?, ?, ?, ?, ?, ?, ?)`)
-                .run(itemId, txId, item.medicineId || item.id, item.medicineName || item.name, item.quantity, item.unitPrice, item.totalPrice || (item.unitPrice * item.quantity));
+                .run(itemId, txId, finalMedId, item.medicineName || item.name, item.quantity, item.unitPrice, item.totalPrice || (item.unitPrice * item.quantity));
 
             // 1. Linked Prescription Update
             if (item.prescriptionId) {
@@ -158,9 +163,9 @@ router.post('/transactions', async (req, res) => {
             }
 
             // 4. Stock Check & Update (only for medicines)
-            if (item.type === 'medicine' || (!item.type && item.medicineId)) {
-                const itemMedId = item.medicineId || item.id;
-                const med = await db.prepare('SELECT quantity, reorder_level FROM medicines WHERE id = ?').get(itemMedId);
+            if (item.type === 'medicine' || (!item.type && finalMedId)) {
+                if (finalMedId) {
+                    const med = await db.prepare('SELECT quantity, reorder_level FROM medicines WHERE id = ?').get(finalMedId);
                 
                 if (med) {
                     if (med.quantity < item.quantity) {
@@ -169,7 +174,7 @@ router.post('/transactions', async (req, res) => {
 
                     // Deduct from batches
                     let remainingToDeduct = item.quantity;
-                    const batches = await db.prepare('SELECT * FROM pharmacy_batches WHERE medicine_id = ? AND quantity_remaining > 0 ORDER BY expiry_date ASC').all(itemMedId);
+                    const batches = await db.prepare('SELECT * FROM pharmacy_batches WHERE medicine_id = ? AND quantity_remaining > 0 ORDER BY expiry_date ASC').all(finalMedId);
                     
                     for (const batch of batches) {
                         if (remainingToDeduct === 0) break;
@@ -182,7 +187,7 @@ router.post('/transactions', async (req, res) => {
                     const newQty = med.quantity - item.quantity;
                     const newStatus = newQty === 0 ? 'out-of-stock' : newQty <= med.reorder_level ? 'low-stock' : 'in-stock';
                     await db.prepare('UPDATE medicines SET quantity = ?, status = ? WHERE id = ?')
-                        .run(newQty, newStatus, itemMedId);
+                        .run(newQty, newStatus, finalMedId);
                 }
             }
         }
@@ -256,7 +261,7 @@ router.post('/transactions', async (req, res) => {
         }
 
         sendPushNotification({
-            title: '🏷️ New Pharmacy POS Sale',
+            title: 'ðŸ·ï¸ New Pharmacy POS Sale',
             message: `New sale completed by pharmacist: ${invoiceId} for ${patientName || 'Walk-in'}. Total: $${totalAmount}.`,
             url: `/pharmacy/transactions`
         });
@@ -401,7 +406,7 @@ router.get('/transactions/:id/items', async (req, res) => {
     }
 });
 
-// ── Categories ───────────────────────────────────────────────────────────
+// â”€â”€ Categories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.get('/categories', async (req, res) => {
     try {
         const rows = await db.prepare('SELECT * FROM medicine_categories ORDER BY name').all();
@@ -426,7 +431,7 @@ router.post('/categories', async (req, res) => {
     }
 });
 
-// ── Medicines ──────────────────────────────────────────────────────────────
+// â”€â”€ Medicines â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const fmtMed = (m) => ({
     id: m.id, name: m.name, genericName: m.generic_name, category: m.category,
     manufacturer: m.manufacturer, batchNumber: m.batch_number, expiryDate: m.expiry_date,
@@ -528,7 +533,7 @@ router.delete('/medicines/:id', async (req, res) => {
     }
 });
 
-// ── Prescriptions ──────────────────────────────────────────────────────────
+// â”€â”€ Prescriptions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const fmtRx = (p) => ({
     id: p.id, prescriptionId: p.prescription_id, patientId: p.patient_id, patientName: p.patient_name,
     doctorId: p.doctor_id, doctorName: p.doctor_name, appointmentId: p.appointment_id,
@@ -567,7 +572,7 @@ router.post('/prescriptions', async (req, res) => {
         
         // Trigger social push notification
         sendPushNotification({
-            title: '💊 New Prescription Issued',
+            title: 'ðŸ’Š New Prescription Issued',
             message: `New prescription ${rxId} issued for ${patient ? `${patient.first_name} ${patient.last_name}` : 'Patient'}.`,
             url: `/pharmacy/prescriptions`
         });
@@ -682,3 +687,4 @@ router.get('/stats', async (req, res) => {
 });
 
 module.exports = router;
+
