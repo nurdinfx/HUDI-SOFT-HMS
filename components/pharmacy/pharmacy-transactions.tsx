@@ -804,7 +804,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
       <Dialog open={isSaleModalOpen} onOpenChange={setIsSaleModalOpen}>
         <DialogContent className="sm:max-w-[95vw] w-[95vw] lg:max-w-[1500px] h-[95vh] p-0 overflow-hidden border-none shadow-2xl rounded-3xl flex flex-col focus:outline-none">
           {/* Advanced POS Header */}
-          <DialogHeader className="px-4 sm:px-8 py-4 sm:py-6 bg-white border-b flex flex-col sm:flex-row items-center justify-between gap-4 sm:space-y-0">
+          <DialogHeader className="px-4 sm:px-8 py-3 sm:py-4 bg-white border-b flex flex-col sm:flex-row items-center justify-between gap-4 sm:space-y-0 text-left">
              <div className="flex items-center gap-4">
                 <div className="size-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-600">
                    <LayoutGrid className="size-6" />
@@ -878,7 +878,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                     {['All', 'Pharmacy', 'Labs', 'Services'].map((cat: any) => (
                       <button 
                         key={cat}
-                        className={`px-8 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeCategory === cat ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                        className={`px-4 sm:px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeCategory === cat ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                         onClick={() => setActiveCategory(cat)}
                       >
                         {cat}
@@ -894,7 +894,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                  </div>
               </div>
 
-              <ScrollArea className="flex-1 p-8">
+              <ScrollArea className="flex-1 p-4 sm:p-6">
                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
                    {medicines.filter(m => activeCategory === 'All' || activeCategory === 'Pharmacy').map(m => (
                      <Card 
@@ -928,15 +928,15 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
 
             {/* Right: Order Summary */}
             <div className="flex-1 lg:max-w-[400px] xl:max-w-[450px] bg-white lg:border-l flex flex-col overflow-hidden">
-               <div className="p-8 border-b bg-slate-50/50 flex flex-col gap-6">
+               <div className="p-4 sm:p-6 border-b bg-slate-50/50 flex flex-col gap-4">
                   {selectedPatientId ? (
-                    <div className="flex items-center gap-4 bg-emerald-50 p-4 rounded-3xl border border-emerald-100/50 animate-in fade-in zoom-in duration-300">
-                       <div className="size-12 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm">
-                          <User className="size-6" />
+                    <div className="flex items-center gap-3 bg-emerald-50 p-3 rounded-2xl border border-emerald-100/50 animate-in fade-in zoom-in duration-300">
+                       <div className="size-10 bg-white rounded-xl flex items-center justify-center text-emerald-600 shadow-sm">
+                          <User className="size-5" />
                        </div>
                        <div>
-                          <p className="text-[10px] font-black uppercase text-emerald-600 tracking-wider">Active Patient Session</p>
-                          <h4 className="font-black text-slate-900 leading-none uppercase italic tracking-tighter">
+                          <p className="text-[9px] font-black uppercase text-emerald-600 tracking-wider">Active Patient Session</p>
+                          <h4 className="font-black text-slate-900 leading-none uppercase italic tracking-tighter text-sm">
                             {patients.find(p => p.id === selectedPatientId)?.firstName} {patients.find(p => p.id === selectedPatientId)?.lastName}
                           </h4>
                        </div>
@@ -959,17 +959,17 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Checking for prescriptions...</span>
                     </div>
                   ) : pendingCharges.length > 0 && (
-                    <div className="flex items-center gap-2 bg-primary/5 text-primary px-3 py-1.5 rounded-full w-fit animate-in slide-in-from-right duration-500">
-                       <CheckCircle2 className="size-3.5" />
-                       <span className="text-[9px] font-black uppercase tracking-widest">Loaded {pendingCharges.length} pending charges automatically</span>
+                    <div className="flex items-center gap-2 bg-primary/5 text-primary px-3 py-1 rounded-full w-fit animate-in slide-in-from-right duration-500">
+                       <CheckCircle2 className="size-3" />
+                       <span className="text-[8px] font-black uppercase tracking-widest">Loaded {pendingCharges.length} pending charges</span>
                     </div>
                   )}
                </div>
 
-               <ScrollArea className="flex-1 p-8">
-                  <div className="space-y-4">
+               <ScrollArea className="flex-1 p-4 sm:p-6">
+                  <div className="space-y-3">
                     {cart.map((item, idx) => (
-                      <div key={item.id} className="group relative flex items-center justify-between p-4 rounded-3xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 transition-all">
+                      <div key={item.id} className="group relative flex items-center justify-between p-3 rounded-2xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 transition-all">
                          <div className="flex items-center gap-2 sm:gap-4 flex-1">
                             <div className={`p-1.5 sm:p-2 rounded-xl ${item.category === 'Laboratory' ? 'bg-rose-50 text-rose-500' : 'bg-primary/5 text-primary'}`}>
                                {item.type === 'medicine' || !item.type ? <Pill className="size-3.5 sm:size-4" /> : item.type === 'lab' ? <Activity className="size-3.5 sm:size-4" /> : <Stethoscope className="size-3.5 sm:size-4" />}
@@ -1028,7 +1028,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                   </div>
                </ScrollArea>
 
-               <div className="p-8 border-t bg-slate-50/50 space-y-6">
+               <div className="p-4 sm:p-6 border-t bg-slate-50/50 space-y-4">
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-6">
                      <div className="space-y-1">
                         <p className="text-[8px] sm:text-[10px] font-black uppercase text-slate-400 tracking-widest">Subtotal</p>
@@ -1053,8 +1053,8 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                      <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500" />
                      <div className="relative z-10">
                         <p className="text-[8px] sm:text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Total Due</p>
-                        <p className="text-3xl sm:text-6xl font-black italic tracking-tighter leading-none mt-2">
-                          <span className="text-primary text-xl sm:text-4xl mr-1 font-bold italic">$</span>
+                        <p className="text-3xl sm:text-5xl font-black italic tracking-tighter leading-none mt-2">
+                          <span className="text-primary text-xl sm:text-3xl mr-1 font-bold italic">$</span>
                           {Math.max(0, cartTotal - discount).toLocaleString()}
                         </p>
                      </div>
@@ -1062,13 +1062,12 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                         <CreditCard className="size-5 sm:size-8 text-white" />
                      </div>
                   </div>
-
                   <div className="space-y-4">
                     <div className="grid grid-cols-3 gap-2">
                        {['ZAAD', 'SAHAL', 'EDAHAB', 'MYCASH', 'CREDIT'].map(m => (
                          <button 
                            key={m}
-                           className={`h-11 rounded-2xl border flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${paymentMethod === m ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}`}
+                           className={`h-10 rounded-xl border flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest transition-all ${paymentMethod === m ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}`}
                            onClick={() => setPaymentMethod(m)}
                          >
                             {m === 'ZAAD' && <Smartphone className="size-4" />}
@@ -1076,7 +1075,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                             {m}
                          </button>
                        ))}
-                       <button className="h-11 rounded-2xl border bg-white text-slate-500 border-slate-200 hover:border-slate-400 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest">
+                       <button className="h-10 rounded-xl border bg-white text-slate-500 border-slate-200 hover:border-slate-400 flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest">
                           <ShieldCheck className="size-4" />
                           Insurance
                        </button>
@@ -1128,7 +1127,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                     </div>
 
                     <Button 
-                       className="w-full h-14 sm:h-20 rounded-[1.5rem] sm:rounded-[2.5rem] bg-slate-900 text-white font-black text-sm sm:text-xl uppercase tracking-tighter italic shadow-2xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-between px-6 sm:px-8 group disabled:opacity-50"
+                       className="w-full h-14 sm:h-16 rounded-[1.5rem] sm:rounded-[2rem] bg-slate-900 text-white font-black text-sm sm:text-lg uppercase tracking-tighter italic shadow-2xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-between px-6 sm:px-8 group disabled:opacity-50"
                        onClick={handleCreateSale}
                        disabled={loading || cart.length === 0 || (paymentMethod === 'CREDIT' && !selectedCreditCustomerId)}
                     >
