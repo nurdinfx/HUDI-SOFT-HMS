@@ -192,7 +192,7 @@ export function RevenueAnalyticsContent({ report, loading, onRefresh }: RevenueA
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 print:grid-cols-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 print:grid-cols-2">
         <Card className="border-none shadow-sm ring-1 ring-slate-200 overflow-hidden">
             <div className="h-1 bg-primary" />
             <CardHeader className="pb-2">

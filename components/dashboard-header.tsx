@@ -58,7 +58,7 @@ export function DashboardHeader() {
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
 
-      <div className="relative flex-1 max-w-md">
+      <div className="relative flex-1 max-w-md hidden xs:flex">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input
           placeholder="Search patients, doctors, records..."
@@ -129,7 +129,7 @@ export function DashboardHeader() {
                   {user?.name?.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                 </span>
               </div>
-              <span className="hidden md:block text-sm">{user?.name}</span>
+              <span className="hidden lg:block text-sm">{user?.name}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">

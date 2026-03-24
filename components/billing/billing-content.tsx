@@ -289,7 +289,8 @@ export function BillingContent({ invoices = [], patients = [], onRefresh = () =>
       </Card>
       <Card>
         <CardContent className="p-0">
-          <Table>
+          <div className="overflow-x-auto">
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="px-6">Invoice ID</TableHead>
@@ -361,8 +362,9 @@ export function BillingContent({ invoices = [], patients = [], onRefresh = () =>
               )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+        </div>
+      </CardContent>
+    </Card>
 
       {/* MODAL: INVOICE DETAIL */}
       <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>

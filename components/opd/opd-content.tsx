@@ -54,7 +54,7 @@ export function OPDContent({
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="bg-muted p-1 rounded-xl mb-6 shadow-sm border h-12">
+        <TabsList className="bg-muted p-1 rounded-xl mb-6 shadow-sm border h-12 w-full justify-start overflow-x-auto overflow-y-hidden whitespace-nowrap native-scroll">
           <TabsTrigger value="dashboard" className="rounded-lg font-bold text-xs px-6">DASHBOARD</TabsTrigger>
           <TabsTrigger value="create" className="rounded-lg font-bold text-xs px-6 text-primary">CREATE VISIT</TabsTrigger>
           <TabsTrigger value="queue" className="rounded-lg font-bold text-xs px-6">LIVE QUEUE</TabsTrigger>

@@ -446,7 +446,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
             </div>
           </div>
 
-          <div className="border rounded-2xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow>
@@ -520,14 +520,15 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
 
       {/* RETURN MODAL */}
       <Dialog open={isReturnModalOpen} onOpenChange={setIsReturnModalOpen}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-3xl">
-          <DialogHeader className="p-8 bg-amber-600 text-white">
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full p-0 overflow-hidden rounded-3xl h-[85vh] sm:h-auto flex flex-col">
+          <DialogHeader className="p-4 sm:p-8 bg-amber-600 text-white shrink-0">
             <DialogTitle className="text-2xl font-black italic tracking-tighter uppercase">Process Item Return</DialogTitle>
             <DialogDescription className="text-amber-100 font-medium">
               Return stock to inventory and credit patient balance (Invoice: {selectedTx?.invoice_id})
             </DialogDescription>
           </DialogHeader>
-          <div className="p-8 space-y-6">
+          <ScrollArea className="flex-1">
+            <div className="p-4 sm:p-8 space-y-6">
             <div className="border rounded-2xl overflow-hidden">
               <Table>
                 <TableHeader className="bg-slate-50">
@@ -590,7 +591,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                       onChange={e => setExchangeSearch(e.target.value)}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-2 max-h-[150px] overflow-y-auto pr-2 custom-scrollbar">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[150px] overflow-y-auto pr-2 custom-scrollbar">
                     {medicines.filter(m => m.name?.toLowerCase().includes(exchangeSearch.toLowerCase())).map(m => (
                       <button 
                         key={m.id} 
@@ -636,7 +637,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
               )}
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
                  <p className="text-[8px] font-black text-amber-900 uppercase">Total Return Value</p>
                  <p className="text-lg font-black text-amber-600">
@@ -670,7 +671,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
             {exchangeCart.length > 0 && Math.abs(returnItems.reduce((sum, i) => sum + (i.returnQty * i.unit_price), 0) - exchangeCart.reduce((sum, i) => sum + i.total, 0)) > 0 && (
               <div className="space-y-2">
                 <p className="text-[10px] font-black uppercase text-slate-400">Payment method for difference</p>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {['ZAAD', 'SAHAL', 'EDAHAB', 'MYCASH'].map(m => (
                     <button 
                       key={m} 
@@ -693,7 +694,8 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
             >
               {loading ? "PROCESSING..." : (exchangeCart.length > 0 ? "FINALIZE EXCHANGE" : "FINALIZE RETURN & RESTOCK")}
             </Button>
-          </div>
+           </div>
+         </ScrollArea>
         </DialogContent>
       </Dialog>
 
@@ -800,9 +802,9 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
       </Dialog>
 
       <Dialog open={isSaleModalOpen} onOpenChange={setIsSaleModalOpen}>
-        <DialogContent className="sm:max-w-[95vw] w-[95vw] max-w-[1500px] h-[95vh] p-0 overflow-hidden border-none shadow-2xl rounded-3xl flex flex-col focus:outline-none">
+        <DialogContent className="sm:max-w-[95vw] w-[95vw] lg:max-w-[1500px] h-[95vh] p-0 overflow-hidden border-none shadow-2xl rounded-3xl flex flex-col focus:outline-none">
           {/* Advanced POS Header */}
-          <DialogHeader className="px-8 py-6 bg-white border-b flex flex-row items-center justify-between space-y-0">
+          <DialogHeader className="px-4 sm:px-8 py-4 sm:py-6 bg-white border-b flex flex-col sm:flex-row items-center justify-between gap-4 sm:space-y-0">
              <div className="flex items-center gap-4">
                 <div className="size-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-600">
                    <LayoutGrid className="size-6" />
@@ -813,14 +815,14 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                 </div>
              </div>
              
-             <div className="flex-1 max-w-xl mx-12">
+             <div className="flex-1 w-full sm:max-w-xl sm:mx-12 order-3 sm:order-2">
                 <div className="relative">
                    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
                       <QrCode className="size-4 text-slate-400" />
                    </div>
                    <Input 
                       placeholder="Scan patient QR or search by name/ID..." 
-                      className="pl-12 h-12 rounded-full border-slate-200 bg-slate-50 focus:bg-white transition-all font-bold placeholder:font-medium"
+                      className="pl-12 h-10 sm:h-12 rounded-full border-slate-200 bg-slate-50 focus:bg-white transition-all font-bold placeholder:font-medium text-xs sm:text-sm"
                       value={search}
                       onChange={e => setSearch(e.target.value)}
                    />
@@ -847,31 +849,32 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                 </div>
              </div>
 
-             <div className="flex items-center gap-3">
+             <div className="flex items-center gap-2 sm:gap-3 order-2 sm:order-3 w-full sm:w-auto justify-end">
                 <Button 
                   variant="outline" 
-                  className={`h-11 rounded-full font-black text-[10px] uppercase tracking-widest gap-2 ${!selectedPatientId ? 'bg-slate-900 text-white border-slate-900' : 'text-slate-500'}`}
+                  className={`h-9 sm:h-11 rounded-full font-black text-[9px] sm:text-[10px] uppercase tracking-widest gap-2 ${!selectedPatientId ? 'bg-slate-900 text-white border-slate-900' : 'text-slate-500'}`}
                   onClick={() => setSelectedPatientId(null)}
                 >
-                  <UserCheck className="size-4" />
-                  Walking Customer
+                  <UserCheck className="size-3.5 sm:size-4" />
+                  <span className="hidden xs:inline">Walking Customer</span>
+                  <span className="xs:hidden">Walk-in</span>
                 </Button>
                 <Button 
                   variant="outline" 
-                   className="h-11 rounded-full font-black text-[10px] uppercase tracking-widest gap-2 text-slate-500"
+                   className="h-9 sm:h-11 rounded-full font-black text-[9px] sm:text-[10px] uppercase tracking-widest gap-2 text-slate-500"
                    onClick={() => setIsHistoryOpen(!isHistoryOpen)}
                 >
-                  <RotateCcw className="size-4" />
+                  <RotateCcw className="size-3.5 sm:size-4" />
                   History
                 </Button>
              </div>
           </DialogHeader>
 
-          <div className="grid grid-cols-12 flex-1 overflow-hidden">
+          <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
             {/* Left: Product Selection */}
-            <div className="col-span-12 lg:col-span-8 flex flex-col bg-slate-50/30 overflow-hidden">
+            <div className="flex-[2] flex flex-col bg-slate-50/30 overflow-hidden border-b lg:border-b-0">
               <div className="p-6 border-b bg-white/50 backdrop-blur-xl flex items-center justify-between gap-4">
-                 <div className="flex bg-slate-100 p-1 rounded-2xl">
+                 <div className="flex bg-slate-100 p-1 rounded-2xl overflow-x-auto max-w-full hide-scrollbar">
                     {['All', 'Pharmacy', 'Labs', 'Services'].map((cat: any) => (
                       <button 
                         key={cat}
@@ -896,7 +899,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                    {medicines.filter(m => activeCategory === 'All' || activeCategory === 'Pharmacy').map(m => (
                      <Card 
                         key={m.id} 
-                        className="rounded-3xl border-slate-100 hover:border-primary/20 hover:shadow-2xl hover:shadow-primary/5 transition-all group cursor-pointer relative overflow-hidden flex flex-col"
+                        className="rounded-3xl border-slate-100 hover:border-primary/20 hover:shadow-2xl hover:shadow-primary/5 transition-all group cursor-pointer relative overflow-hidden flex flex-col h-full min-h-[120px] sm:min-h-[140px]"
                         onClick={() => addToCart(m)}
                      >
                        <CardContent className="p-5 flex flex-col flex-1">
@@ -924,7 +927,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
             </div>
 
             {/* Right: Order Summary */}
-            <div className="col-span-12 lg:col-span-4 bg-white border-l flex flex-col overflow-hidden">
+            <div className="flex-1 lg:max-w-[400px] xl:max-w-[450px] bg-white lg:border-l flex flex-col overflow-hidden">
                <div className="p-8 border-b bg-slate-50/50 flex flex-col gap-6">
                   {selectedPatientId ? (
                     <div className="flex items-center gap-4 bg-emerald-50 p-4 rounded-3xl border border-emerald-100/50 animate-in fade-in zoom-in duration-300">
@@ -967,20 +970,20 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                   <div className="space-y-4">
                     {cart.map((item, idx) => (
                       <div key={item.id} className="group relative flex items-center justify-between p-4 rounded-3xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 transition-all">
-                         <div className="flex items-center gap-4 flex-1">
-                            <div className={`p-2 rounded-xl ${item.category === 'Laboratory' ? 'bg-rose-50 text-rose-500' : 'bg-primary/5 text-primary'}`}>
-                               {item.type === 'medicine' || !item.type ? <Pill className="size-4" /> : item.type === 'lab' ? <Activity className="size-4" /> : <Stethoscope className="size-4" />}
+                         <div className="flex items-center gap-2 sm:gap-4 flex-1">
+                            <div className={`p-1.5 sm:p-2 rounded-xl ${item.category === 'Laboratory' ? 'bg-rose-50 text-rose-500' : 'bg-primary/5 text-primary'}`}>
+                               {item.type === 'medicine' || !item.type ? <Pill className="size-3.5 sm:size-4" /> : item.type === 'lab' ? <Activity className="size-3.5 sm:size-4" /> : <Stethoscope className="size-3.5 sm:size-4" />}
                             </div>
                             <div>
-                               <h5 className="font-black text-xs text-slate-900 uppercase leading-tight line-clamp-1">{item.name}</h5>
-                               <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mt-0.5">${item.unitPrice} / unit</p>
+                               <h5 className="font-black text-[10px] sm:text-xs text-slate-900 uppercase leading-tight line-clamp-1">{item.name}</h5>
+                               <p className="text-[8px] sm:text-[10px] text-slate-400 font-bold tracking-widest uppercase mt-0.5">${item.unitPrice} / unit</p>
                             </div>
                          </div>
                          
-                         <div className="flex items-center gap-4">
-                            <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+                         <div className="flex items-center gap-2 sm:gap-4">
+                            <div className="flex items-center bg-white border border-slate-200 rounded-xl p-0.5 sm:p-1 shadow-sm">
                                <button 
-                                 className="size-7 rounded-lg hover:bg-slate-100 flex items-center justify-center transition-all disabled:opacity-30"
+                                 className="size-6 sm:size-7 rounded-lg hover:bg-slate-100 flex items-center justify-center transition-all disabled:opacity-30"
                                  onClick={() => {
                                    if (item.quantity > 1) {
                                       setCart(cart.map((c, i) => i === idx ? { ...c, quantity: c.quantity - 1, total: (c.quantity - 1) * c.unitPrice } : c))
@@ -988,17 +991,17 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                                  }}
                                  disabled={item.isFromPrescription || item.isFromLab}
                                >
-                                  <Minus className="size-3" />
+                                  <Minus className="size-2.5 sm:size-3" />
                                </button>
-                               <span className="w-8 text-center font-black text-xs italic tracking-tighter">{item.quantity}</span>
+                               <span className="w-6 sm:w-8 text-center font-black text-[10px] sm:text-xs italic tracking-tighter">{item.quantity}</span>
                                <button 
-                                 className="size-7 rounded-lg hover:bg-slate-100 flex items-center justify-center transition-all disabled:opacity-30"
+                                 className="size-6 sm:size-7 rounded-lg hover:bg-slate-100 flex items-center justify-center transition-all disabled:opacity-30"
                                  onClick={() => {
                                     setCart(cart.map((c, i) => i === idx ? { ...c, quantity: c.quantity + 1, total: (c.quantity + 1) * c.unitPrice } : c))
                                  }}
                                  disabled={item.isFromPrescription || item.isFromLab}
                                >
-                                  <Plus className="size-3" />
+                                  <Plus className="size-2.5 sm:size-3" />
                                </button>
                             </div>
                             <div className="text-right min-w-[60px]">
@@ -1026,13 +1029,13 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                </ScrollArea>
 
                <div className="p-8 border-t bg-slate-50/50 space-y-6">
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-6">
                      <div className="space-y-1">
-                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Subtotal</p>
-                        <p className="text-xl font-black italic tracking-tighter text-slate-900">${cartTotal.toLocaleString()}</p>
+                        <p className="text-[8px] sm:text-[10px] font-black uppercase text-slate-400 tracking-widest">Subtotal</p>
+                        <p className="text-lg sm:text-xl font-black italic tracking-tighter text-slate-900">${cartTotal.toLocaleString()}</p>
                      </div>
-                     <div className="space-y-1 border-x border-slate-200 px-6">
-                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Discount</p>
+                     <div className="space-y-1 sm:border-x border-slate-200 sm:px-6">
+                        <p className="text-[8px] sm:text-[10px] font-black uppercase text-slate-400 tracking-widest">Discount</p>
                         <Input 
                           type="number" 
                           value={discount} 
@@ -1040,23 +1043,23 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                           className="h-8 border-none bg-transparent p-0 font-black text-sm italic tracking-tighter focus-visible:ring-0"
                         />
                      </div>
-                     <div className="space-y-1 text-right">
-                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Insurance <ShieldCheck className="inline size-3.5 mb-0.5 ml-1 opacity-20" /></p>
-                        <p className="text-xl font-black italic tracking-tighter text-slate-400">$0.00</p>
+                     <div className="space-y-1 text-right col-span-2 sm:col-span-1 border-t sm:border-t-0 pt-2 sm:pt-0">
+                        <p className="text-[8px] sm:text-[10px] font-black uppercase text-slate-400 tracking-widest">Insurance <ShieldCheck className="inline size-3 sm:size-3.5 mb-0.5 ml-1 opacity-20" /></p>
+                        <p className="text-lg sm:text-xl font-black italic tracking-tighter text-slate-400">$0.00</p>
                      </div>
                   </div>
 
-                  <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl flex items-center justify-between border border-white/10 group overflow-hidden relative">
+                  <div className="bg-slate-900 rounded-[1.5rem] sm:rounded-[2.5rem] p-4 sm:p-8 text-white shadow-2xl flex items-center justify-between border border-white/10 group overflow-hidden relative">
                      <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500" />
                      <div className="relative z-10">
-                        <p className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Total Due</p>
-                        <p className="text-6xl font-black italic tracking-tighter leading-none mt-2">
-                          <span className="text-primary text-4xl mr-1 font-bold italic">$</span>
+                        <p className="text-[8px] sm:text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Total Due</p>
+                        <p className="text-3xl sm:text-6xl font-black italic tracking-tighter leading-none mt-2">
+                          <span className="text-primary text-xl sm:text-4xl mr-1 font-bold italic">$</span>
                           {Math.max(0, cartTotal - discount).toLocaleString()}
                         </p>
                      </div>
-                     <div className="relative z-10 size-16 bg-white/10 rounded-3xl flex items-center justify-center backdrop-blur-md border border-white/10 animate-pulse">
-                        <CreditCard className="size-8 text-white" />
+                     <div className="relative z-10 size-10 sm:size-16 bg-white/10 rounded-xl sm:rounded-3xl flex items-center justify-center backdrop-blur-md border border-white/10 animate-pulse">
+                        <CreditCard className="size-5 sm:size-8 text-white" />
                      </div>
                   </div>
 
@@ -1125,17 +1128,17 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                     </div>
 
                     <Button 
-                       className="w-full h-20 rounded-[2rem] bg-slate-900 text-white font-black text-xl uppercase tracking-tighter italic shadow-2xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-between px-8 group disabled:opacity-50"
+                       className="w-full h-14 sm:h-20 rounded-[1.5rem] sm:rounded-[2.5rem] bg-slate-900 text-white font-black text-sm sm:text-xl uppercase tracking-tighter italic shadow-2xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-between px-6 sm:px-8 group disabled:opacity-50"
                        onClick={handleCreateSale}
                        disabled={loading || cart.length === 0 || (paymentMethod === 'CREDIT' && !selectedCreditCustomerId)}
                     >
-                      <div className="flex items-center gap-4">
-                         <div className="size-10 bg-emerald-500 rounded-full flex items-center justify-center group-hover:animate-bounce">
-                            <CheckCircle2 className="size-6 text-white" />
+                      <div className="flex items-center gap-3 sm:gap-4">
+                         <div className="size-7 sm:size-10 bg-emerald-500 rounded-full flex items-center justify-center group-hover:animate-bounce">
+                            <CheckCircle2 className="size-4 sm:size-6 text-white" />
                          </div>
-                         <span>TENDER ${(cartTotal - discount).toLocaleString()}</span>
+                         <span className="truncate max-w-[150px] xs:max-w-none">TENDER ${(cartTotal - discount).toLocaleString()}</span>
                       </div>
-                      <ArrowRight className="size-6 text-white/20 group-hover:text-white transition-all" />
+                      <ArrowRight className="size-4 sm:size-6 text-white/20 group-hover:text-white transition-all" />
                     </Button>
                   </div>
                </div>

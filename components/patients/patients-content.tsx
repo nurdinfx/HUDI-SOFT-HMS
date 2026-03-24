@@ -171,7 +171,7 @@ export function PatientsContent({ patients: initialPatients, onRefresh }: Patien
             <DialogHeader>
               <DialogTitle>Register New Patient</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleAddPatient} className="grid grid-cols-2 gap-4 mt-4">
+            <form onSubmit={handleAddPatient} className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="firstName">First Name</Label>
                 <Input id="firstName" name="firstName" placeholder="John" required />
@@ -276,7 +276,8 @@ export function PatientsContent({ patients: initialPatients, onRefresh }: Patien
       {/* Table */}
       <Card>
         <CardContent className="p-0">
-          <Table>
+          <div className="overflow-x-auto">
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Patient ID</TableHead>
@@ -338,8 +339,9 @@ export function PatientsContent({ patients: initialPatients, onRefresh }: Patien
               )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+        </div>
+      </CardContent>
+    </Card>
 
       {/* Pagination */}
       {totalPages > 1 && (
@@ -361,7 +363,7 @@ export function PatientsContent({ patients: initialPatients, onRefresh }: Patien
             <DialogTitle>Edit Patient</DialogTitle>
           </DialogHeader>
           {editingPatient && (
-            <form onSubmit={handleEditPatient} className="grid grid-cols-2 gap-4 mt-4">
+            <form onSubmit={handleEditPatient} className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="edit-firstName">First Name</Label>
                 <Input id="edit-firstName" name="firstName" defaultValue={editingPatient.firstName} required />

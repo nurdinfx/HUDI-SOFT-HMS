@@ -81,7 +81,8 @@ export function InventoryContent({ medicines = [] }: InventoryContentProps) {
       </Card>
       <Card>
         <CardContent className="p-0">
-          <Table>
+          <div className="overflow-x-auto">
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
@@ -120,8 +121,9 @@ export function InventoryContent({ medicines = [] }: InventoryContentProps) {
               )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+        </div>
+      </CardContent>
+    </Card>
     </div>
   )
 }
