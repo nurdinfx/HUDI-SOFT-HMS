@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import {
@@ -181,21 +181,21 @@ export function AdmissionDetailsModal({ admission, onClose, onRefresh }: Admissi
 
     return (
         <Dialog open={!!admission} onOpenChange={onClose}>
-            <DialogContent className="max-w-[95vw] w-[1400px] h-[90vh] flex flex-col p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
-                <DialogHeader className="p-8 bg-slate-900 text-white border-b border-slate-800">
-                    <div className="flex justify-between items-start">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                                <DialogTitle className="text-xl">{admission.patientName}</DialogTitle>
-                                <Badge variant="outline" className="font-mono">{admission.admissionId}</Badge>
+            <DialogContent className="!max-w-none w-full sm:w-[95vw] sm:max-w-[1400px] h-[100dvh] sm:h-[92vh] flex flex-col p-0 overflow-hidden sm:rounded-3xl rounded-none border-none shadow-2xl">
+                <DialogHeader className="px-4 py-4 sm:p-8 bg-slate-900 text-white border-b border-slate-800 flex-shrink-0">
+                    <div className="flex justify-between items-start gap-3">
+                        <div className="space-y-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <DialogTitle className="text-base sm:text-xl">{admission.patientName}</DialogTitle>
+                                <Badge variant="outline" className="font-mono text-xs">{admission.admissionId}</Badge>
                                 <StatusBadge status={admission.status} />
                             </div>
-                            <DialogDescription className="flex items-center gap-4 text-slate-400">
-                                <span className="flex items-center gap-1.5"><Calendar className="size-3.5" /> Admitted: {admission.admissionDate}</span>
+                            <DialogDescription className="flex flex-wrap items-center gap-3 text-slate-400 text-xs sm:text-sm">
+                                <span className="flex items-center gap-1.5"><Calendar className="size-3.5" /> {admission.admissionDate}</span>
                                 <span className="flex items-center gap-1.5"><MapPin className="size-3.5" /> {admission.ward} / Bed {admission.bedNumber}</span>
                             </DialogDescription>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right shrink-0">
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Doctor In-Charge</p>
                             <p className="text-sm font-bold">{admission.doctorName}</p>
                         </div>
@@ -204,20 +204,20 @@ export function AdmissionDetailsModal({ admission, onClose, onRefresh }: Admissi
 
                 <div className="flex-1 overflow-hidden flex flex-col">
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col bg-white">
-                        <div className="px-8 border-b bg-slate-50/50">
-                            <TabsList className="h-14 bg-transparent gap-8">
-                                <TabsTrigger value="overview" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0 font-bold uppercase text-[11px] tracking-widest transition-all">Overview</TabsTrigger>
-                                <TabsTrigger value="nurse-notes" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0 font-bold uppercase text-[11px] tracking-widest transition-all">Nurse Notes</TabsTrigger>
-                                <TabsTrigger value="doctor-rounds" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0 font-bold uppercase text-[11px] tracking-widest transition-all">Doctor Rounds</TabsTrigger>
-                                <TabsTrigger value="investigations" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0 font-bold uppercase text-[11px] tracking-widest transition-all">Investigations</TabsTrigger>
-                                <TabsTrigger value="billing" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0 font-bold uppercase text-[11px] tracking-widest transition-all">Billing & Charges</TabsTrigger>
+                        <div className="px-4 sm:px-8 border-b bg-slate-50/50 overflow-x-auto flex-shrink-0">
+                            <TabsList className="h-12 sm:h-14 bg-transparent gap-4 sm:gap-8 flex w-max min-w-full">
+                                <TabsTrigger value="overview" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-1 font-bold uppercase text-[10px] sm:text-[11px] tracking-widest transition-all whitespace-nowrap">Overview</TabsTrigger>
+                                <TabsTrigger value="nurse-notes" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-1 font-bold uppercase text-[10px] sm:text-[11px] tracking-widest transition-all whitespace-nowrap">Nurse Notes</TabsTrigger>
+                                <TabsTrigger value="doctor-rounds" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-1 font-bold uppercase text-[10px] sm:text-[11px] tracking-widest transition-all whitespace-nowrap">Doctor Rounds</TabsTrigger>
+                                <TabsTrigger value="investigations" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-1 font-bold uppercase text-[10px] sm:text-[11px] tracking-widest transition-all whitespace-nowrap">Investigations</TabsTrigger>
+                                <TabsTrigger value="billing" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-1 font-bold uppercase text-[10px] sm:text-[11px] tracking-widest transition-all whitespace-nowrap">Billing & Charges</TabsTrigger>
                             </TabsList>
                         </div>
 
                         <ScrollArea className="flex-1">
-                            <div className="p-6">
-                                <TabsContent value="overview" className="mt-0 space-y-6">
-                                    <div className="grid grid-cols-3 gap-4">
+                            <div className="p-4 sm:p-6">
+                                <TabsContent value="overview" className="mt-0 space-y-4 sm:space-y-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         <Card>
                                             <CardHeader className="pb-2">
                                                 <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -239,9 +239,9 @@ export function AdmissionDetailsModal({ admission, onClose, onRefresh }: Admissi
                                             <CardContent>
                                                 {nurseNotes[0] ? (
                                                     <div className="grid grid-cols-2 gap-y-1 text-xs">
-                                                        <span className="text-muted-foreground">BP:</span> <span>{nurseNotes[0].vitals.bp || "—"}</span>
-                                                        <span className="text-muted-foreground">Temp:</span> <span>{nurseNotes[0].vitals.temp || "—"}°C</span>
-                                                        <span className="text-muted-foreground">Pulse:</span> <span>{nurseNotes[0].vitals.pulse || "—"} bpm</span>
+                                                        <span className="text-muted-foreground">BP:</span> <span>{nurseNotes[0].vitals.bp || "â€”"}</span>
+                                                        <span className="text-muted-foreground">Temp:</span> <span>{nurseNotes[0].vitals.temp || "â€”"}Â°C</span>
+                                                        <span className="text-muted-foreground">Pulse:</span> <span>{nurseNotes[0].vitals.pulse || "â€”"} bpm</span>
                                                     </div>
                                                 ) : <p className="text-xs text-muted-foreground">No vitals recorded.</p>}
                                             </CardContent>
@@ -273,14 +273,14 @@ export function AdmissionDetailsModal({ admission, onClose, onRefresh }: Admissi
                                         {nurseNotes.map((note) => (
                                             <div key={note.id} className="border-l-2 border-primary pl-4 py-1 space-y-2">
                                                 <div className="flex justify-between text-xs text-muted-foreground font-medium">
-                                                    <span>{note.nurseName} · {note.shift} Shift</span>
+                                                    <span>{note.nurseName} Â· {note.shift} Shift</span>
                                                     <span>{note.createdAt}</span>
                                                 </div>
                                                 <p className="text-sm">{note.observations}</p>
                                                 {note.vitals && (
                                                     <div className="flex gap-4 text-[10px] bg-muted p-1.5 rounded w-fit">
                                                         <span>BP: {note.vitals.bp}</span>
-                                                        <span>Temp: {note.vitals.temp}°C</span>
+                                                        <span>Temp: {note.vitals.temp}Â°C</span>
                                                         <span>Pulse: {note.vitals.pulse}</span>
                                                         <span>SpO2: {note.vitals.spo2}%</span>
                                                     </div>
@@ -324,7 +324,7 @@ export function AdmissionDetailsModal({ admission, onClose, onRefresh }: Admissi
                                                                     <div key={i} className="flex items-center gap-2 text-xs bg-muted/50 p-2 rounded border border-rose-100">
                                                                         <Pill className="size-3 text-rose-500" />
                                                                         <span className="font-bold">{m.medicineName}</span>
-                                                                        <span className="text-muted-foreground">· {m.dosage} · {m.frequency} · {m.duration}</span>
+                                                                        <span className="text-muted-foreground">Â· {m.dosage} Â· {m.frequency} Â· {m.duration}</span>
                                                                     </div>
                                                                 ))}
                                                             </div>
@@ -362,7 +362,7 @@ export function AdmissionDetailsModal({ admission, onClose, onRefresh }: Admissi
                                                                 <Badge className="bg-red-500 text-white text-[9px] animate-pulse">CRITICAL</Badge>
                                                             )}
                                                         </div>
-                                                        <p className="text-xs text-muted-foreground">Ordered: {format(new Date(test.orderedAt), 'MMM dd, HH:mm')} · Source: {test.ward}/{test.bedNumber}</p>
+                                                        <p className="text-xs text-muted-foreground">Ordered: {format(new Date(test.orderedAt), 'MMM dd, HH:mm')} Â· Source: {test.ward}/{test.bedNumber}</p>
                                                         {test.results && (
                                                             <div className="mt-2 text-xs p-2 bg-white rounded border border-dashed font-medium text-blue-700">
                                                                 Result: {test.results} {test.normalRange && <span className="text-muted-foreground font-normal ml-2">Range: {test.normalRange}</span>}
@@ -438,7 +438,7 @@ export function AdmissionDetailsModal({ admission, onClose, onRefresh }: Admissi
                                                     <Input value={vitals.bp} onChange={(e) => setVitals({ ...vitals, bp: e.target.value })} placeholder="120/80" className="h-8" />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <Label className="text-[10px]">Temp (°C)</Label>
+                                                    <Label className="text-[10px]">Temp (Â°C)</Label>
                                                     <Input value={vitals.temp} onChange={(e) => setVitals({ ...vitals, temp: e.target.value })} placeholder="36.5" className="h-8" />
                                                 </div>
                                                 <div className="space-y-1">
@@ -559,7 +559,7 @@ export function AdmissionDetailsModal({ admission, onClose, onRefresh }: Admissi
                                                                 <SelectItem key={c.id} value={c.name} className="py-2">
                                                                     <div className="flex flex-col">
                                                                         <span className="font-bold">{c.name}</span>
-                                                                        <span className="text-[10px] opacity-70">{c.category} · Ref: {c.normalRange || 'N/A'}</span>
+                                                                        <span className="text-[10px] opacity-70">{c.category} Â· Ref: {c.normalRange || 'N/A'}</span>
                                                                     </div>
                                                                 </SelectItem>
                                                             ))}
@@ -578,7 +578,7 @@ export function AdmissionDetailsModal({ admission, onClose, onRefresh }: Admissi
                                                                 className={`flex-1 h-10 rounded-xl capitalize font-bold text-[10px] ${orderPriority === p ? (p === 'normal' ? 'bg-blue-600' : p === 'urgent' ? 'bg-amber-600' : 'bg-red-600 text-white') : ''}`}
                                                                 onClick={() => setOrderPriority(p)}
                                                             >
-                                                                {p === 'emergency' ? '🚨 STAT' : p}
+                                                                {p === 'emergency' ? 'ðŸš¨ STAT' : p}
                                                             </Button>
                                                         ))}
                                                     </div>
@@ -606,3 +606,4 @@ export function AdmissionDetailsModal({ admission, onClose, onRefresh }: Admissi
         </Dialog>
     )
 }
+
