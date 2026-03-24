@@ -335,7 +335,27 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
     document.body.removeChild(link)
   }
 
-  const netRevenue = (revenueStats?.totalSales || 0) - (revenueStats?.totalReturns || 0)
+  const statsToDisplay = useMemo(() => {
+    if (!revenueStats) return null
+    if (activePaymentMethod === "all" && statusFilter === "all" && !dateFilter.start && !dateFilter.end) {
+      return revenueStats
+    }
+
+    const totalSales = filteredTransactions.reduce((sum, t) => sum + (parseFloat(t.total_amount) || 0), 0)
+    const txCount = filteredTransactions.length
+    const totalDue = filteredTransactions.reduce((sum, t) => sum + (parseFloat(t.credit_amount) || 0), 0)
+    
+    // For filtered view, we'll use sales minus returns from the BASE stats if no specific transactions are filtered
+    // But usually user wants sales only if specific filter is active.
+    return {
+      ...revenueStats,
+      totalSales: totalSales,
+      transactionCount: txCount,
+      outstandingCredit: totalDue
+    }
+  }, [revenueStats, filteredTransactions, activePaymentMethod, statusFilter, dateFilter])
+
+  const netRevenue = (statsToDisplay?.totalSales || 0) - (statsToDisplay?.totalReturns || 0)
 
   return (
     <div className="space-y-6">
@@ -343,7 +363,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard 
           title="Revenue Today" 
-          value={`$${Number(revenueStats?.totalSales || 0).toLocaleString()}`} 
+          value={`$${Number(statsToDisplay?.totalSales || 0).toLocaleString()}`} 
           icon={TrendingUp} 
           iconClassName="bg-emerald-100 text-emerald-600" 
         />
@@ -355,19 +375,19 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
         />
         <StatCard 
           title="Returns Value" 
-          value={`$${Number(revenueStats?.totalReturns || 0).toLocaleString()}`} 
+          value={`$${Number(statsToDisplay?.totalReturns || 0).toLocaleString()}`} 
           icon={RotateCcw} 
           iconClassName="bg-amber-100 text-amber-600" 
         />
         <StatCard 
           title="Transactions" 
-          value={revenueStats?.transactionCount || 0} 
+          value={statsToDisplay?.transactionCount || 0} 
           icon={ShoppingBag} 
           iconClassName="bg-blue-100 text-blue-600" 
         />
         <StatCard 
           title="Outstanding Credit" 
-          value={`$${Number(revenueStats?.outstandingCredit || 0).toLocaleString()}`} 
+          value={`$${Number(statsToDisplay?.outstandingCredit || 0).toLocaleString()}`} 
           icon={Wallet} 
           iconClassName="bg-rose-100 text-rose-600" 
         />
