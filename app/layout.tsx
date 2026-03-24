@@ -46,9 +46,23 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.webmanifest" />
+        {/* iOS PWA Required Meta Tags */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="HUDI_SOFT // HSM" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="HUDI HMS" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        {/* iOS App Icons — Safari requires explicit apple-touch-icon links */}
+        <link rel="apple-touch-icon" href="/logo-192.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/logo-192.png" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/logo-192.png" />
+        <link rel="apple-touch-icon" sizes="144x144" href="/logo-144.png" />
+        <link rel="apple-touch-icon" sizes="120x120" href="/logo-144.png" />
+        <link rel="apple-touch-icon" sizes="76x76" href="/logo-144.png" />
+        {/* Splash screens for iOS */}
+        <link rel="apple-touch-startup-image" href="/logo-512.png" />
+        {/* Pull-to-refresh & safe area */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+        <meta name="theme-color" content="#0d9488" />
       </head>
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>

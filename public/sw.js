@@ -63,58 +63,68 @@ self.addEventListener('fetch', (event) => {
     );
 });
 
-// Push Event - Handle incoming notifications
-self.addEventListener('push', (event) => {
-    console.log('📡 Push received:', event.data?.text());
 
-    let data = { title: 'Notification', body: 'System alert' };
+// Push Event — WhatsApp-style notifications
+self.addEventListener('push', (event) => {
+    console.log('📡 Push received');
+    let data = { title: 'Hudi HMS Alert', body: 'You have a new update', badge: 1, url: '/', tag: 'general' };
     try {
-        data = event.data?.json();
+        Object.assign(data, event.data?.json());
     } catch (e) {
         data.body = event.data?.text() || data.body;
     }
 
     const options = {
         body: data.body,
-        icon: '/logo.jpg',
-        badge: '/logo.jpg',
-        vibrate: [200, 100, 200, 100, 200], // Professional "Social Alert" pulse
-        tag: 'hudi-soft-alert',
+        icon: '/logo-192.png',
+        badge: '/logo-192.png',
+        image: data.image || undefined,
+        vibrate: [100, 50, 100, 50, 100],
+        tag: data.tag || `hudi-${Date.now()}`,
         renotify: true,
-        requireInteraction: true,
-        data: {
-            url: data.data?.url || '/'
-        },
+        requireInteraction: false,
+        silent: false,
+        timestamp: Date.now(),
+        data: { url: data.url || '/' },
         actions: [
-            { action: 'open', title: 'View Details' },
-            { action: 'close', title: 'Dismiss' }
+            { action: 'open', title: '👁 View', icon: '/logo-144.png' },
+            { action: 'close', title: '✕ Dismiss' }
         ]
     };
 
     event.waitUntil(
         self.registration.showNotification(data.title, options)
+        .then(() => {
+            // Forward to open windows as in-app alert
+            return self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        })
+        .then(clients => {
+            clients.forEach(client => {
+                client.postMessage({ type: 'hudi-notification', title: data.title, body: data.body, url: data.url });
+            });
+        })
     );
 });
 
-// Notification Click Event
+// Notification Click
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-
     if (event.action === 'close') return;
 
-    const urlToOpen = new URL(event.notification.data.url, self.location.origin).href;
-
+    const targetUrl = new URL(event.notification.data?.url || '/', self.location.origin).href;
     event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-            for (let i = 0; i < windowClients.length; i++) {
-                const client = windowClients[i];
-                if (client.url === urlToOpen && 'focus' in client) {
-                    return client.focus();
-                }
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+            for (const client of windowClients) {
+                if (client.url === targetUrl && 'focus' in client) return client.focus();
             }
-            if (clients.openWindow) {
-                return clients.openWindow(urlToOpen);
-            }
+            return clients.openWindow ? clients.openWindow(targetUrl) : null;
         })
     );
+});
+
+// Message handler — allows app to trigger in-app alerts from SW push
+self.addEventListener('message', (event) => {
+    if (event.data?.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
 });
