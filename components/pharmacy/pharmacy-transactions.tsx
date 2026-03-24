@@ -979,7 +979,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                   )}
                </div>
 
-               <ScrollArea className="flex-1 p-4 sm:p-6">
+               <ScrollArea className="flex-1 min-h-0 p-4 sm:p-6">
                   <div className="space-y-3">
                     {cart.map((item, idx) => (
                       <div key={item.id} className="group relative bg-white flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:border-slate-200 transition-all shadow-sm">
@@ -1036,7 +1036,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                   </div>
                </ScrollArea>
 
-               <div className="border-t bg-white">
+               <div className="flex-none border-t bg-white">
                   <div className="grid grid-cols-4 divide-x border-b">
                      <div className="p-4 space-y-1">
                         <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Subtotal</p>
@@ -1065,7 +1065,8 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                         <p className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">Total Due</p>
                         <p className="text-2xl font-black text-emerald-500">${Math.max(0, cartTotal - discount).toLocaleString()}</p>
                      </div>
-                  </div>                  <div className="p-4 sm:p-6 space-y-4">
+                  </div>
+                  <div className="p-4 sm:p-6 space-y-4">
                      <div className="flex items-center gap-2 overflow-x-auto pb-2 hide-scrollbar">
                         {['ZAAD', 'SAHAL', 'EDAHAB', 'MYCASH', 'INSURANCE', 'CREDIT'].map(m => (
                           <button 
