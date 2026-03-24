@@ -32,7 +32,8 @@ import {
   Stethoscope,
   ChevronRight,
   Minus,
-  Trash2
+  Trash2,
+  Check
 } from "lucide-react"
 import { pharmacyApi, patientsApi, posApi, creditApi, type Medicine, type Patient } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -815,8 +816,8 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                 </div>
              </div>
              
-             <div className="flex-1 w-full sm:max-w-xl sm:mx-12 order-3 sm:order-2">
-                <div className="relative">
+             <div className="flex-1 w-full sm:max-w-xl sm:mx-12 order-3 sm:order-2 flex items-center gap-4">
+                <div className="relative flex-1">
                    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
                       <QrCode className="size-4 text-slate-400" />
                    </div>
@@ -847,6 +848,28 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                      </div>
                    )}
                 </div>
+
+                {selectedPatientId && (
+                  <div className="hidden lg:flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-full border border-emerald-100 animate-in fade-in zoom-in duration-300 min-w-fit shrink-0">
+                     <div className="size-6 bg-white rounded-full flex items-center justify-center shadow-sm">
+                        <User className="size-3.5" />
+                     </div>
+                     <div className="flex flex-col leading-tight">
+                        <span className="font-black text-[10px] uppercase truncate max-w-[120px]">
+                           {patients.find(p => p.id === selectedPatientId)?.firstName} {patients.find(p => p.id === selectedPatientId)?.lastName}
+                        </span>
+                        <span className="text-[8px] font-bold text-emerald-500/80 uppercase tracking-widest leading-none mt-0.5">
+                           {patients.find(p => p.id === selectedPatientId)?.patientId}
+                        </span>
+                     </div>
+                     <button 
+                        className="ml-2 hover:bg-emerald-100 p-1 rounded-full text-emerald-400 hover:text-emerald-600 transition-colors"
+                        onClick={() => setSelectedPatientId(null)}
+                     >
+                        <X className="size-3" />
+                     </button>
+                  </div>
+                )}
              </div>
 
              <div className="flex items-center gap-2 sm:gap-3 order-2 sm:order-3 w-full sm:w-auto justify-end">
@@ -928,62 +951,47 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
 
             {/* Right: Order Summary */}
             <div className="flex-1 lg:max-w-[400px] xl:max-w-[450px] bg-white lg:border-l flex flex-col overflow-hidden">
-               <div className="p-4 sm:p-6 border-b bg-slate-50/50 flex flex-col gap-4">
-                  {selectedPatientId ? (
-                    <div className="flex items-center gap-3 bg-emerald-50 p-3 rounded-2xl border border-emerald-100/50 animate-in fade-in zoom-in duration-300">
-                       <div className="size-10 bg-white rounded-xl flex items-center justify-center text-emerald-600 shadow-sm">
-                          <User className="size-5" />
-                       </div>
-                       <div>
-                          <p className="text-[9px] font-black uppercase text-emerald-600 tracking-wider">Active Patient Session</p>
-                          <h4 className="font-black text-slate-900 leading-none uppercase italic tracking-tighter text-sm">
-                            {patients.find(p => p.id === selectedPatientId)?.firstName} {patients.find(p => p.id === selectedPatientId)?.lastName}
-                          </h4>
-                       </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-4 bg-slate-100/50 p-4 rounded-3xl border border-slate-200/50">
-                       <div className="size-12 bg-white rounded-2xl flex items-center justify-center text-slate-400">
-                          <ShoppingBag className="size-6" />
-                       </div>
-                       <div>
-                          <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Checkout Mode</p>
-                          <h4 className="font-black text-slate-900 leading-none uppercase italic tracking-tighter">Quick Sale / Walk-In</h4>
-                       </div>
-                    </div>
-                  )}
-
-                  {isLoadingCharges ? (
-                    <div className="flex items-center gap-3 animate-pulse">
-                       <Activity className="size-4 text-primary animate-spin" />
-                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Checking for prescriptions...</span>
-                    </div>
-                  ) : pendingCharges.length > 0 && (
-                    <div className="flex items-center gap-2 bg-primary/5 text-primary px-3 py-1 rounded-full w-fit animate-in slide-in-from-right duration-500">
-                       <CheckCircle2 className="size-3" />
-                       <span className="text-[8px] font-black uppercase tracking-widest">Loaded {pendingCharges.length} pending charges</span>
-                    </div>
+               <div className="p-4 sm:p-6 border-b bg-slate-50/50 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                     <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Order Summary</h3>
+                     {isLoadingCharges ? (
+                        <div className="flex items-center gap-2 animate-pulse">
+                           <Activity className="size-3 text-primary animate-spin" />
+                           <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Checking prescriptions...</span>
+                        </div>
+                     ) : pendingCharges.length > 0 && (
+                        <div className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 px-2.5 py-1 rounded-full animate-in slide-in-from-top-2 duration-500">
+                           <CheckCircle2 className="size-3" />
+                           <span className="text-[8px] font-black uppercase tracking-widest">Loaded {pendingCharges.length} Charges</span>
+                        </div>
+                     )}
+                  </div>
+                  {!selectedPatientId && (
+                     <div className="flex items-center gap-3 bg-slate-100/50 p-3 rounded-2xl border border-slate-200/50">
+                        <div className="size-9 bg-white rounded-xl flex items-center justify-center text-slate-400">
+                           <ShoppingBag className="size-5" />
+                        </div>
+                        <div>
+                           <p className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Checkout Mode</p>
+                           <h4 className="font-black text-slate-900 leading-none uppercase italic tracking-tighter text-xs">Quick Sale / Walk-In</h4>
+                        </div>
+                     </div>
                   )}
                </div>
 
                <ScrollArea className="flex-1 p-4 sm:p-6">
                   <div className="space-y-3">
                     {cart.map((item, idx) => (
-                      <div key={item.id} className="group relative flex items-center justify-between p-3 rounded-2xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 transition-all">
-                         <div className="flex items-center gap-2 sm:gap-4 flex-1">
-                            <div className={`p-1.5 sm:p-2 rounded-xl ${item.category === 'Laboratory' ? 'bg-rose-50 text-rose-500' : 'bg-primary/5 text-primary'}`}>
-                               {item.type === 'medicine' || !item.type ? <Pill className="size-3.5 sm:size-4" /> : item.type === 'lab' ? <Activity className="size-3.5 sm:size-4" /> : <Stethoscope className="size-3.5 sm:size-4" />}
-                            </div>
-                            <div>
-                               <h5 className="font-black text-[10px] sm:text-xs text-slate-900 uppercase leading-tight line-clamp-1">{item.name}</h5>
-                               <p className="text-[8px] sm:text-[10px] text-slate-400 font-bold tracking-widest uppercase mt-0.5">${item.unitPrice} / unit</p>
-                            </div>
+                      <div key={item.id} className="group relative bg-white flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:border-slate-200 transition-all shadow-sm">
+                         <div className="flex flex-col gap-1 flex-1">
+                            <h5 className="font-bold text-xs text-slate-800 uppercase tracking-tight">{item.name}</h5>
+                            <p className="text-[10px] text-slate-400 font-medium tracking-tight">${item.unitPrice}</p>
                          </div>
                          
-                         <div className="flex items-center gap-2 sm:gap-4">
-                            <div className="flex items-center bg-white border border-slate-200 rounded-xl p-0.5 sm:p-1 shadow-sm">
+                         <div className="flex items-center gap-6">
+                            <div className="flex items-center bg-slate-50 rounded-lg p-0.5 border border-slate-100">
                                <button 
-                                 className="size-6 sm:size-7 rounded-lg hover:bg-slate-100 flex items-center justify-center transition-all disabled:opacity-30"
+                                 className="size-6 rounded-md hover:bg-white flex items-center justify-center transition-all disabled:opacity-30"
                                  onClick={() => {
                                    if (item.quantity > 1) {
                                       setCart(cart.map((c, i) => i === idx ? { ...c, quantity: c.quantity - 1, total: (c.quantity - 1) * c.unitPrice } : c))
@@ -991,27 +999,27 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                                  }}
                                  disabled={item.isFromPrescription || item.isFromLab}
                                >
-                                  <Minus className="size-2.5 sm:size-3" />
+                                  <Minus className="size-3 text-slate-400" />
                                </button>
-                               <span className="w-6 sm:w-8 text-center font-black text-[10px] sm:text-xs italic tracking-tighter">{item.quantity}</span>
+                               <span className="w-8 text-center font-black text-xs text-slate-700">{item.quantity}</span>
                                <button 
-                                 className="size-6 sm:size-7 rounded-lg hover:bg-slate-100 flex items-center justify-center transition-all disabled:opacity-30"
+                                 className="size-6 rounded-md hover:bg-white flex items-center justify-center transition-all disabled:opacity-30"
                                  onClick={() => {
                                     setCart(cart.map((c, i) => i === idx ? { ...c, quantity: c.quantity + 1, total: (c.quantity + 1) * c.unitPrice } : c))
                                  }}
                                  disabled={item.isFromPrescription || item.isFromLab}
-                               >
-                                  <Plus className="size-2.5 sm:size-3" />
+                                >
+                                  <Plus className="size-3 text-slate-400" />
                                </button>
                             </div>
-                            <div className="text-right min-w-[60px]">
-                               <p className="font-black text-sm tracking-tighter italic text-slate-900">${item.total.toLocaleString()}</p>
+                            <div className="text-right min-w-[70px]">
+                               <p className="font-black text-sm tracking-tight text-slate-900">${item.total.toLocaleString()}</p>
                             </div>
                             <button 
-                              className="size-8 rounded-full text-slate-200 hover:text-rose-500 transition-all"
+                              className="size-8 rounded-lg text-slate-200 hover:text-rose-500 hover:bg-rose-50 transition-all ml-2"
                               onClick={() => setCart(cart.filter(c => c.id !== item.id))}
                             >
-                               <Trash2 className="size-4" />
+                               <Trash2 className="size-3.5" />
                             </button>
                          </div>
                       </div>
@@ -1028,117 +1036,100 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                   </div>
                </ScrollArea>
 
-               <div className="p-4 sm:p-6 border-t bg-slate-50/50 space-y-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-6">
-                     <div className="space-y-1">
-                        <p className="text-[8px] sm:text-[10px] font-black uppercase text-slate-400 tracking-widest">Subtotal</p>
-                        <p className="text-lg sm:text-xl font-black italic tracking-tighter text-slate-900">${cartTotal.toLocaleString()}</p>
+               <div className="border-t bg-white">
+                  <div className="grid grid-cols-4 divide-x border-b">
+                     <div className="p-4 space-y-1">
+                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Subtotal</p>
+                        <p className="text-lg font-black text-slate-900">${cartTotal.toLocaleString()}</p>
                      </div>
-                     <div className="space-y-1 sm:border-x border-slate-200 sm:px-6">
-                        <p className="text-[8px] sm:text-[10px] font-black uppercase text-slate-400 tracking-widest">Discount</p>
-                        <Input 
-                          type="number" 
-                          value={discount} 
-                          onChange={e => setDiscount(parseFloat(e.target.value) || 0)}
-                          className="h-8 border-none bg-transparent p-0 font-black text-sm italic tracking-tighter focus-visible:ring-0"
-                        />
+                     <div className="p-4 space-y-1">
+                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Discount</p>
+                        <div className="flex items-center gap-1">
+                          <span className="text-slate-400 font-bold">-</span>
+                          <Input 
+                            type="number" 
+                            value={discount} 
+                            onChange={e => setDiscount(parseFloat(e.target.value) || 0)}
+                            className="h-6 border-none bg-transparent p-0 font-black text-lg text-slate-900 italic focus-visible:ring-0"
+                          />
+                        </div>
                      </div>
-                     <div className="space-y-1 text-right col-span-2 sm:col-span-1 border-t sm:border-t-0 pt-2 sm:pt-0">
-                        <p className="text-[8px] sm:text-[10px] font-black uppercase text-slate-400 tracking-widest">Insurance <ShieldCheck className="inline size-3 sm:size-3.5 mb-0.5 ml-1 opacity-20" /></p>
-                        <p className="text-lg sm:text-xl font-black italic tracking-tighter text-slate-400">$0.00</p>
+                     <div className="p-4 space-y-1">
+                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Insurance <ShieldCheck className="inline size-3 mb-0.5 ml-1 opacity-20" /></p>
+                        <div className="flex items-center gap-1 text-slate-400 italic">
+                          <span>-</span>
+                          <p className="text-lg font-black">$0.00</p>
+                        </div>
                      </div>
-                  </div>
+                     <div className="p-4 space-y-1 bg-emerald-50/50">
+                        <p className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">Total Due</p>
+                        <p className="text-2xl font-black text-emerald-500">${Math.max(0, cartTotal - discount).toLocaleString()}</p>
+                     </div>
+                  </div>                  <div className="p-4 sm:p-6 space-y-4">
+                     <div className="flex items-center gap-2 overflow-x-auto pb-2 hide-scrollbar">
+                        {['ZAAD', 'SAHAL', 'EDAHAB', 'MYCASH', 'INSURANCE', 'CREDIT'].map(m => (
+                          <button 
+                            key={m}
+                            className={`px-4 py-2 rounded-full border flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${paymentMethod === m ? 'bg-emerald-500 text-white border-emerald-500 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}
+                            onClick={() => setPaymentMethod(m)}
+                          >
+                             {m === 'ZAAD' && <Smartphone className="size-3" />}
+                             {m === 'CREDIT' && <RotateCcw className="size-3" />}
+                             {m === 'INSURANCE' && <ShieldCheck className="size-3" />}
+                             {m}
+                          </button>
+                        ))}
+                     </div>
 
-                  <div className="bg-slate-900 rounded-[1.5rem] sm:rounded-[2.5rem] p-4 sm:p-8 text-white shadow-2xl flex items-center justify-between border border-white/10 group overflow-hidden relative">
-                     <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500" />
-                     <div className="relative z-10">
-                        <p className="text-[8px] sm:text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Total Due</p>
-                        <p className="text-3xl sm:text-5xl font-black italic tracking-tighter leading-none mt-2">
-                          <span className="text-primary text-xl sm:text-3xl mr-1 font-bold italic">$</span>
-                          {Math.max(0, cartTotal - discount).toLocaleString()}
-                        </p>
+                     {paymentMethod === 'CREDIT' && (
+                       <div className="space-y-2 p-4 bg-slate-900 rounded-2xl animate-in slide-in-from-bottom-2 duration-300">
+                          <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Select Credit Account</Label>
+                          <Select onValueChange={(v) => setSelectedCreditCustomerId(v)}>
+                             <SelectTrigger className="h-10 rounded-xl bg-white/5 border-white/10 text-white font-bold text-xs">
+                                <SelectValue placeholder="Search account..." />
+                             </SelectTrigger>
+                             <SelectContent className="rounded-xl bg-slate-900 border-slate-800 text-white">
+                                {creditCustomers.map(c => (
+                                  <SelectItem key={c.id} value={c.id} className="font-bold py-2 hover:bg-white/5">
+                                     <div className="flex flex-col">
+                                        <span className="text-xs">{c.full_name}</span>
+                                        <span className="text-[8px] text-rose-400 font-black uppercase mt-0.5">${c.outstanding_balance} owed</span>
+                                     </div>
+                                  </SelectItem>
+                                ))}
+                             </SelectContent>
+                          </Select>
+                       </div>
+                     )}
+
+                     <div className="flex items-center gap-3">
+                        <div className="flex-1 relative">
+                           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</div>
+                           <Input 
+                             type="number" 
+                             placeholder="Tend. Amount" 
+                             className="h-12 pl-8 rounded-2xl border-slate-200 bg-slate-50/50 font-black text-sm focus:bg-white transition-all shadow-inner"
+                             value={amountPaid}
+                             onChange={e => setAmountPaid(e.target.value)}
+                           />
+                        </div>
+                        <Button 
+                           className="flex-[2] h-12 rounded-2xl bg-slate-900 text-white font-black text-sm uppercase tracking-tighter italic shadow-xl transition-all hover:bg-slate-800 active:scale-95 flex items-center justify-center gap-3 group disabled:opacity-50"
+                           onClick={handleCreateSale}
+                           disabled={loading || cart.length === 0 || (paymentMethod === 'CREDIT' && !selectedCreditCustomerId)}
+                        >
+                           {loading ? (
+                             <Activity className="size-5 animate-spin" />
+                           ) : (
+                             <>
+                               <div className="size-6 bg-emerald-500 rounded-full flex items-center justify-center">
+                                  <Check className="size-3.5 text-white" />
+                               </div>
+                               <span>TENDER ${(cartTotal - discount).toLocaleString()}</span>
+                             </>
+                           )}
+                        </Button>
                      </div>
-                     <div className="relative z-10 size-10 sm:size-16 bg-white/10 rounded-xl sm:rounded-3xl flex items-center justify-center backdrop-blur-md border border-white/10 animate-pulse">
-                        <CreditCard className="size-5 sm:size-8 text-white" />
-                     </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-2">
-                       {['ZAAD', 'SAHAL', 'EDAHAB', 'MYCASH', 'CREDIT'].map(m => (
-                         <button 
-                           key={m}
-                           className={`h-10 rounded-xl border flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest transition-all ${paymentMethod === m ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}`}
-                           onClick={() => setPaymentMethod(m)}
-                         >
-                            {m === 'ZAAD' && <Smartphone className="size-4" />}
-                            {m === 'CREDIT' && <RotateCcw className="size-4" />}
-                            {m}
-                         </button>
-                       ))}
-                       <button className="h-10 rounded-xl border bg-white text-slate-500 border-slate-200 hover:border-slate-400 flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest">
-                          <ShieldCheck className="size-4" />
-                          Insurance
-                       </button>
-                    </div>
-
-                    {paymentMethod === 'CREDIT' && (
-                      <div className="space-y-3 p-6 bg-slate-900 rounded-[2rem] border-slate-800 animate-in slide-in-from-bottom duration-300">
-                         <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Select Credit Customer</Label>
-                         <Select onValueChange={(v) => setSelectedCreditCustomerId(v)}>
-                            <SelectTrigger className="h-12 rounded-2xl bg-white/5 border-white/10 text-white font-bold">
-                               <SelectValue placeholder="Search Account Account..." />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-2xl bg-slate-900 border-slate-800 text-white">
-                               {creditCustomers.map(c => (
-                                 <SelectItem key={c.id} value={c.id} className="font-bold py-3 hover:bg-white/5">
-                                    <div className="flex flex-col">
-                                       <span>{c.full_name}</span>
-                                       <div className="flex items-center gap-2 mt-1">
-                                          <Badge className="bg-rose-500/20 text-rose-500 font-black text-[8px] uppercase border-none rounded-md px-1.5 py-0.5">${c.outstanding_balance} owed</Badge>
-                                          <span className="text-[8px] text-slate-500 font-black uppercase">{c.customer_id}</span>
-                                       </div>
-                                    </div>
-                                 </SelectItem>
-                               ))}
-                            </SelectContent>
-                         </Select>
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Amount Received ($)</Label>
-                       <Input 
-                         type="number" 
-                         placeholder="Enter amount paid..." 
-                         className="h-12 rounded-2xl border-none shadow-inner font-black text-lg bg-white"
-                         value={amountPaid}
-                         onChange={e => setAmountPaid(e.target.value)}
-                       />
-                       {parseFloat(amountPaid) > (cartTotal - discount) && (
-                         <p className="text-emerald-600 text-[10px] font-bold px-2 flex items-center gap-1">
-                           Change: ${((parseFloat(amountPaid) || 0) - (cartTotal - discount)).toFixed(2)}
-                         </p>
-                       )}
-                       {parseFloat(amountPaid) < (cartTotal - discount) && paymentMethod !== 'CREDIT' && (
-                         <p className="text-rose-600 text-[10px] font-bold px-2 flex items-center gap-1">
-                           Due: ${((cartTotal - discount) - (parseFloat(amountPaid) || 0)).toFixed(2)}
-                         </p>
-                       )}
-                    </div>
-
-                    <Button 
-                       className="w-full h-14 sm:h-16 rounded-[1.5rem] sm:rounded-[2rem] bg-slate-900 text-white font-black text-sm sm:text-lg uppercase tracking-tighter italic shadow-2xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-between px-6 sm:px-8 group disabled:opacity-50"
-                       onClick={handleCreateSale}
-                       disabled={loading || cart.length === 0 || (paymentMethod === 'CREDIT' && !selectedCreditCustomerId)}
-                    >
-                      <div className="flex items-center gap-3 sm:gap-4">
-                         <div className="size-7 sm:size-10 bg-emerald-500 rounded-full flex items-center justify-center group-hover:animate-bounce">
-                            <CheckCircle2 className="size-4 sm:size-6 text-white" />
-                         </div>
-                         <span className="truncate max-w-[150px] xs:max-w-none">TENDER ${(cartTotal - discount).toLocaleString()}</span>
-                      </div>
-                      <ArrowRight className="size-4 sm:size-6 text-white/20 group-hover:text-white transition-all" />
-                    </Button>
                   </div>
                </div>
             </div>
