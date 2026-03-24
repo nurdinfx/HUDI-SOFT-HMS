@@ -143,7 +143,6 @@ router.get('/report', async (req, res) => {
         const rawData = await db.prepare(query).all(...params);
 
         // 3. Structure data for the frontend (Matrix)
-        // We return a list of rows, where each row has dept name and revenue for each category
         const report = departments.map(dept => {
             const row = { department: dept.name, totals: {} };
             let deptTotal = 0;
@@ -168,11 +167,39 @@ router.get('/report', async (req, res) => {
             grandTotal += total;
         });
 
+        // 5. Payment Method Breakdown
+        let pmQuery = `
+            SELECT payment_method, SUM(amount) as total
+            FROM account_entries
+            WHERE type = 'income' AND status = 'completed'
+        `;
+        const pmParams = [];
+        if (startDate) { pmQuery += ' AND date >= ?'; pmParams.push(startDate); }
+        if (endDate) { pmQuery += ' AND date <= ?'; pmParams.push(endDate); }
+        pmQuery += ' GROUP BY payment_method';
+        const paymentBreakdown = await db.prepare(pmQuery).all(...pmParams);
+
+        // 6. Expenses Breakdown
+        let expQuery = `
+            SELECT category, department, SUM(amount) as total
+            FROM account_entries
+            WHERE type = 'expense' AND status = 'completed'
+        `;
+        const expParams = [];
+        if (startDate) { expQuery += ' AND date >= ?'; expParams.push(startDate); }
+        if (endDate) { expQuery += ' AND date <= ?'; expParams.push(endDate); }
+        expQuery += ' GROUP BY category, department';
+        const expenseRows = await db.prepare(expQuery).all(...expParams);
+        const totalExpenses = expenseRows.reduce((sum, r) => sum + parseFloat(r.total || 0), 0);
+
         res.json({
             columns: categories.map(c => c.name),
             rows: report,
             columnTotals,
-            grandTotal
+            grandTotal,
+            paymentBreakdown: paymentBreakdown.map(p => ({ method: p.payment_method, total: parseFloat(p.total || 0) })),
+            totalExpenses,
+            netIncome: grandTotal - totalExpenses
         });
     } catch (err) {
         res.status(500).json({ error: err.message });

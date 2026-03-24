@@ -391,6 +391,9 @@ export interface RevenueReport {
     }[];
     columnTotals: Record<string, number>;
     grandTotal: number;
+    paymentBreakdown: { method: string; total: number }[];
+    totalExpenses: number;
+    netIncome: number;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────

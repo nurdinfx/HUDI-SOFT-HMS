@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
 const { authenticate, logAction } = require('../middleware/auth');
 const { sendPushNotification } = require('../utils/push-notify');
+const { recordGranularPayment } = require('../utils/finance');
 
 const router = express.Router();
 router.use(authenticate);
@@ -238,7 +239,22 @@ router.post('/transactions', async (req, res) => {
 
         await db.run('COMMIT');
         logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'Pharmacy', `POS Transaction ${invoiceId} created`, req.ip);
-        
+
+        // Log income to account_entries for departmental revenue report
+        if ((parseFloat(paidAmount) || 0) > 0 && paymentMethod !== 'credit') {
+            try {
+                await recordGranularPayment({
+                    invoiceId,
+                    dbInvoiceId: txId,
+                    patientName,
+                    paymentAmount: (parseFloat(paidAmount) || 0) + (appliedCredit ? parseFloat(appliedCredit) : 0),
+                    paymentMethod,
+                    userId: req.user.id,
+                    defaultDept: 'Pharmacy'
+                });
+            } catch (e) { console.error('Finance logging error:', e.message); }
+        }
+
         sendPushNotification({
             title: '🏷️ New Pharmacy POS Sale',
             message: `New sale completed by pharmacist: ${invoiceId} for ${patientName || 'Walk-in'}. Total: $${totalAmount}.`,
