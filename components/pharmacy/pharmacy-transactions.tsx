@@ -280,7 +280,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
 
   const handleProcessReturn = async () => {
     const itemsToReturn = returnItems.filter(i => i.returnQty > 0)
-    if (itemsToReturn.length === 0) return
+    if (itemsToReturn.length === 0 && exchangeCart.length === 0) return
     
     setLoading(true)
     try {
