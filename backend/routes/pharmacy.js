@@ -105,7 +105,11 @@ router.get('/transactions', async (req, res) => {
 });
 
 router.post('/transactions', async (req, res) => {
-    const { patientId, patientName, items, totalAmount, paidAmount, paymentMethod, status, appliedCredit } = req.body;
+    const { 
+        patientId, patientName, items, totalAmount, 
+        paidAmount, paymentMethod, status, appliedCredit,
+        notes, creditCustomerId 
+    } = req.body;
     
     try {
         const txId = uuidv4();
@@ -115,56 +119,116 @@ router.post('/transactions', async (req, res) => {
         await db.run('BEGIN TRANSACTION');
 
         const safeAppliedCredit = appliedCredit ? parseFloat(appliedCredit) : 0;
-        const creditAmount = totalAmount - paidAmount - safeAppliedCredit;
-        const itemsSummary = items.map(i => `${i.medicineName} (x${i.quantity})`).join(', ');
+        const totalToReconcile = totalAmount - safeAppliedCredit;
+        // if paymentMethod is 'credit', paidAmount might be 0 or partial.
+        const creditAmount = paymentMethod === 'credit' ? (totalToReconcile - (parseFloat(paidAmount) || 0)) : (totalAmount - (parseFloat(paidAmount) || 0) - safeAppliedCredit);
+        const itemsSummary = items.map(i => `${i.medicineName || i.name} (x${i.quantity})`).join(', ');
 
         // Insert Transaction
         await db.prepare(`INSERT INTO pharmacy_transactions 
             (id, invoice_id, patient_id, patient_name, total_amount, paid_amount, credit_amount, payment_method, status, created_by, items_summary)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-            .run(txId, invoiceId, patientId || null, patientName, totalAmount, paidAmount + safeAppliedCredit, creditAmount, paymentMethod, status, req.user.name, itemsSummary);
+            .run(txId, invoiceId, patientId || null, patientName, totalAmount, (parseFloat(paidAmount) || 0) + safeAppliedCredit, Math.max(0, creditAmount), paymentMethod, status || 'Completed', req.user.name, itemsSummary);
 
-        // Insert Items & Update Stock
+        // Insert Items & Update Stock/Linked Records
         for (const item of items) {
             const itemId = uuidv4();
             await db.prepare(`INSERT INTO pharmacy_transaction_items 
                 (id, transaction_id, medicine_id, medicine_name, quantity, unit_price, total_price)
                 VALUES (?, ?, ?, ?, ?, ?, ?)`)
-                .run(itemId, txId, item.medicineId, item.medicineName, item.quantity, item.unitPrice, item.totalPrice);
+                .run(itemId, txId, item.medicineId || item.id, item.medicineName || item.name, item.quantity, item.unitPrice, item.totalPrice || (item.unitPrice * item.quantity));
 
-            // Stock Check & Update (with batch fallback)
-            const itemMedId = item.medicineId;
-            const med = await db.prepare('SELECT quantity, reorder_level FROM medicines WHERE id = ?').get(itemMedId);
-            
-            if (!med || med.quantity < item.quantity) {
-                throw new Error(`Insufficient stock for ${item.medicineName}`);
+            // 1. Linked Prescription Update
+            if (item.prescriptionId) {
+                await db.prepare('UPDATE prescriptions SET status = ?, is_billed = 1, invoice_id = ? WHERE id = ?')
+                    .run('dispensed', txId, item.prescriptionId);
             }
 
-            // Deduct from batches if possible
-            let remainingToDeduct = item.quantity;
-            const batches = await db.prepare('SELECT * FROM pharmacy_batches WHERE medicine_id = ? AND quantity_remaining > 0 ORDER BY expiry_date ASC').all(itemMedId);
-            
-            for (const batch of batches) {
-                if (remainingToDeduct === 0) break;
-                const deduct = Math.min(batch.quantity_remaining, remainingToDeduct);
-                await db.prepare('UPDATE pharmacy_batches SET quantity_remaining = quantity_remaining - ? WHERE id = ?').run(deduct, batch.id);
-                remainingToDeduct -= deduct;
+            // 2. Linked Lab Test Update
+            if (item.labTestId) {
+                await db.prepare('UPDATE lab_tests SET status = ?, is_billed = 1, invoice_id = ? WHERE id = ?')
+                    .run('sample-collected', txId, item.labTestId);
             }
 
-            // Deduct from overall medicine quantity
-            const newQty = med.quantity - item.quantity;
-            const newStatus = newQty === 0 ? 'out-of-stock' : newQty <= med.reorder_level ? 'low-stock' : 'in-stock';
-            await db.prepare('UPDATE medicines SET quantity = ?, status = ? WHERE id = ?')
-                .run(newQty, newStatus, itemMedId);
+            // 3. Linked OPD Visit Update
+            if (item.visitId) {
+                await db.prepare('UPDATE opd_visits SET is_billed = 1, invoice_id = ? WHERE id = ?')
+                    .run(txId, item.visitId);
+            }
+
+            // 4. Stock Check & Update (only for medicines)
+            if (item.type === 'medicine' || (!item.type && item.medicineId)) {
+                const itemMedId = item.medicineId || item.id;
+                const med = await db.prepare('SELECT quantity, reorder_level FROM medicines WHERE id = ?').get(itemMedId);
+                
+                if (med) {
+                    if (med.quantity < item.quantity) {
+                        throw new Error(`Insufficient stock for ${item.medicineName || item.name}`);
+                    }
+
+                    // Deduct from batches
+                    let remainingToDeduct = item.quantity;
+                    const batches = await db.prepare('SELECT * FROM pharmacy_batches WHERE medicine_id = ? AND quantity_remaining > 0 ORDER BY expiry_date ASC').all(itemMedId);
+                    
+                    for (const batch of batches) {
+                        if (remainingToDeduct === 0) break;
+                        const deduct = Math.min(batch.quantity_remaining, remainingToDeduct);
+                        await db.prepare('UPDATE pharmacy_batches SET quantity_remaining = quantity_remaining - ? WHERE id = ?').run(deduct, batch.id);
+                        remainingToDeduct -= deduct;
+                    }
+
+                    // Update overall quantity
+                    const newQty = med.quantity - item.quantity;
+                    const newStatus = newQty === 0 ? 'out-of-stock' : newQty <= med.reorder_level ? 'low-stock' : 'in-stock';
+                    await db.prepare('UPDATE medicines SET quantity = ?, status = ? WHERE id = ?')
+                        .run(newQty, newStatus, itemMedId);
+                }
+            }
         }
 
-        // Handle Patient Credit
-        if (patientId) {
+        // Handle Credit Module Integration
+        if (paymentMethod === 'credit' && creditCustomerId) {
+            const customer = await db.prepare('SELECT * FROM credit_customers WHERE id = ?').get(creditCustomerId);
+            if (!customer) throw new Error('Credit Customer not found');
+
+            const transactionId = uuidv4();
+            const transactionUID = `CR-TXN-${uuidv4().slice(0, 8).toUpperCase()}`;
+            const remainingBalance = totalToReconcile - (parseFloat(paidAmount) || 0);
+
+            await db.prepare(`
+                INSERT INTO credit_transactions (id, transaction_id, customer_id, invoice_id, invoice_number, items_summary, total_amount, amount_paid, remaining_balance, status, staff_id, staff_name)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(
+                transactionId, transactionUID, creditCustomerId, txId, invoiceId, itemsSummary,
+                totalAmount, (parseFloat(paidAmount) || 0), remainingBalance, remainingBalance <= 0 ? 'paid' : 'unpaid',
+                req.user.id, req.user.name
+            );
+
+            // Update Customer Balance
+            const newBalance = parseFloat(customer.outstanding_balance) + remainingBalance;
+            const newTotalCredit = parseFloat(customer.total_credit_taken) + totalAmount;
+            
+            await db.prepare(`
+                UPDATE credit_customers 
+                SET outstanding_balance = ?, total_credit_taken = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            `).run(newBalance, newTotalCredit, creditCustomerId);
+
+            // Add to Ledger
+            await db.prepare(`
+                INSERT INTO credit_ledger (id, customer_id, date, description, type, amount, running_balance, reference_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(
+                uuidv4(), creditCustomerId, new Date().toISOString().split('T')[0], `Pharmacy POS Credit Purchase: ${invoiceId}`,
+                'debit', totalAmount, newBalance, transactionUID
+            );
+        } else if (patientId) {
+            // Internal Patient Credit Fallback
             if (safeAppliedCredit > 0) {
                 await db.prepare('UPDATE patient_credits SET balance = patient_credits.balance - ?, last_updated = CURRENT_TIMESTAMP WHERE patient_id = ?')
                     .run(safeAppliedCredit, patientId);
             }
-            if (creditAmount > 0) {
+            if (creditAmount > 0 && paymentMethod !== 'credit') {
                 await db.prepare(`INSERT INTO patient_credits (id, patient_id, balance) 
                     VALUES (?, ?, ?) 
                     ON CONFLICT(patient_id) DO UPDATE SET balance = patient_credits.balance + ?, last_updated = CURRENT_TIMESTAMP`)
@@ -173,24 +237,25 @@ router.post('/transactions', async (req, res) => {
         }
 
         await db.run('COMMIT');
-        logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'Pharmacy', `Transaction ${invoiceId} created`, req.ip);
+        logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'Pharmacy', `POS Transaction ${invoiceId} created`, req.ip);
         
-        // Trigger social push notification
         sendPushNotification({
-            title: '🏷️ New Pharmacy Sale',
-            message: `New sale completed: ${invoiceId} for ${patientName || 'Walk-in'}. Total: $${totalAmount}.`,
+            title: '🏷️ New Pharmacy POS Sale',
+            message: `New sale completed by pharmacist: ${invoiceId} for ${patientName || 'Walk-in'}. Total: $${totalAmount}.`,
             url: `/pharmacy/transactions`
         });
 
         res.status(201).json({ id: txId, invoiceId });
     } catch (err) {
-        await db.run('ROLLBACK');
+        if (db.inTransaction) await db.run('ROLLBACK');
         res.status(400).json({ error: err.message });
     }
 });
 
 router.post('/transactions/:id/return', async (req, res) => {
-    const { items } = req.body; // Array of { itemId, quantity, amount }
+    const { items, exchangeItems, netAmount, paymentMethod } = req.body; 
+    // items: Array of { itemId, quantity, amount }
+    // exchangeItems: Array of { medicineId, medicineName, quantity, unitPrice, totalPrice }
     
     try {
         const tx = await db.prepare('SELECT * FROM pharmacy_transactions WHERE id = ?').get(req.params.id);
@@ -200,6 +265,7 @@ router.post('/transactions/:id/return', async (req, res) => {
 
         let totalReturnedAmount = 0;
 
+        // 1. Process Returns
         for (const rItem of items) {
             const item = await db.prepare('SELECT * FROM pharmacy_transaction_items WHERE id = ?').get(rItem.itemId);
             if (!item) throw new Error('Transaction item not found');
@@ -208,22 +274,76 @@ router.post('/transactions/:id/return', async (req, res) => {
             await db.prepare('INSERT INTO pharmacy_returns (id, transaction_id, item_id, quantity, amount) VALUES (?, ?, ?, ?, ?)')
                 .run(returnId, req.params.id, rItem.itemId, rItem.quantity, rItem.amount);
 
-            // Update Stock
+            // Increase Stock (Old Item)
             await db.prepare('UPDATE medicines SET quantity = quantity + ? WHERE id = ?').run(rItem.quantity, item.medicine_id);
-            totalReturnedAmount += rItem.amount;
+            totalReturnedAmount += parseFloat(rItem.amount);
         }
 
-        // Add to credit balance if patient exists
+        // 2. Process Exchanges (as a new sale if exchangeItems exist)
+        let totalExchangeAmount = 0;
+        if (exchangeItems && exchangeItems.length > 0) {
+            const exchangeTxId = uuidv4();
+            const countRes = await db.query('SELECT COUNT(*) as count FROM pharmacy_transactions');
+            const exchangeInvoiceId = `PHARM-EXC-${String(parseInt(countRes.rows[0].count) + 1).padStart(4, '0')}`;
+            
+            for (const eItem of exchangeItems) {
+                totalExchangeAmount += parseFloat(eItem.totalPrice);
+                
+                // Deduct Stock for New Item
+                const med = await db.prepare('SELECT quantity, reorder_level FROM medicines WHERE id = ?').get(eItem.medicineId);
+                if (!med || med.quantity < eItem.quantity) {
+                    throw new Error(`Insufficient stock for exchange item: ${eItem.medicineName}`);
+                }
+
+                // Deduct from batches
+                let remainingToDeduct = eItem.quantity;
+                const batches = await db.prepare('SELECT * FROM pharmacy_batches WHERE medicine_id = ? AND quantity_remaining > 0 ORDER BY expiry_date ASC').all(eItem.medicineId);
+                for (const batch of batches) {
+                    if (remainingToDeduct === 0) break;
+                    const deduct = Math.min(batch.quantity_remaining, remainingToDeduct);
+                    await db.prepare('UPDATE pharmacy_batches SET quantity_remaining = quantity_remaining - ? WHERE id = ?').run(deduct, batch.id);
+                    remainingToDeduct -= deduct;
+                }
+
+                const newQty = med.quantity - eItem.quantity;
+                const newStatus = newQty === 0 ? 'out-of-stock' : newQty <= med.reorder_level ? 'low-stock' : 'in-stock';
+                await db.prepare('UPDATE medicines SET quantity = ?, status = ? WHERE id = ?').run(newQty, newStatus, eItem.medicineId);
+
+                // Record Exchange Item
+                const exchangeItemId = uuidv4();
+                await db.prepare(`INSERT INTO pharmacy_transaction_items 
+                    (id, transaction_id, medicine_id, medicine_name, quantity, unit_price, total_price)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)`)
+                    .run(exchangeItemId, exchangeTxId, eItem.medicineId, eItem.medicineName, eItem.quantity, eItem.unitPrice, eItem.totalPrice);
+            }
+
+            const itemsSummary = exchangeItems.map(i => `${i.medicineName} (x${i.quantity})`).join(', ');
+            
+            // Record the Exchange Transaction
+            // The "total_amount" here adds to today's revenue
+            await db.prepare(`INSERT INTO pharmacy_transactions 
+                (id, invoice_id, patient_id, patient_name, total_amount, paid_amount, credit_amount, payment_method, status, created_by, items_summary)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+                .run(exchangeTxId, exchangeInvoiceId, tx.patient_id, tx.patient_name, totalExchangeAmount, totalExchangeAmount, 0, paymentMethod || tx.payment_method, 'Exchange', req.user.name, `EXC for ${tx.invoice_id}: ${itemsSummary}`);
+        }
+
+        // 3. Handle Financial Balance Adjustment
+        // Net balance change for the patient/system
+        const balanceChange = totalReturnedAmount - totalExchangeAmount;
+        
         if (tx.patient_id) {
+            // If balanceChange > 0, patient gets credit (Return > Exchange)
+            // If balanceChange < 0, patient owes money (Exchange > Return) - but usually they'd pay at counter.
+            // We'll update the patient_credits balance regardless.
             await db.prepare(`INSERT INTO patient_credits (id, patient_id, balance) 
                 VALUES (?, ?, ?) 
                 ON CONFLICT(patient_id) DO UPDATE SET balance = patient_credits.balance + ?, last_updated = CURRENT_TIMESTAMP`)
-                .run(uuidv4(), tx.patient_id, totalReturnedAmount, totalReturnedAmount);
+                .run(uuidv4(), tx.patient_id, balanceChange, balanceChange);
         }
 
         await db.run('COMMIT');
-        logAction(req.user.id, req.user.name, req.user.role, 'UPDATE', 'Pharmacy', `Return processed for transaction ${tx.invoice_id}`, req.ip);
-        res.json({ message: 'Return processed' });
+        logAction(req.user.id, req.user.name, req.user.role, 'UPDATE', 'Pharmacy', `Return/Exchange processed for ${tx.invoice_id}`, req.ip);
+        res.json({ message: 'Return/Exchange processed successfully' });
     } catch (err) {
         await db.run('ROLLBACK');
         res.status(400).json({ error: err.message });

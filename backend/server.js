@@ -71,6 +71,7 @@ app.use('/api/credit', require('./routes/credit'));
 app.use('/api/hr', require('./routes/hr'));
 app.use('/api/daily-operations', require('./routes/daily_operations'));
 app.use('/api/revenue-analytics', require('./routes/revenue_analytics'));
+app.use('/api/procedures', require('./routes/procedures'));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -86,6 +87,7 @@ dbModule.promise.then(async () => {
         await require('./migrate_multi_test')();
         await require('./migrate_purchase_hub')();
         await require('./migrate_push_subscriptions')();
+        await require('./migrate_procedures')();
     } catch (err) {
         console.error('⚠️ Migration warning:', err.message);
     }

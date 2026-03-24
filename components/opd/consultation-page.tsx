@@ -28,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { LabInvestigationsTab } from "./lab-investigations-tab"
+import { ProceduresTab } from "./procedures-tab"
 
 interface ConsultationPageProps {
     visit: OPDVisit
@@ -172,7 +173,8 @@ export function ConsultationPage({ visit, patient, onComplete, onCancel }: Consu
                         <TabsList className="bg-transparent gap-8 h-full p-0">
                             <TabsTrigger value="clinical" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0 font-bold uppercase text-xs tracking-wide">Clinical Findings</TabsTrigger>
                             <TabsTrigger value="rx" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0 font-bold uppercase text-xs tracking-wide">Prescription Hub</TabsTrigger>
-                            <TabsTrigger value="labs" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0 font-bold uppercase text-xs tracking-wide text-muted-foreground/50">Lab Investigations</TabsTrigger>
+                            <TabsTrigger value="labs" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0 font-bold uppercase text-xs tracking-wide">Lab Investigations</TabsTrigger>
+                            <TabsTrigger value="procedures" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-0 font-bold uppercase text-xs tracking-wide">Procedures</TabsTrigger>
                         </TabsList>
                         <div className="flex gap-2">
                             <Button variant="ghost" size="sm" className="font-bold text-xs" onClick={onCancel}>DISCARD</Button>
@@ -387,6 +389,10 @@ export function ConsultationPage({ visit, patient, onComplete, onCancel }: Consu
 
                         <TabsContent value="labs" className="mt-0">
                             <LabInvestigationsTab visit={visit} />
+                        </TabsContent>
+
+                        <TabsContent value="procedures" className="mt-0">
+                            <ProceduresTab visit={visit} />
                         </TabsContent>
                     </ScrollArea>
                 </Tabs>

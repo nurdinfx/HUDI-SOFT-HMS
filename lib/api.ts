@@ -127,7 +127,7 @@ export const pharmacyApi = {
     getTransactions: (filters?: any) => get<any[]>(`/pharmacy/transactions${toQuery(filters)}`),
     getTransactionItems: (id: string) => get<any[]>(`/pharmacy/transactions/${id}/items`),
     createTransaction: (data: any) => post<{ id: string; invoiceId: string }>('/pharmacy/transactions', data),
-    processReturn: (id: string, items: any[]) => post<any>(`/pharmacy/transactions/${id}/return`, { items }),
+    processReturn: (id: string, data: { items: any[], exchangeItems?: any[], paymentMethod?: string }) => post<any>(`/pharmacy/transactions/${id}/return`, data),
     getRevenueStats: () => get<any>('/pharmacy/stats/revenue'),
     getPatientCredits: (patientId: string) => get<{ balance: number }>(`/pharmacy/credits/${patientId}`),
 };
@@ -204,6 +204,14 @@ export const opdApi = {
     update: (id: string, data: Partial<OPDVisit>) => put<OPDVisit>(`/opd/${id}`, data),
     saveConsultation: (id: string, data: Partial<OPDVisit> & { completeVisit?: boolean; medications?: PrescriptionMedicine[] }) => put<OPDVisit>(`/opd/${id}/consultation`, data),
     delete: (id: string) => del(`/opd/${id}`),
+};
+
+// ─── Procedures ──────────────────────────────────────────────────
+export const procedureApi = {
+    getByVisitId: (visitId: string) => get<Procedure[]>(`/procedures/visit/${visitId}`),
+    create: (data: Partial<Procedure>) => post<Procedure>('/procedures', data),
+    update: (id: string, data: Partial<Procedure>) => put<Procedure>(`/procedures/${id}`, data),
+    cancel: (id: string) => del<{ message: string }>(`/procedures/${id}`),
 };
 
 // ─── IPD ─────────────────────────────────────────────────────────
@@ -517,6 +525,19 @@ export interface OPDVisit {
     medications?: PrescriptionMedicine[];
 }
 
+export interface Procedure {
+    id: string;
+    opdVisitId: string;
+    patientId: string;
+    doctorId: string;
+    name: string;
+    description?: string;
+    category?: string;
+    cost: number;
+    status: 'active' | 'cancelled';
+    createdAt: string;
+}
+
 export interface PatientSummary {
     allergies: string[];
     chronicConditions: string[];
@@ -690,6 +711,7 @@ export interface POSItem {
     category?: string;
     prescriptionId?: string;
     labTestId?: string;
+    visitId?: string;
     originalInvoiceId?: string;
     isFromVisit?: boolean;
     isFromLab?: boolean;

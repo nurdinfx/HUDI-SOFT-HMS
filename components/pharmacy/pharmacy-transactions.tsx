@@ -25,9 +25,16 @@ import {
   ShieldCheck,
   FileText,
   QrCode,
-  Calendar
+  Calendar,
+  LayoutGrid,
+  Activity,
+  UserCheck,
+  Stethoscope,
+  ChevronRight,
+  Minus,
+  Trash2
 } from "lucide-react"
-import { pharmacyApi, patientsApi, type Medicine, type Patient } from "@/lib/api"
+import { pharmacyApi, patientsApi, posApi, creditApi, type Medicine, type Patient } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -60,7 +67,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
   const [patients, setPatients] = useState<Patient[]>([])
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)
   const [walkInName, setWalkInName] = useState("")
-  const [cart, setCart] = useState<{ medicineId: string; name: string; quantity: number; unitPrice: number; total: number }[]>([])
+  const [cart, setCart] = useState<any[]>([])
   const [paymentMethod, setPaymentMethod] = useState("ZAAD")
   const [amountPaid, setAmountPaid] = useState<string>("")
   
@@ -68,14 +75,27 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
   const [dateFilter, setDateFilter] = useState({ start: "", end: "" })
   const [activePaymentMethod, setActivePaymentMethod] = useState("all")
 
-  // Patient Credit
+  // Patient Credit (Internal)
   const [patientCredit, setPatientCredit] = useState(0)
   const [useCredit, setUseCredit] = useState(false)
   
-  // Return Modal
+  // Return Modal State
   const [selectedTx, setSelectedTx] = useState<any>(null)
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false)
   const [returnItems, setReturnItems] = useState<any[]>([])
+  const [exchangeCart, setExchangeCart] = useState<any[]>([])
+  const [isExchangeMode, setIsExchangeMode] = useState(false)
+  const [exchangeSearch, setExchangeSearch] = useState("")
+  
+  // Advanced POS State
+  const [activeCategory, setActiveCategory] = useState<'All' | 'Pharmacy' | 'Labs' | 'Services'>('Pharmacy')
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+  const [discount, setDiscount] = useState(0)
+  const [insuranceInfo, setInsuranceInfo] = useState({ company: '', policyNumber: '', claimAmount: 0 })
+  const [creditCustomers, setCreditCustomers] = useState<any[]>([])
+  const [selectedCreditCustomerId, setSelectedCreditCustomerId] = useState<string | null>(null)
+  const [pendingCharges, setPendingCharges] = useState<any[]>([])
+  const [isLoadingCharges, setIsLoadingCharges] = useState(false)
   
   // Invoice View
   const [invoiceToPrint, setInvoiceToPrint] = useState<any>(null)
@@ -100,7 +120,59 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
 
   useEffect(() => {
     fetchData()
+    fetchCreditCustomers()
   }, [])
+
+  useEffect(() => {
+    if (selectedPatientId) {
+      loadPendingCharges(selectedPatientId)
+    } else {
+      setPendingCharges([])
+    }
+  }, [selectedPatientId])
+
+  const fetchCreditCustomers = async () => {
+    try {
+      const data = await creditApi.getCustomers()
+      setCreditCustomers(data)
+    } catch (e) {
+      console.error("Failed to fetch credit customers", e)
+    }
+  }
+
+  const loadPendingCharges = async (patientId: string) => {
+    setIsLoadingCharges(true)
+    try {
+      const { items } = await posApi.getPendingCharges(patientId)
+      if (items.length > 0) {
+        setPendingCharges(items)
+        toast.info(`Loaded ${items.length} pending charges automatically`)
+        // Add them to cart
+        items.forEach(item => {
+           setCart(prev => {
+             const exists = prev.find(c => c.id === item.id)
+             if (exists) return prev
+             return [...prev, {
+               id: item.id,
+               name: item.name,
+               quantity: item.quantity,
+               unitPrice: item.unitPrice,
+               total: item.unitPrice * item.quantity,
+               type: item.type,
+               medicineId: item.type === 'medicine' ? item.id : null,
+               prescriptionId: item.prescriptionId,
+               labTestId: item.labTestId,
+               visitId: item.visitId
+             }]
+           })
+        })
+      }
+    } catch (e) {
+      console.error("Failed to load pending charges", e)
+    } finally {
+      setIsLoadingCharges(false)
+    }
+  }
 
   useEffect(() => {
     if (selectedPatientId) {
@@ -116,7 +188,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
       const matchSearch = !search || 
         t.invoice_id?.toLowerCase().includes(search.toLowerCase()) ||
         t.patient_name?.toLowerCase().includes(search.toLowerCase())
-      const matchStatus = statusFilter === "all" || t.status === statusFilter
+      const matchStatus = statusFilter === "all" || t.status?.toLowerCase() === statusFilter.toLowerCase()
       const matchMethod = activePaymentMethod === "all" || t.payment_method === activePaymentMethod
       const txDate = new Date(t.created_at).setHours(0,0,0,0)
       const matchStart = !dateFilter.start || txDate >= new Date(dateFilter.start).setHours(0,0,0,0)
@@ -129,24 +201,26 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
   const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + item.total, 0), [cart])
 
   const addToCart = (med: Medicine) => {
-    const existing = cart.find(c => c.medicineId === med.id)
+    const existing = cart.find(c => c.medicineId === med.id && c.type === 'medicine')
     if (existing) {
       if (existing.quantity >= med.quantity) {
         toast.error("Insufficient stock")
         return
       }
-      setCart(cart.map(c => c.medicineId === med.id ? { ...c, quantity: c.quantity + 1, total: (c.quantity + 1) * c.unitPrice } : c))
+      setCart(cart.map(c => (c.medicineId === med.id && c.type === 'medicine') ? { ...c, quantity: c.quantity + 1, total: (c.quantity + 1) * c.unitPrice } : c))
     } else {
       if (med.quantity < 1) {
         toast.error("Out of stock")
         return
       }
       setCart([...cart, { 
+        id: med.id,
         medicineId: med.id, 
         name: med.name, 
         quantity: 1, 
         unitPrice: med.sellingPrice, 
-        total: med.sellingPrice 
+        total: med.sellingPrice,
+        type: 'medicine'
       }])
     }
   }
@@ -156,8 +230,9 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
       toast.error("Cart is empty")
       return
     }
-    const appliedCreditValue = useCredit ? Math.min(patientCredit, cartTotal) : 0
-    const netPayable = cartTotal - appliedCreditValue
+    const totalAfterDiscount = Math.max(0, cartTotal - discount)
+    const appliedCreditValue = useCredit ? Math.min(patientCredit, totalAfterDiscount) : 0
+    const netPayable = totalAfterDiscount - appliedCreditValue
     const paid = parseFloat(amountPaid) || 0
     const status = paid >= netPayable ? 'Paid' : (paid > 0 ? 'Partial' : 'Credit')
     
@@ -167,16 +242,23 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
         patientId: selectedPatientId,
         patientName: selectedPatientId ? patients.find(p => p.id === selectedPatientId)?.firstName + ' ' + patients.find(p => p.id === selectedPatientId)?.lastName : (walkInName || 'Walk-in Customer'),
         items: cart.map(c => ({
+          id: c.id,
           medicineId: c.medicineId,
           medicineName: c.name,
           quantity: c.quantity,
           unitPrice: c.unitPrice,
-          totalPrice: c.total
+          totalPrice: c.total,
+          type: c.type,
+          prescriptionId: c.prescriptionId,
+          labTestId: c.labTestId,
+          visitId: c.visitId
         })),
         totalAmount: cartTotal,
         paidAmount: paid,
         appliedCredit: appliedCreditValue,
         paymentMethod,
+        discount,
+        creditCustomerId: selectedCreditCustomerId,
         status
       }
       
@@ -201,17 +283,29 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
     
     setLoading(true)
     try {
-      await pharmacyApi.processReturn(selectedTx.id, itemsToReturn.map(i => ({
-        itemId: i.id,
-        quantity: i.returnQty,
-        amount: i.returnQty * i.unit_price
-      })))
-      toast.success("Return processed and stock updated")
+      await pharmacyApi.processReturn(selectedTx.id, {
+        items: itemsToReturn.map(i => ({
+          itemId: i.id,
+          quantity: i.returnQty,
+          amount: i.returnQty * i.unit_price
+        })),
+        exchangeItems: exchangeCart.map(c => ({
+          medicineId: c.medicineId,
+          medicineName: c.name,
+          quantity: c.quantity,
+          unitPrice: c.unitPrice,
+          totalPrice: c.total
+        })),
+        paymentMethod: paymentMethod
+      })
+      toast.success("Return/Exchange processed successfully")
       setIsReturnModalOpen(false)
+      setExchangeCart([])
+      setIsExchangeMode(false)
       fetchData()
       onRefresh()
-    } catch (e) {
-      toast.error("Failed to process return")
+    } catch (e: any) {
+      toast.error(e.message || "Failed to process return")
     } finally {
       setLoading(false)
     }
@@ -472,19 +566,132 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
               </Table>
             </div>
             
-            <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 flex justify-between items-center">
-               <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">Total Credit to Issue</span>
-               <span className="text-xl font-black text-amber-600">
-                 ${Number(returnItems.reduce((sum, i) => sum + (i.returnQty * i.unit_price), 0)).toLocaleString()}
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase text-slate-400">Inventory Sourcing (Exchange Items)</p>
+                <Button 
+                  variant="outline" 
+                   size="sm"
+                  className={`h-7 rounded-lg text-[9px] font-black uppercase transition-all ${isExchangeMode ? 'bg-amber-600 text-white border-amber-600' : 'text-slate-500'}`}
+                  onClick={() => setIsExchangeMode(!isExchangeMode)}
+                >
+                  {isExchangeMode ? "Close Exchange Hub" : "+ Add Exchange Items"}
+                </Button>
+              </div>
+
+              {isExchangeMode && (
+                <div className="space-y-4 animate-in slide-in-from-top duration-300">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
+                    <Input 
+                      placeholder="Search for exchange replacement..." 
+                      className="pl-10 h-10 rounded-xl border-slate-200"
+                      value={exchangeSearch}
+                      onChange={e => setExchangeSearch(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 max-h-[150px] overflow-y-auto pr-2 custom-scrollbar">
+                    {medicines.filter(m => m.name?.toLowerCase().includes(exchangeSearch.toLowerCase())).map(m => (
+                      <button 
+                        key={m.id} 
+                        className="p-2.5 rounded-xl border border-slate-100 hover:border-amber-200 hover:bg-amber-50/30 text-left transition-all group"
+                        onClick={() => {
+                          const existing = exchangeCart.find(c => c.medicineId === m.id)
+                          if (existing) {
+                            if (existing.quantity >= m.quantity) return toast.error("Stock limit")
+                             setExchangeCart(exchangeCart.map(c => c.medicineId === m.id ? { ...c, quantity: c.quantity + 1, total: (c.quantity + 1) * c.unitPrice } : c))
+                          } else {
+                            if (m.quantity < 1) return toast.error("Out of stock")
+                            setExchangeCart([...exchangeCart, { medicineId: m.id, name: m.name, quantity: 1, unitPrice: m.sellingPrice, total: m.sellingPrice }])
+                          }
+                        }}
+                      >
+                         <div className="flex justify-between items-start gap-1">
+                           <span className="text-[10px] font-black uppercase truncate">{m.name}</span>
+                           <span className="text-[9px] font-bold text-amber-600">${m.sellingPrice}</span>
+                         </div>
+                         <p className="text-[8px] text-slate-400">{m.quantity} in stock</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {exchangeCart.length > 0 && (
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Current Exchange Cart</p>
+                  <div className="space-y-2">
+                    {exchangeCart.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-xs">
+                         <div className="flex items-center gap-2">
+                            <button onClick={() => setExchangeCart(exchangeCart.filter((_, i) => i !== idx))}><X className="size-3 text-rose-400"/></button>
+                            <span className="font-bold">{item.name}</span>
+                            <span className="text-slate-400 ml-1">x{item.quantity}</span>
+                         </div>
+                         <span className="font-black">${item.total.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                 <p className="text-[8px] font-black text-amber-900 uppercase">Total Return Value</p>
+                 <p className="text-lg font-black text-amber-600">
+                   ${Number(returnItems.reduce((sum, i) => sum + (i.returnQty * i.unit_price), 0)).toLocaleString()}
+                 </p>
+              </div>
+              <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                 <p className="text-[8px] font-black text-indigo-900 uppercase">New Products Value</p>
+                 <p className="text-lg font-black text-indigo-600">
+                   ${Number(exchangeCart.reduce((sum, i) => sum + i.total, 0)).toLocaleString()}
+                 </p>
+              </div>
+            </div>
+
+            <div className={`p-4 rounded-xl border flex justify-between items-center ${
+              (returnItems.reduce((sum, i) => sum + (i.returnQty * i.unit_price), 0) - exchangeCart.reduce((sum, i) => sum + i.total, 0)) >= 0
+              ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'
+            }`}>
+               <span className="text-[10px] font-black uppercase tracking-wider">
+                 {(returnItems.reduce((sum, i) => sum + (i.returnQty * i.unit_price), 0) - exchangeCart.reduce((sum, i) => sum + i.total, 0)) >= 0 
+                 ? "Net Credit to Patient" : "Net Due from Patient"}
+               </span>
+               <span className={`text-xl font-black ${
+                 (returnItems.reduce((sum, i) => sum + (i.returnQty * i.unit_price), 0) - exchangeCart.reduce((sum, i) => sum + i.total, 0)) >= 0
+                 ? 'text-emerald-600' : 'text-rose-600'
+               }`}>
+                 ${Math.abs(returnItems.reduce((sum, i) => sum + (i.returnQty * i.unit_price), 0) - exchangeCart.reduce((sum, i) => sum + i.total, 0)).toLocaleString()}
                </span>
             </div>
 
+            {exchangeCart.length > 0 && Math.abs(returnItems.reduce((sum, i) => sum + (i.returnQty * i.unit_price), 0) - exchangeCart.reduce((sum, i) => sum + i.total, 0)) > 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase text-slate-400">Payment method for difference</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {['ZAAD', 'SAHAL', 'EDAHAB', 'MYCASH'].map(m => (
+                    <button 
+                      key={m} 
+                      className={`h-8 rounded-lg border text-[8px] font-black uppercase transition-all ${paymentMethod === m ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-500 border-slate-100'}`}
+                      onClick={() => setPaymentMethod(m)}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <Button 
-              className="w-full h-12 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black uppercase tracking-widest shadow-xl shadow-amber-200 transition-all"
+              className={`w-full h-12 rounded-xl text-white font-black uppercase tracking-widest shadow-xl transition-all ${
+                exchangeCart.length > 0 ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200' : 'bg-amber-600 hover:bg-amber-700 shadow-amber-200'
+              }`}
               onClick={handleProcessReturn}
-              disabled={loading || returnItems.every(i => i.returnQty === 0)}
+              disabled={loading || (returnItems.every(i => i.returnQty === 0) && exchangeCart.length === 0)}
             >
-              {loading ? "PROCESSING..." : "FINALIZE RETURN & RESTOCK"}
+              {loading ? "PROCESSING..." : (exchangeCart.length > 0 ? "FINALIZE EXCHANGE" : "FINALIZE RETURN & RESTOCK")}
             </Button>
           </div>
         </DialogContent>
@@ -593,229 +800,345 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
       </Dialog>
 
       <Dialog open={isSaleModalOpen} onOpenChange={setIsSaleModalOpen}>
-        <DialogContent className="sm:max-w-[95vw] w-[95vw] max-w-[1400px] h-[90vh] p-0 overflow-hidden border-none shadow-2xl rounded-3xl flex flex-col focus:outline-none">
-          <DialogHeader className="p-8 bg-slate-900 text-white">
-            <div className="flex justify-between items-start">
-              <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Point of Sale (POS) Terminal</p>
-                <DialogTitle className="text-3xl font-black italic tracking-tighter uppercase">Initialize Sale</DialogTitle>
-                <DialogDescription className="text-slate-400 font-medium tracking-tight">Standardized pharmaceutical transaction workflow</DialogDescription>
-              </div>
-              <Pill className="size-10 text-primary/30" />
-            </div>
+        <DialogContent className="sm:max-w-[95vw] w-[95vw] max-w-[1500px] h-[95vh] p-0 overflow-hidden border-none shadow-2xl rounded-3xl flex flex-col focus:outline-none">
+          {/* Advanced POS Header */}
+          <DialogHeader className="px-8 py-6 bg-white border-b flex flex-row items-center justify-between space-y-0">
+             <div className="flex items-center gap-4">
+                <div className="size-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-600">
+                   <LayoutGrid className="size-6" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl font-black italic tracking-tighter uppercase leading-none">Billing & POS</DialogTitle>
+                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.1em] mt-1">Fast Checkout Terminal</p>
+                </div>
+             </div>
+             
+             <div className="flex-1 max-w-xl mx-12">
+                <div className="relative">
+                   <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                      <QrCode className="size-4 text-slate-400" />
+                   </div>
+                   <Input 
+                      placeholder="Scan patient QR or search by name/ID..." 
+                      className="pl-12 h-12 rounded-full border-slate-200 bg-slate-50 focus:bg-white transition-all font-bold placeholder:font-medium"
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                   />
+                   {search && (
+                     <div className="absolute top-14 left-0 w-full bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 p-2 overflow-hidden">
+                        {patients.filter(p => p.firstName.toLowerCase().includes(search.toLowerCase()) || p.lastName.toLowerCase().includes(search.toLowerCase()) || p.patientId.toLowerCase().includes(search.toLowerCase())).slice(0, 5).map(p => (
+                          <button 
+                            key={p.id}
+                            className="w-full p-4 flex items-center justify-between rounded-xl hover:bg-slate-50 transition-all text-left group"
+                            onClick={() => {
+                               setSelectedPatientId(p.id)
+                               setSearch("")
+                            }}
+                          >
+                             <div>
+                               <p className="font-bold text-sm text-slate-900 leading-none">{p.firstName} {p.lastName}</p>
+                               <p className="text-[10px] text-slate-400 font-bold mt-1">{p.patientId} · {p.phone}</p>
+                             </div>
+                             <ChevronRight className="size-4 text-slate-200 group-hover:text-primary transition-all" />
+                          </button>
+                        ))}
+                     </div>
+                   )}
+                </div>
+             </div>
+
+             <div className="flex items-center gap-3">
+                <Button 
+                  variant="outline" 
+                  className={`h-11 rounded-full font-black text-[10px] uppercase tracking-widest gap-2 ${!selectedPatientId ? 'bg-slate-900 text-white border-slate-900' : 'text-slate-500'}`}
+                  onClick={() => setSelectedPatientId(null)}
+                >
+                  <UserCheck className="size-4" />
+                  Walking Customer
+                </Button>
+                <Button 
+                  variant="outline" 
+                   className="h-11 rounded-full font-black text-[10px] uppercase tracking-widest gap-2 text-slate-500"
+                   onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                >
+                  <RotateCcw className="size-4" />
+                  History
+                </Button>
+             </div>
           </DialogHeader>
 
           <div className="grid grid-cols-12 flex-1 overflow-hidden">
-            {/* Left: Search & Medicine Selection */}
-            <div className="col-span-12 md:col-span-8 p-8 flex flex-col gap-6 border-r border-slate-100">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Customer / Patient Binding</Label>
-                  <Select value={selectedPatientId || "walkin"} onValueChange={(v) => setSelectedPatientId(v === "walkin" ? null : v)}>
-                    <SelectTrigger className="h-12 rounded-2xl border-slate-200 font-bold">
-                      <SelectValue placeholder="Search Patient..." />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-2xl">
-                      <SelectItem value="walkin" className="font-bold py-3">Walk-in Customer (General)</SelectItem>
-                      {patients.map(p => (
-                        <SelectItem key={p.id} value={p.id} className="font-bold py-3">
-                          {p.firstName} {p.lastName} ({p.patientId})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {!selectedPatientId && (
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Customer Name</Label>
+            {/* Left: Product Selection */}
+            <div className="col-span-12 lg:col-span-8 flex flex-col bg-slate-50/30 overflow-hidden">
+              <div className="p-6 border-b bg-white/50 backdrop-blur-xl flex items-center justify-between gap-4">
+                 <div className="flex bg-slate-100 p-1 rounded-2xl">
+                    {['All', 'Pharmacy', 'Labs', 'Services'].map((cat: any) => (
+                      <button 
+                        key={cat}
+                        className={`px-8 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeCategory === cat ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                        onClick={() => setActiveCategory(cat)}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                 </div>
+                 <div className="relative flex-1 max-w-xs">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
                     <Input 
-                      placeholder="e.g. John Doe (Optional)" 
-                      className="h-12 rounded-2xl border-slate-200 font-bold"
-                      value={walkInName}
-                      onChange={e => setWalkInName(e.target.value)}
+                      placeholder="Search catalog items..." 
+                      className="pl-9 h-10 rounded-xl border-slate-100 bg-white shadow-sm font-bold text-xs"
                     />
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Inventory Sourcing</Label>
-                  <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-                    <Input 
-                      placeholder="Scan barcode or type medicine name..." 
-                      className="pl-12 h-14 rounded-2xl border-slate-200 font-bold bg-slate-50 focus:bg-white transition-all shadow-inner"
-                      value={search}
-                      onChange={e => setSearch(e.target.value)}
-                    />
-                  </div>
-                </div>
+                 </div>
               </div>
 
-              <ScrollArea className="flex-1 bg-white border border-slate-100 rounded-3xl shadow-inner p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                  {medicines.filter(m => m.name?.toLowerCase().includes(search.toLowerCase()) || m.genericName?.toLowerCase().includes(search.toLowerCase())).map(m => (
-                    <button 
-                      key={m.id} 
-                      className="p-4 rounded-2xl border border-transparent hover:border-primary/20 hover:bg-slate-50 transition-all flex flex-col text-left group disabled:bg-slate-50/50"
-                      onClick={() => {
-                        if (m.quantity < 1) {
-                          toast.error(`${m.name} is out of stock`)
-                          return
-                        }
-                        addToCart(m)
-                      }}
-                    >
-                      <div className="flex justify-between items-start w-full gap-2">
-                        <p className="font-bold text-slate-900 uppercase tracking-tight leading-tight">{m.name}</p>
-                        <Badge variant="outline" className={`${m.quantity > 10 ? 'text-emerald-600' : 'text-rose-600'} text-[9px] font-black border-none bg-slate-100 group-hover:bg-white`}>
-                          Stock: {m.quantity}
-                        </Badge>
-                      </div>
-                      <p className="text-[10px] text-slate-400 italic mt-1">{m.genericName}</p>
-                      <div className="mt-4 flex items-center justify-between w-full">
-                        <span className="font-black text-primary tracking-tighter">${m.sellingPrice}</span>
-                        <div className="p-1 px-3 bg-slate-900 text-white rounded-lg text-[9px] font-black opacity-0 group-hover:opacity-100 transition-all scale-90 group-hover:scale-100">
-                          + ADD ITEM
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+              <ScrollArea className="flex-1 p-8">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+                   {medicines.filter(m => activeCategory === 'All' || activeCategory === 'Pharmacy').map(m => (
+                     <Card 
+                        key={m.id} 
+                        className="rounded-3xl border-slate-100 hover:border-primary/20 hover:shadow-2xl hover:shadow-primary/5 transition-all group cursor-pointer relative overflow-hidden flex flex-col"
+                        onClick={() => addToCart(m)}
+                     >
+                       <CardContent className="p-5 flex flex-col flex-1">
+                          <div className="flex justify-between items-start mb-4">
+                             <Badge className="bg-emerald-50 text-emerald-600 font-black text-[8px] uppercase border-none rounded-lg px-2 py-0.5">Pharmacy</Badge>
+                             <Badge variant="outline" className={`font-black text-[9px] border-none rounded-lg px-2 py-0.5 ${m.quantity > 50 ? 'bg-slate-100 text-slate-400' : 'bg-rose-50 text-rose-500'}`}>
+                               {m.quantity} LEFT
+                             </Badge>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-black text-slate-900 uppercase italic tracking-tighter leading-tight line-clamp-2">{m.name}</h4>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">${m.sellingPrice}</p>
+                          </div>
+                          
+                          <div className="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-all scale-90 group-hover:scale-100">
+                             <div className="size-10 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20">
+                                <Plus className="size-5" />
+                             </div>
+                          </div>
+                       </CardContent>
+                     </Card>
+                   ))}
+                 </div>
               </ScrollArea>
             </div>
 
-            {/* Right: Cart & Payment */}
-            <div className="col-span-12 md:col-span-4 p-8 bg-slate-50 flex flex-col gap-6 overflow-y-auto">
-              <div className="flex items-center justify-between">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Order Manifest</h4>
-                <div className="font-black text-slate-900 text-xs">{cart.length} ITEMS</div>
-              </div>
-
-              <ScrollArea className="flex-1 min-h-[150px] -mx-2 px-2">
-                <div className="space-y-3">
-                  {cart.map((item, idx) => (
-                    <div key={idx} className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm relative group overflow-hidden">
-                      <div className="flex justify-between items-start mb-2">
-                        <p className="font-bold text-xs text-slate-800 line-clamp-2 pr-4 leading-tight">{item.name}</p>
-                        <button onClick={() => setCart(cart.filter((_, i) => i !== idx))} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-500 transition-all">
-                          <X className="size-4" />
-                        </button>
-                      </div>
-                      <div className="flex justify-between items-end">
-                        <div className="flex items-center gap-3">
-                          <button className="size-6 rounded-lg border border-slate-100 flex items-center justify-center text-xs font-bold hover:bg-slate-50" onClick={() => {
-                            if (item.quantity > 1) {
-                              setCart(cart.map((c, i) => i === idx ? { ...c, quantity: c.quantity - 1, total: (c.quantity - 1) * c.unitPrice } : c))
-                            }
-                          }}>-</button>
-                          <span className="font-black text-xs min-w-4 text-center">{item.quantity}</span>
-                          <button className="size-6 rounded-lg border border-slate-100 flex items-center justify-center text-xs font-bold hover:bg-slate-50" onClick={() => {
-                            const med = medicines.find(m => m.id === item.medicineId)
-                            if (med && item.quantity < med.quantity) {
-                              setCart(cart.map((c, i) => i === idx ? { ...c, quantity: c.quantity + 1, total: (c.quantity + 1) * c.unitPrice } : c))
-                            } else {
-                              toast.error("Max stock reached")
-                            }
-                          }}>+</button>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] text-slate-400">${item.unitPrice} ea</p>
-                          <p className="font-black text-sm text-slate-900">${Number(item.total || 0).toLocaleString()}</p>
-                        </div>
-                      </div>
+            {/* Right: Order Summary */}
+            <div className="col-span-12 lg:col-span-4 bg-white border-l flex flex-col overflow-hidden">
+               <div className="p-8 border-b bg-slate-50/50 flex flex-col gap-6">
+                  {selectedPatientId ? (
+                    <div className="flex items-center gap-4 bg-emerald-50 p-4 rounded-3xl border border-emerald-100/50 animate-in fade-in zoom-in duration-300">
+                       <div className="size-12 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm">
+                          <User className="size-6" />
+                       </div>
+                       <div>
+                          <p className="text-[10px] font-black uppercase text-emerald-600 tracking-wider">Active Patient Session</p>
+                          <h4 className="font-black text-slate-900 leading-none uppercase italic tracking-tighter">
+                            {patients.find(p => p.id === selectedPatientId)?.firstName} {patients.find(p => p.id === selectedPatientId)?.lastName}
+                          </h4>
+                       </div>
                     </div>
-                  ))}
-                  {cart.length === 0 && (
-                    <div className="py-20 text-center flex flex-col items-center gap-3">
-                      <ShoppingBag className="size-10 text-slate-200" />
-                      <p className="text-xs text-slate-400 font-medium">Cart is currently empty.</p>
+                  ) : (
+                    <div className="flex items-center gap-4 bg-slate-100/50 p-4 rounded-3xl border border-slate-200/50">
+                       <div className="size-12 bg-white rounded-2xl flex items-center justify-center text-slate-400">
+                          <ShoppingBag className="size-6" />
+                       </div>
+                       <div>
+                          <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Checkout Mode</p>
+                          <h4 className="font-black text-slate-900 leading-none uppercase italic tracking-tighter">Quick Sale / Walk-In</h4>
+                       </div>
                     </div>
                   )}
-                </div>
-              </ScrollArea>
 
-              <Separator className="bg-slate-200" />
-
-              <div className="space-y-4 pt-2">
-                <div className="flex justify-between items-center px-2">
-                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total Payable</span>
-                  <span className="text-2xl font-black text-slate-900 tracking-tighter">${Number(cartTotal || 0).toLocaleString()}</span>
-                </div>
-
-                {selectedPatientId && patientCredit > 0 && (
-                  <div className="flex items-center justify-between px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-xl">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black uppercase text-indigo-600 tracking-widest">Available Credit</span>
-                      <span className="text-sm font-bold text-indigo-900">${Number(patientCredit || 0).toLocaleString()}</span>
+                  {isLoadingCharges ? (
+                    <div className="flex items-center gap-3 animate-pulse">
+                       <Activity className="size-4 text-primary animate-spin" />
+                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Checking for prescriptions...</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="use-credit" className="text-[10px] font-bold text-indigo-700">Apply Credit</Label>
-                      <input 
-                        type="checkbox" 
-                        id="use-credit"
-                        checked={useCredit}
-                        onChange={(e) => setUseCredit(e.target.checked)}
-                        className="size-4 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
-                      />
+                  ) : pendingCharges.length > 0 && (
+                    <div className="flex items-center gap-2 bg-primary/5 text-primary px-3 py-1.5 rounded-full w-fit animate-in slide-in-from-right duration-500">
+                       <CheckCircle2 className="size-3.5" />
+                       <span className="text-[9px] font-black uppercase tracking-widest">Loaded {pendingCharges.length} pending charges automatically</span>
                     </div>
-                  </div>
-                )}
-                {useCredit && (
-                  <div className="flex justify-between items-center px-2 py-1 bg-rose-50 rounded-lg text-rose-700">
-                    <span className="text-[10px] font-black uppercase tracking-widest">Credit Applied</span>
-                    <span className="text-sm font-black">-${Number(Math.min(patientCredit, cartTotal) || 0).toLocaleString()}</span>
-                  </div>
-                )}
-                {useCredit && (
-                  <div className="flex justify-between items-center px-2 pt-2 border-t border-slate-200">
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Net Payable</span>
-                    <span className="text-xl font-black text-rose-600 tracking-tighter">${Number((cartTotal - (useCredit ? Math.min(patientCredit, cartTotal) : 0)) || 0).toLocaleString()}</span>
-                  </div>
-                )}
+                  )}
+               </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  {['ZAAD', 'SAHAL', 'EDAHAB', 'MYCASH'].map(m => (
-                    <button 
-                      key={m} 
-                      className={`h-11 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex flex-col items-center justify-center gap-1 ${paymentMethod === m ? 'bg-slate-900 text-white border-slate-900 shadow-xl scale-105' : 'bg-white text-slate-500 border-slate-100 hover:border-slate-300'}`}
-                      onClick={() => setPaymentMethod(m)}
+               <ScrollArea className="flex-1 p-8">
+                  <div className="space-y-4">
+                    {cart.map((item, idx) => (
+                      <div key={item.id} className="group relative flex items-center justify-between p-4 rounded-3xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 transition-all">
+                         <div className="flex items-center gap-4 flex-1">
+                            <div className={`p-2 rounded-xl ${item.category === 'Laboratory' ? 'bg-rose-50 text-rose-500' : 'bg-primary/5 text-primary'}`}>
+                               {item.type === 'medicine' || !item.type ? <Pill className="size-4" /> : item.type === 'lab' ? <Activity className="size-4" /> : <Stethoscope className="size-4" />}
+                            </div>
+                            <div>
+                               <h5 className="font-black text-xs text-slate-900 uppercase leading-tight line-clamp-1">{item.name}</h5>
+                               <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mt-0.5">${item.unitPrice} / unit</p>
+                            </div>
+                         </div>
+                         
+                         <div className="flex items-center gap-4">
+                            <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+                               <button 
+                                 className="size-7 rounded-lg hover:bg-slate-100 flex items-center justify-center transition-all disabled:opacity-30"
+                                 onClick={() => {
+                                   if (item.quantity > 1) {
+                                      setCart(cart.map((c, i) => i === idx ? { ...c, quantity: c.quantity - 1, total: (c.quantity - 1) * c.unitPrice } : c))
+                                   }
+                                 }}
+                                 disabled={item.isFromPrescription || item.isFromLab}
+                               >
+                                  <Minus className="size-3" />
+                               </button>
+                               <span className="w-8 text-center font-black text-xs italic tracking-tighter">{item.quantity}</span>
+                               <button 
+                                 className="size-7 rounded-lg hover:bg-slate-100 flex items-center justify-center transition-all disabled:opacity-30"
+                                 onClick={() => {
+                                    setCart(cart.map((c, i) => i === idx ? { ...c, quantity: c.quantity + 1, total: (c.quantity + 1) * c.unitPrice } : c))
+                                 }}
+                                 disabled={item.isFromPrescription || item.isFromLab}
+                               >
+                                  <Plus className="size-3" />
+                               </button>
+                            </div>
+                            <div className="text-right min-w-[60px]">
+                               <p className="font-black text-sm tracking-tighter italic text-slate-900">${item.total.toLocaleString()}</p>
+                            </div>
+                            <button 
+                              className="size-8 rounded-full text-slate-200 hover:text-rose-500 transition-all"
+                              onClick={() => setCart(cart.filter(c => c.id !== item.id))}
+                            >
+                               <Trash2 className="size-4" />
+                            </button>
+                         </div>
+                      </div>
+                    ))}
+                    {cart.length === 0 && (
+                      <div className="py-20 flex flex-col items-center justify-center text-center">
+                         <div className="size-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mb-6 border border-slate-100">
+                            <ShoppingBag className="size-10" />
+                         </div>
+                         <h4 className="font-black text-slate-400 uppercase tracking-widest text-sm">Order is empty</h4>
+                         <p className="text-xs text-slate-300 font-medium mt-1">Add items from the catalog</p>
+                      </div>
+                    )}
+                  </div>
+               </ScrollArea>
+
+               <div className="p-8 border-t bg-slate-50/50 space-y-6">
+                  <div className="grid grid-cols-3 gap-6">
+                     <div className="space-y-1">
+                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Subtotal</p>
+                        <p className="text-xl font-black italic tracking-tighter text-slate-900">${cartTotal.toLocaleString()}</p>
+                     </div>
+                     <div className="space-y-1 border-x border-slate-200 px-6">
+                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Discount</p>
+                        <Input 
+                          type="number" 
+                          value={discount} 
+                          onChange={e => setDiscount(parseFloat(e.target.value) || 0)}
+                          className="h-8 border-none bg-transparent p-0 font-black text-sm italic tracking-tighter focus-visible:ring-0"
+                        />
+                     </div>
+                     <div className="space-y-1 text-right">
+                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Insurance <ShieldCheck className="inline size-3.5 mb-0.5 ml-1 opacity-20" /></p>
+                        <p className="text-xl font-black italic tracking-tighter text-slate-400">$0.00</p>
+                     </div>
+                  </div>
+
+                  <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl flex items-center justify-between border border-white/10 group overflow-hidden relative">
+                     <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500" />
+                     <div className="relative z-10">
+                        <p className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Total Due</p>
+                        <p className="text-6xl font-black italic tracking-tighter leading-none mt-2">
+                          <span className="text-primary text-4xl mr-1 font-bold italic">$</span>
+                          {Math.max(0, cartTotal - discount).toLocaleString()}
+                        </p>
+                     </div>
+                     <div className="relative z-10 size-16 bg-white/10 rounded-3xl flex items-center justify-center backdrop-blur-md border border-white/10 animate-pulse">
+                        <CreditCard className="size-8 text-white" />
+                     </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-2">
+                       {['ZAAD', 'SAHAL', 'EDAHAB', 'MYCASH', 'CREDIT'].map(m => (
+                         <button 
+                           key={m}
+                           className={`h-11 rounded-2xl border flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${paymentMethod === m ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}`}
+                           onClick={() => setPaymentMethod(m)}
+                         >
+                            {m === 'ZAAD' && <Smartphone className="size-4" />}
+                            {m === 'CREDIT' && <RotateCcw className="size-4" />}
+                            {m}
+                         </button>
+                       ))}
+                       <button className="h-11 rounded-2xl border bg-white text-slate-500 border-slate-200 hover:border-slate-400 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest">
+                          <ShieldCheck className="size-4" />
+                          Insurance
+                       </button>
+                    </div>
+
+                    {paymentMethod === 'CREDIT' && (
+                      <div className="space-y-3 p-6 bg-slate-900 rounded-[2rem] border-slate-800 animate-in slide-in-from-bottom duration-300">
+                         <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Select Credit Customer</Label>
+                         <Select onValueChange={(v) => setSelectedCreditCustomerId(v)}>
+                            <SelectTrigger className="h-12 rounded-2xl bg-white/5 border-white/10 text-white font-bold">
+                               <SelectValue placeholder="Search Account Account..." />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-2xl bg-slate-900 border-slate-800 text-white">
+                               {creditCustomers.map(c => (
+                                 <SelectItem key={c.id} value={c.id} className="font-bold py-3 hover:bg-white/5">
+                                    <div className="flex flex-col">
+                                       <span>{c.full_name}</span>
+                                       <div className="flex items-center gap-2 mt-1">
+                                          <Badge className="bg-rose-500/20 text-rose-500 font-black text-[8px] uppercase border-none rounded-md px-1.5 py-0.5">${c.outstanding_balance} owed</Badge>
+                                          <span className="text-[8px] text-slate-500 font-black uppercase">{c.customer_id}</span>
+                                       </div>
+                                    </div>
+                                 </SelectItem>
+                               ))}
+                            </SelectContent>
+                         </Select>
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Amount Received ($)</Label>
+                       <Input 
+                         type="number" 
+                         placeholder="Enter amount paid..." 
+                         className="h-12 rounded-2xl border-none shadow-inner font-black text-lg bg-white"
+                         value={amountPaid}
+                         onChange={e => setAmountPaid(e.target.value)}
+                       />
+                       {parseFloat(amountPaid) > (cartTotal - discount) && (
+                         <p className="text-emerald-600 text-[10px] font-bold px-2 flex items-center gap-1">
+                           Change: ${((parseFloat(amountPaid) || 0) - (cartTotal - discount)).toFixed(2)}
+                         </p>
+                       )}
+                       {parseFloat(amountPaid) < (cartTotal - discount) && paymentMethod !== 'CREDIT' && (
+                         <p className="text-rose-600 text-[10px] font-bold px-2 flex items-center gap-1">
+                           Due: ${((cartTotal - discount) - (parseFloat(amountPaid) || 0)).toFixed(2)}
+                         </p>
+                       )}
+                    </div>
+
+                    <Button 
+                       className="w-full h-20 rounded-[2rem] bg-slate-900 text-white font-black text-xl uppercase tracking-tighter italic shadow-2xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-between px-8 group disabled:opacity-50"
+                       onClick={handleCreateSale}
+                       disabled={loading || cart.length === 0 || (paymentMethod === 'CREDIT' && !selectedCreditCustomerId)}
                     >
-                      {m}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Amount Received ($)</Label>
-                  <Input 
-                    type="number" 
-                    placeholder="Enter amount paid..." 
-                    className="h-12 rounded-2xl border-none shadow-inner font-black text-lg bg-white"
-                    value={amountPaid}
-                    onChange={e => setAmountPaid(e.target.value)}
-                  />
-                  {parseFloat(amountPaid) > cartTotal && (
-                    <p className="text-emerald-600 text-[10px] font-bold px-2 flex items-center gap-1">
-                      Change to return: ${(parseFloat(amountPaid) - cartTotal).toFixed(2)}
-                    </p>
-                  )}
-                  {selectedPatientId && parseFloat(amountPaid) < cartTotal && (
-                    <p className="text-rose-600 text-[10px] font-bold px-2 flex items-center gap-1">
-                      Due: ${(cartTotal - (parseFloat(amountPaid) || 0)).toFixed(2)} (Will be recorded as credit)
-                    </p>
-                  )}
-                </div>
-
-                <Button 
-                   className="w-full h-14 rounded-2xl bg-primary text-white font-black text-sm shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
-                   onClick={handleCreateSale}
-                   disabled={loading || cart.length === 0}
-                >
-                  {loading ? "PROCESSING..." : "FINALIZE TRANSACTION"}
-                  <ArrowRight className="size-5 ml-4" />
-                </Button>
-              </div>
+                      <div className="flex items-center gap-4">
+                         <div className="size-10 bg-emerald-500 rounded-full flex items-center justify-center group-hover:animate-bounce">
+                            <CheckCircle2 className="size-6 text-white" />
+                         </div>
+                         <span>TENDER ${(cartTotal - discount).toLocaleString()}</span>
+                      </div>
+                      <ArrowRight className="size-6 text-white/20 group-hover:text-white transition-all" />
+                    </Button>
+                  </div>
+               </div>
             </div>
           </div>
         </DialogContent>
