@@ -125,6 +125,15 @@ router.delete('/:id', async (req, res) => {
         const pid = req.params.id;
         db.prepare('BEGIN TRANSACTION').run();
         
+        // 1. Audit Logs for Lab Tests
+        await db.prepare('DELETE FROM lab_audit_logs WHERE lab_test_id IN (SELECT id FROM lab_tests WHERE patient_id = ?)').run(pid);
+        
+        // 2. Pharmacy Returns and Items
+        await db.prepare('DELETE FROM pharmacy_returns WHERE transaction_id IN (SELECT id FROM pharmacy_transactions WHERE patient_id = ?)').run(pid);
+        await db.prepare('DELETE FROM pharmacy_transaction_items WHERE transaction_id IN (SELECT id FROM pharmacy_transactions WHERE patient_id = ?)').run(pid);
+        await db.prepare('DELETE FROM pharmacy_transactions WHERE patient_id = ?').run(pid);
+        
+        // 3. Other clinical records
         await db.prepare('DELETE FROM appointments WHERE patient_id = ?').run(pid);
         await db.prepare('DELETE FROM prescriptions WHERE patient_id = ?').run(pid);
         await db.prepare('DELETE FROM lab_tests WHERE patient_id = ?').run(pid);
@@ -136,7 +145,9 @@ router.delete('/:id', async (req, res) => {
         await db.prepare('DELETE FROM doctor_rounds WHERE patient_id = ?').run(pid);
         await db.prepare('DELETE FROM patient_insurance_policies WHERE patient_id = ?').run(pid);
         await db.prepare('DELETE FROM insurance_claims WHERE patient_id = ?').run(pid);
-
+        await db.prepare('DELETE FROM patient_credits WHERE patient_id = ?').run(pid);
+        
+        // 4. Finally delete patient
         await db.prepare('DELETE FROM patients WHERE id = ?').run(pid);
         
         db.prepare('COMMIT').run();

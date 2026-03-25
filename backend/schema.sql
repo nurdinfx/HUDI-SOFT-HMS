@@ -64,9 +64,9 @@ CREATE TABLE IF NOT EXISTS doctors (
 CREATE TABLE IF NOT EXISTS appointments (
     id UUID PRIMARY KEY,
     appointment_id TEXT UNIQUE,
-    patient_id UUID REFERENCES patients(id),
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
     patient_name TEXT,
-    doctor_id UUID REFERENCES doctors(id),
+    doctor_id UUID REFERENCES doctors(id) ON DELETE CASCADE,
     doctor_name TEXT,
     department TEXT,
     date DATE,
@@ -98,9 +98,9 @@ CREATE TABLE IF NOT EXISTS medicines (
 CREATE TABLE IF NOT EXISTS prescriptions (
     id UUID PRIMARY KEY,
     prescription_id TEXT UNIQUE,
-    patient_id UUID REFERENCES patients(id),
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
     patient_name TEXT,
-    doctor_id UUID REFERENCES doctors(id),
+    doctor_id UUID REFERENCES doctors(id) ON DELETE CASCADE,
     doctor_name TEXT,
     appointment_id UUID,
     date DATE DEFAULT CURRENT_DATE,
@@ -115,9 +115,9 @@ CREATE TABLE IF NOT EXISTS prescriptions (
 CREATE TABLE IF NOT EXISTS lab_tests (
     id UUID PRIMARY KEY,
     test_id TEXT UNIQUE,
-    patient_id UUID REFERENCES patients(id),
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
     patient_name TEXT,
-    doctor_id UUID REFERENCES doctors(id),
+    doctor_id UUID REFERENCES doctors(id) ON DELETE CASCADE,
     doctor_name TEXT,
     test_name TEXT,
     test_category TEXT,
@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS lab_catalog (
 -- 9. Lab Audit Logs
 CREATE TABLE IF NOT EXISTS lab_audit_logs (
     id UUID PRIMARY KEY,
-    lab_test_id UUID REFERENCES lab_tests(id),
+    lab_test_id UUID REFERENCES lab_tests(id) ON DELETE CASCADE,
     action TEXT,
     performed_by TEXT,
     details TEXT,
@@ -168,7 +168,7 @@ CREATE TABLE IF NOT EXISTS lab_audit_logs (
 CREATE TABLE IF NOT EXISTS invoices (
     id UUID PRIMARY KEY,
     invoice_id TEXT UNIQUE,
-    patient_id UUID REFERENCES patients(id),
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
     patient_name TEXT,
     date DATE DEFAULT CURRENT_DATE,
     due_date DATE,
@@ -189,9 +189,9 @@ CREATE TABLE IF NOT EXISTS invoices (
 CREATE TABLE IF NOT EXISTS opd_visits (
     id UUID PRIMARY KEY,
     visit_id TEXT UNIQUE,
-    patient_id UUID REFERENCES patients(id),
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
     patient_name TEXT,
-    doctor_id UUID REFERENCES doctors(id),
+    doctor_id UUID REFERENCES doctors(id) ON DELETE CASCADE,
     doctor_name TEXT,
     department TEXT,
     date DATE DEFAULT CURRENT_DATE,
@@ -214,9 +214,9 @@ CREATE TABLE IF NOT EXISTS opd_visits (
 CREATE TABLE IF NOT EXISTS ipd_admissions (
     id UUID PRIMARY KEY,
     admission_id TEXT UNIQUE,
-    patient_id UUID REFERENCES patients(id),
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
     patient_name TEXT,
-    doctor_id UUID REFERENCES doctors(id),
+    doctor_id UUID REFERENCES doctors(id) ON DELETE CASCADE,
     doctor_name TEXT,
     department TEXT,
     ward UUID,
@@ -255,8 +255,8 @@ CREATE TABLE IF NOT EXISTS beds (
 -- 15. Nurse Notes
 CREATE TABLE IF NOT EXISTS nurse_notes (
     id UUID PRIMARY KEY,
-    admission_id UUID REFERENCES ipd_admissions(id),
-    patient_id UUID,
+    admission_id UUID REFERENCES ipd_admissions(id) ON DELETE CASCADE,
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
     patient_name TEXT,
     nurse_id UUID,
     nurse_name TEXT,
@@ -270,8 +270,8 @@ CREATE TABLE IF NOT EXISTS nurse_notes (
 -- 16. Doctor Rounds
 CREATE TABLE IF NOT EXISTS doctor_rounds (
     id UUID PRIMARY KEY,
-    admission_id UUID REFERENCES ipd_admissions(id),
-    patient_id UUID,
+    admission_id UUID REFERENCES ipd_admissions(id) ON DELETE CASCADE,
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
     patient_name TEXT,
     doctor_id UUID,
     doctor_name TEXT,
@@ -350,8 +350,8 @@ CREATE TABLE IF NOT EXISTS insurance_companies (
 -- 22. Patient Insurance Policies
 CREATE TABLE IF NOT EXISTS patient_insurance_policies (
     id UUID PRIMARY KEY,
-    patient_id UUID REFERENCES patients(id),
-    company_id UUID REFERENCES insurance_companies(id),
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+    company_id UUID REFERENCES insurance_companies(id) ON DELETE CASCADE,
     company_name TEXT,
     policy_number TEXT,
     coverage_type TEXT,
@@ -367,7 +367,7 @@ CREATE TABLE IF NOT EXISTS patient_insurance_policies (
 CREATE TABLE IF NOT EXISTS insurance_claims (
     id UUID PRIMARY KEY,
     claim_id TEXT UNIQUE,
-    patient_id UUID REFERENCES patients(id),
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
     patient_name TEXT,
     insurance_company TEXT,
     policy_number TEXT,
@@ -393,11 +393,11 @@ ON CONFLICT (id) DO NOTHING;
 -- 24. Daily Operations
 CREATE TABLE IF NOT EXISTS daily_operations (
     id UUID PRIMARY KEY,
-    employee_id UUID REFERENCES employees(id),
+    employee_id UUID REFERENCES users(id) ON DELETE CASCADE,
     employee_name TEXT NOT NULL,
     department TEXT,
     transaction_type TEXT NOT NULL,
-    lab_test_id UUID REFERENCES lab_catalog(id),
+    lab_test_id UUID REFERENCES lab_catalog(id) ON DELETE CASCADE,
     lab_test_name TEXT,
     amount NUMERIC DEFAULT 0,
     description TEXT,
