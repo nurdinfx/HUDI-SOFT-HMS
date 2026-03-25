@@ -87,6 +87,23 @@ export default function RootLayout({
                     }
                   );
                 });
+
+                // Global suppression for MetaMask and other external extension errors
+                window.addEventListener('unhandledrejection', (event) => {
+                  const msg = event.reason?.message || String(event.reason || '');
+                  if (msg.includes('MetaMask') || msg.includes('inpage.js')) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }
+                });
+                window.addEventListener('error', (event) => {
+                  const msg = event.message || '';
+                  if (msg.includes('MetaMask') || (event.filename && event.filename.includes('inpage.js'))) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }
+                }, true);
+
               }
             `,
           }}
