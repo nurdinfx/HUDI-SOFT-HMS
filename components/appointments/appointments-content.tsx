@@ -132,6 +132,8 @@ export function AppointmentsContent({
               color: #000;
             }
             .header { text-align: center; margin-bottom: 5mm; border-bottom: 1px dashed #ccc; padding-bottom: 3mm; }
+            .logo-container { margin-bottom: 2mm; }
+            .hospital-logo { max-width: 30mm; max-height: 15mm; object-fit: contain; }
             .hospital-name { font-weight: bold; font-size: 12pt; text-transform: uppercase; display: block; }
             .tagline { font-size: 8pt; color: #666; display: block; margin-top: 1mm; }
             .contact { font-size: 8pt; color: #444; display: block; margin-top: 1mm; }
@@ -145,6 +147,11 @@ export function AppointmentsContent({
         </head>
         <body>
           <div class="header">
+            ${settings?.logo ? `
+              <div class="logo-container">
+                <img src="${settings.logo}" class="hospital-logo" alt="Logo" />
+              </div>
+            ` : ''}
             <span class="hospital-name">${settings?.name || 'HUDI SOFT HSM'}</span>
             ${settings?.tagline ? `<span class="tagline">${settings.tagline}</span>` : ''}
             <span class="contact">${settings?.address || ''}</span>

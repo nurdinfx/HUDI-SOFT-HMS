@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { Upload } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,6 +18,25 @@ interface SettingsContentProps {
 export function SettingsContent({ settings }: SettingsContentProps) {
   const [form, setForm] = useState(settings)
   const [isSaving, setIsSaving] = useState(false)
+  const [logoPreview, setLogoPreview] = useState<string | null>(settings.logo || null)
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Logo file size must be less than 2MB")
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const base64 = reader.result as string
+      setLogoPreview(base64)
+      setForm((p) => ({ ...p, logo: base64 }))
+    }
+    reader.readAsDataURL(file)
+  }
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -36,11 +56,63 @@ export function SettingsContent({ settings }: SettingsContentProps) {
         title="Hospital Settings"
         description="Manage hospital information and preferences"
       />
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">General</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="md:col-span-1">
+          <CardHeader>
+            <CardTitle className="text-base">Hospital Logo</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center gap-4">
+            <div className="size-40 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden bg-slate-50 relative group">
+              {logoPreview ? (
+                <>
+                  <img src={logoPreview} alt="Logo" className="w-full h-full object-contain p-2" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Button 
+                      variant="destructive" 
+                      size="sm" 
+                      className="h-8 text-[10px] font-bold"
+                      onClick={() => {
+                        setLogoPreview(null)
+                        setForm(p => ({ ...p, logo: "" }))
+                      }}
+                    >
+                      REMOVE
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center p-4">
+                  <div className="mx-auto size-10 rounded-full bg-slate-100 flex items-center justify-center mb-2">
+                    <Upload className="size-5 text-slate-400" />
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No Logo Uploaded</p>
+                </div>
+              )}
+            </div>
+            <div className="w-full">
+              <Label htmlFor="logo-upload" className="cursor-pointer">
+                <div className="w-full h-10 rounded-xl bg-slate-900 text-white text-xs font-bold flex items-center justify-center hover:bg-slate-800 transition-colors">
+                  CHOOSE LOGO
+                </div>
+              </Label>
+              <input 
+                id="logo-upload" 
+                type="file" 
+                className="hidden" 
+                accept="image/*" 
+                onChange={handleLogoChange} 
+              />
+              <p className="text-[9px] text-slate-400 text-center mt-2 font-medium">Recommended: Square PNG/JPG, Max 2MB</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base">General Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
           <div className="grid gap-2">
             <Label>Hospital Name</Label>
             <Input
@@ -153,6 +225,7 @@ export function SettingsContent({ settings }: SettingsContentProps) {
           </Button>
         </CardContent>
       </Card>
+      </div>
     </div>
   )
 }

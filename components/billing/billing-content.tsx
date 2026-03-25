@@ -47,10 +47,11 @@ import { billingApi, insuranceApi, type Invoice, type Patient, type InsurancePol
 interface BillingContentProps {
   invoices?: Invoice[]
   patients?: Patient[]
+  settings?: any
   onRefresh?: () => void
 }
 
-export function BillingContent({ invoices = [], patients = [], onRefresh = () => { } }: BillingContentProps) {
+export function BillingContent({ invoices = [], patients = [], settings, onRefresh = () => { } }: BillingContentProps) {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
@@ -393,6 +394,7 @@ export function BillingContent({ invoices = [], patients = [], onRefresh = () =>
                 -webkit-print-color-adjust: exact;
               }
               .no-print { display: none !important; }
+              .hospital-logo { max-height: 80px; width: auto; object-fit: contain; margin-bottom: 1rem; }
             }
           `}</style>
 
@@ -408,8 +410,11 @@ export function BillingContent({ invoices = [], patients = [], onRefresh = () =>
                     <Badge className="bg-emerald-500 text-white border-none mb-4 px-3 py-1 text-xs font-black tracking-widest uppercase">
                       Official Invoice
                     </Badge>
-                    <h2 className="text-3xl font-black tracking-tighter mb-1 uppercase">MedCore Clinical Center</h2>
-                    <p className="text-slate-400 text-sm font-medium tracking-tight">Main Billing & Financial Department</p>
+                    {settings?.logo && (
+                      <img src={settings.logo} alt="Logo" className="hospital-logo" />
+                    )}
+                    <h2 className="text-3xl font-black tracking-tighter mb-1 uppercase">{settings?.name || 'Hudi Hospital'}</h2>
+                    <p className="text-slate-400 text-sm font-medium tracking-tight">{settings?.tagline || 'Main Billing & Financial Department'}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-mono text-[10px] text-slate-400 mb-1 tracking-widest uppercase">Invoice Number</p>
