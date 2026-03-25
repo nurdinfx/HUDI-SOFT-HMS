@@ -183,8 +183,7 @@ export function AppointmentsContent({
           </div>
           
           <div class="footer">
-            Please arrive 15 minutes early.<br>
-            Thank you for choosing us!
+            POWERED BY HUDI-SOFT
           </div>
 
           <script>
