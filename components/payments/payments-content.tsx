@@ -72,10 +72,17 @@ export function PaymentsContent({ payments, onRefresh }: PaymentsContentProps) {
     }, [payments, search, method])
 
     const stats = useMemo(() => {
-        const total = payments.reduce((acc, curr) => acc + curr.amount, 0)
-        const today = payments.filter(p => p.date === format(new Date(), "yyyy-MM-dd")).reduce((acc, curr) => acc + curr.amount, 0)
-        const cash = payments.filter(p => p.method === 'cash').reduce((acc, curr) => acc + curr.amount, 0)
-        const online = payments.filter(p => p.method !== 'cash').length
+        const todayStr = format(new Date(), "yyyy-MM-dd")
+        const total = payments.reduce((acc, curr) => acc + Number(curr.amount || 0), 0)
+        const today = payments.filter(p => {
+            try {
+                return format(new Date(p.date), "yyyy-MM-dd") === todayStr
+            } catch {
+                return p.date?.includes(todayStr)
+            }
+        }).reduce((acc, curr) => acc + Number(curr.amount || 0), 0)
+        const cash = payments.filter(p => (p.method || "").toLowerCase() === 'cash').reduce((acc, curr) => acc + Number(curr.amount || 0), 0)
+        const online = payments.filter(p => (p.method || "").toLowerCase() !== 'cash').length
 
         return { total, today, cash, online }
     }, [payments])
@@ -192,7 +199,7 @@ export function PaymentsContent({ payments, onRefresh }: PaymentsContentProps) {
                                         <StatusBadge status={p.method} />
                                     </TableCell>
                                     <TableCell className="font-bold text-emerald-600 dark:text-emerald-400">
-                                        ${p.amount.toLocaleString()}
+                                        ${Number(p.amount || 0).toLocaleString()}
                                     </TableCell>
                                     <TableCell className="max-w-[200px] truncate text-muted-foreground">
                                         {p.description}
