@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { Plus, Search, Eye, Stethoscope, BedDouble, Check, CheckCheck } from "lucide-react"
+import { Plus, Search, Eye, Stethoscope, BedDouble, Check, CheckCheck, Printer } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
-import { appointmentsApi, type Appointment, type Doctor, type Patient } from "@/lib/api"
+import { appointmentsApi, type Appointment, type Doctor, type Patient, type HospitalSettings } from "@/lib/api"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth-context"
 
@@ -56,6 +56,7 @@ interface Props {
   onRefresh?: () => void
   initialPatientId?: string | null
   initialDoctorId?: string | null
+  settings?: HospitalSettings | null
 }
 
 export function AppointmentsContent({
@@ -64,7 +65,8 @@ export function AppointmentsContent({
   patients = [],
   onRefresh,
   initialPatientId,
-  initialDoctorId
+  initialDoctorId,
+  settings
 }: Props) {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -106,7 +108,98 @@ export function AppointmentsContent({
     setPrevApptsHash(currentHash)
   }, [initial])
 
-  // Removed auto-refresh polling as requested
+  useEffect(() => {
+    // Removed auto-refresh polling as requested
+  }, [])
+
+  const handlePrintCard = (appt: Appointment) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const html = `
+      <html>
+        <head>
+          <title>Appointment Card - ${appt.appointmentId}</title>
+          <style>
+            @page { size: 58mm auto; margin: 0; }
+            body { 
+              width: 58mm; 
+              margin: 0; 
+              padding: 5mm; 
+              font-family: 'Inter', sans-serif; 
+              font-size: 10pt;
+              line-height: 1.2;
+              color: #000;
+            }
+            .header { text-align: center; margin-bottom: 5mm; border-bottom: 1px dashed #ccc; padding-bottom: 3mm; }
+            .hospital-name { font-weight: bold; font-size: 12pt; text-transform: uppercase; display: block; }
+            .tagline { font-size: 8pt; color: #666; display: block; margin-top: 1mm; }
+            .contact { font-size: 8pt; color: #444; display: block; margin-top: 1mm; }
+            .title { text-align: center; font-weight: bold; margin: 3mm 0; font-size: 11pt; text-decoration: underline; }
+            .row { display: flex; justify-content: space-between; margin-bottom: 2mm; }
+            .label { font-weight: bold; width: 40%; }
+            .value { width: 60%; text-align: right; }
+            .footer { text-align: center; margin-top: 6mm; font-size: 8pt; border-top: 1px dashed #ccc; padding-top: 3mm; }
+            .id-box { background: #eee; padding: 2mm; text-align: center; margin-top: 4mm; font-family: monospace; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <span class="hospital-name">${settings?.name || 'HUDI SOFT HSM'}</span>
+            ${settings?.tagline ? `<span class="tagline">${settings.tagline}</span>` : ''}
+            <span class="contact">${settings?.address || ''}</span>
+            <span class="contact">${settings?.phone || ''}</span>
+          </div>
+          
+          <div class="title">APPOINTMENT CARD</div>
+          
+          <div class="row">
+            <span class="label">Patient:</span>
+            <span class="value">${appt.patientName}</span>
+          </div>
+          <div class="row">
+            <span class="label">Doctor:</span>
+            <span class="value">Dr. ${appt.doctorName}</span>
+          </div>
+          <div class="row">
+            <span class="label">Dept:</span>
+            <span class="value">${appt.department}</span>
+          </div>
+          <div class="row">
+            <span class="label">Date:</span>
+            <span class="value">${appt.date}</span>
+          </div>
+          <div class="row">
+            <span class="label">Time:</span>
+            <span class="value">${appt.time}</span>
+          </div>
+          <div class="row">
+            <span class="label">Type:</span>
+            <span class="value" style="text-transform: capitalize;">${appt.type.replace('-', ' ')}</span>
+          </div>
+          
+          <div class="id-box">
+            ID: ${appt.appointmentId}
+          </div>
+          
+          <div class="footer">
+            Please arrive 15 minutes early.<br>
+            Thank you for choosing us!
+          </div>
+
+          <script>
+            window.onload = () => {
+              window.print();
+              setTimeout(() => window.close(), 500);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
 
   const handleDoctorView = async (appointment: Appointment) => {
     if (user?.role === 'doctor' && !appointment.isViewedByDoctor) {
@@ -314,6 +407,9 @@ export function AppointmentsContent({
                       <Link href={`/ipd?patientId=${a.patientId}&doctorId=${a.doctorId}`}>
                         <BedDouble className="size-4 text-emerald-600" />
                       </Link>
+                    </Button>
+                    <Button variant="ghost" size="icon" title="Print Appointment Card" onClick={() => handlePrintCard(a)}>
+                      <Printer className="size-4 text-orange-600" />
                     </Button>
                   </TableCell>
                 </TableRow>

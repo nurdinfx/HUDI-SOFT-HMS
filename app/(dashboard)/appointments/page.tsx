@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
-import { appointmentsApi, doctorsApi, patientsApi } from "@/lib/api"
+import { appointmentsApi, doctorsApi, patientsApi, settingsApi } from "@/lib/api"
 import type { Appointment, Doctor, Patient } from "@/lib/api"
 import { AppointmentsContent } from "@/components/appointments/appointments-content"
 
@@ -10,16 +10,19 @@ function AppointmentsContentWrapper() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [patients, setPatients] = useState<Patient[]>([])
+  const [settings, setSettings] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-
+ 
   const fetchData = () => {
     setLoading(true)
     Promise.all([
       appointmentsApi.getAll().then((a) => setAppointments(Array.isArray(a) ? a : [])).catch(() => setAppointments([])),
       doctorsApi.getAll().then((d) => setDoctors(Array.isArray(d) ? d : [])).catch(() => setDoctors([])),
       patientsApi.getAll().then((p) => setPatients(Array.isArray(p) ? p : [])).catch(() => setPatients([])),
+      settingsApi.get().catch(() => null).then(setSettings),
     ]).finally(() => setLoading(false))
   }
+
 
   useEffect(() => {
     fetchData()
@@ -35,6 +38,7 @@ function AppointmentsContentWrapper() {
       appointments={appointments}
       doctors={doctors}
       patients={patients}
+      settings={settings}
       onRefresh={fetchData}
       initialPatientId={initialPatientId}
       initialDoctorId={initialDoctorId}
