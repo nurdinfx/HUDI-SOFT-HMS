@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
 const { authenticate, logAction } = require('../middleware/auth');
@@ -191,6 +191,7 @@ router.post('/transactions', async (req, res) => {
                 }
             }
         }
+    }
 
         // Handle Credit Module Integration
         if (paymentMethod === 'credit' && creditCustomerId) {
