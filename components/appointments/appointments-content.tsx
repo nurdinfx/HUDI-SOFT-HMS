@@ -106,12 +106,7 @@ export function AppointmentsContent({
     setPrevApptsHash(currentHash)
   }, [initial])
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (onRefresh) onRefresh()
-    }, 15000); // 15 seconds polling
-    return () => clearInterval(interval);
-  }, [onRefresh])
+  // Removed auto-refresh polling as requested
 
   const handleDoctorView = async (appointment: Appointment) => {
     if (user?.role === 'doctor' && !appointment.isViewedByDoctor) {
