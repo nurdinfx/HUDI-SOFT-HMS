@@ -77,8 +77,14 @@ router.post('/', async (req, res) => {
         const patient = await db.prepare('SELECT * FROM patients WHERE id = ?').get(patientId);
         if (!patient) return res.status(404).json({ error: 'Patient not found' });
 
-        const countData = await db.prepare('SELECT COUNT(*) as c FROM invoices').get();
-        const invId = `INV-${String(parseInt(countData.c) + 1).padStart(4, '0')}`;
+        const maxIdData = await db.prepare('SELECT invoice_id FROM invoices ORDER BY invoice_id DESC LIMIT 1').get();
+        let nextNumber = 1;
+        if (maxIdData && maxIdData.invoice_id) {
+            const lastNumber = parseInt(maxIdData.invoice_id.split('-')[1]);
+            if (!isNaN(lastNumber)) nextNumber = lastNumber + 1;
+        }
+        const invId = `INV-${String(nextNumber).padStart(4, '0')}`;
+
 
         const subtotal = items.reduce((s, item) => s + (item.total || item.quantity * item.unitPrice || 0), 0);
         const settings = await db.prepare('SELECT tax_rate FROM hospital_settings WHERE id = 1').get();

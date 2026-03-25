@@ -51,9 +51,14 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ error: 'Required fields: firstName, lastName, dateOfBirth, gender, phone' });
     }
     try {
-        const countData = await db.prepare('SELECT COUNT(*) as c FROM patients').get();
-        const count = parseInt(countData.c);
-        const patientId = `PAT-${String(count + 1).padStart(4, '0')}`;
+        const maxIdData = await db.prepare('SELECT patient_id FROM patients ORDER BY patient_id DESC LIMIT 1').get();
+        let nextNumber = 1;
+        if (maxIdData && maxIdData.patient_id) {
+            const lastNumber = parseInt(maxIdData.patient_id.split('-')[1]);
+            if (!isNaN(lastNumber)) nextNumber = lastNumber + 1;
+        }
+        const patientId = `PAT-${String(nextNumber).padStart(4, '0')}`;
+
         const id = uuidv4();
         await db.prepare(`INSERT INTO patients (id, patient_id, first_name, last_name, date_of_birth, gender, blood_group, phone, email, address, city, emergency_contact, emergency_phone, insurance_provider, insurance_policy_number, allergies, chronic_conditions, status, registered_at, notes)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)

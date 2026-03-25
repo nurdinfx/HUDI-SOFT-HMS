@@ -114,8 +114,13 @@ router.post('/transactions', async (req, res) => {
     
     try {
         const txId = uuidv4();
-        const countRes = await db.query('SELECT COUNT(*) as count FROM pharmacy_transactions');
-        const invoiceId = `PHARM-INV-${String(parseInt(countRes.rows[0].count) + 1).padStart(4, '0')}`;
+        const maxInvData = await db.prepare('SELECT invoice_id FROM pharmacy_transactions ORDER BY invoice_id DESC LIMIT 1').get();
+        let nextInvNumber = 1;
+        if (maxInvData && maxInvData.invoice_id) {
+            const lastInvNumber = parseInt(maxInvData.invoice_id.split('-').pop());
+            if (!isNaN(lastInvNumber)) nextInvNumber = lastInvNumber + 1;
+        }
+        const invoiceId = `PHARM-INV-${String(nextInvNumber).padStart(4, '0')}`;
         
         await db.run('BEGIN TRANSACTION');
 
@@ -305,8 +310,13 @@ router.post('/transactions/:id/return', async (req, res) => {
         let totalExchangeAmount = 0;
         if (exchangeItems && exchangeItems.length > 0) {
             const exchangeTxId = uuidv4();
-            const countRes = await db.query('SELECT COUNT(*) as count FROM pharmacy_transactions');
-            const exchangeInvoiceId = `PHARM-EXC-${String(parseInt(countRes.rows[0].count) + 1).padStart(4, '0')}`;
+            const maxExcData = await db.prepare("SELECT invoice_id FROM pharmacy_transactions WHERE invoice_id LIKE 'PHARM-EXC-%' ORDER BY invoice_id DESC LIMIT 1").get();
+            let nextExcNumber = 1;
+            if (maxExcData && maxExcData.invoice_id) {
+                const lastExcNumber = parseInt(maxExcData.invoice_id.split('-').pop());
+                if (!isNaN(lastExcNumber)) nextExcNumber = lastExcNumber + 1;
+            }
+            const exchangeInvoiceId = `PHARM-EXC-${String(nextExcNumber).padStart(4, '0')}`;
             
             // Calculate total first to insert transaction
             for (const eItem of exchangeItems) {
@@ -562,9 +572,13 @@ router.post('/prescriptions', async (req, res) => {
     try {
         const patient = await db.prepare('SELECT * FROM patients WHERE id = ?').get(patientId);
         const doctor = await db.prepare('SELECT * FROM doctors WHERE id = ?').get(doctorId);
-        const countData = await db.prepare('SELECT COUNT(*) as c FROM prescriptions').get();
-        const count = parseInt(countData.c);
-        const rxId = `RX-${String(count + 1).padStart(4, '0')}`;
+        const maxRxData = await db.prepare("SELECT prescription_id FROM prescriptions WHERE prescription_id LIKE 'RX-%' AND prescription_id NOT LIKE 'RX-OPD-%' AND prescription_id NOT LIKE 'RX-IPD-%' ORDER BY prescription_id DESC LIMIT 1").get();
+        let nextRxNumber = 1;
+        if (maxRxData && maxRxData.prescription_id) {
+            const lastRxNumber = parseInt(maxRxData.prescription_id.split('-').pop());
+            if (!isNaN(lastRxNumber)) nextRxNumber = lastRxNumber + 1;
+        }
+        const rxId = `RX-${String(nextRxNumber).padStart(4, '0')}`;
         const id = uuidv4();
         await db.prepare(`INSERT INTO prescriptions (id, prescription_id, patient_id, patient_name, doctor_id, doctor_name, appointment_id, date, diagnosis, medicines, notes, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
@@ -609,8 +623,13 @@ router.put('/prescriptions/:id/dispense', async (req, res) => {
         let totalCost = 0;
         const invoiceItems = [];
         const invId = uuidv4();
-        const invCountData = await db.prepare('SELECT COUNT(*) as c FROM invoices').get();
-        const readableId = `PH-INV-${String(parseInt(invCountData.c) + 1).padStart(5, '0')}`;
+        const maxPhInvData = await db.prepare("SELECT invoice_id FROM invoices WHERE invoice_id LIKE 'PH-INV-%' ORDER BY invoice_id DESC LIMIT 1").get();
+        let nextPhInvNumber = 1;
+        if (maxPhInvData && maxPhInvData.invoice_id) {
+            const lastPhInvNumber = parseInt(maxPhInvData.invoice_id.split('-').pop());
+            if (!isNaN(lastPhInvNumber)) nextPhInvNumber = lastPhInvNumber + 1;
+        }
+        const readableId = `PH-INV-${String(nextPhInvNumber).padStart(5, '0')}`;
 
         await db.exec('BEGIN');
 

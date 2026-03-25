@@ -74,8 +74,14 @@ router.post('/orders', async (req, res) => {
     try {
         await db.exec('BEGIN');
         const poId = uuidv4();
-        const countData = await db.prepare('SELECT COUNT(*) as c FROM pharmacy_purchase_orders').get();
-        const poNumber = `PO-${String(parseInt(countData.c) + 1).padStart(5, '0')}`;
+        const maxPoData = await db.prepare('SELECT po_number FROM pharmacy_purchase_orders ORDER BY po_number DESC LIMIT 1').get();
+        let nextPoNumber = 1;
+        if (maxPoData && maxPoData.po_number) {
+            const lastPoNumber = parseInt(maxPoData.po_number.split('-').pop());
+            if (!isNaN(lastPoNumber)) nextPoNumber = lastPoNumber + 1;
+        }
+        const poNumber = `PO-${String(nextPoNumber).padStart(5, '0')}`;
+
         
         await db.prepare('INSERT INTO pharmacy_purchase_orders (id, po_number, supplier_id, order_date, total_amount, status, notes, created_by, payment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
             .run(poId, poNumber, supplier_id, order_date || new Date().toISOString().split('T')[0], total_amount, 'pending', notes || null, req.user.name, req.body.payment_type || 'cash');

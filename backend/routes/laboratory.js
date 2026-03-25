@@ -195,14 +195,24 @@ router.post('/', async (req, res) => {
         const safeDoctorId = (doctorId && doctorId.trim() !== '') ? doctorId : null;
         const doctor = safeDoctorId ? await db.prepare('SELECT * FROM doctors WHERE id = ?').get(safeDoctorId) : null;
 
-        const countData = await db.prepare('SELECT COUNT(*) as c FROM lab_tests').get();
-        const testId = `LAB-${String(parseInt(countData.c) + 1).padStart(4, '0')}`;
+        const maxIdData = await db.prepare('SELECT test_id FROM lab_tests ORDER BY test_id DESC LIMIT 1').get();
+        let nextNumber = 1;
+        if (maxIdData && maxIdData.test_id) {
+            const lastNumber = parseInt(maxIdData.test_id.split('-')[1]);
+            if (!isNaN(lastNumber)) nextNumber = lastNumber + 1;
+        }
+        const testId = `LAB-${String(nextNumber).padStart(4, '0')}`;
         const id = uuidv4();
 
         let invoiceId = null;
         if (cost > 0) {
-            const invCountData = await db.prepare('SELECT COUNT(*) as c FROM invoices').get();
-            const invIdStr = `INV-${String(parseInt(invCountData.c) + 1).padStart(4, '0')}`;
+            const maxInvData = await db.prepare('SELECT invoice_id FROM invoices ORDER BY invoice_id DESC LIMIT 1').get();
+            let nextInvNumber = 1;
+            if (maxInvData && maxInvData.invoice_id) {
+                const lastInvNumber = parseInt(maxInvData.invoice_id.split('-')[1]);
+                if (!isNaN(lastInvNumber)) nextInvNumber = lastInvNumber + 1;
+            }
+            const invIdStr = `INV-${String(nextInvNumber).padStart(4, '0')}`;
             const invUuid = uuidv4();
             const settings = await db.prepare('SELECT tax_rate FROM hospital_settings WHERE id = 1').get();
             const taxRate = settings ? settings.tax_rate : 10;

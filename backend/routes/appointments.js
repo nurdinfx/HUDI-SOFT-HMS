@@ -49,9 +49,14 @@ router.post('/', async (req, res) => {
         const doctor = await db.prepare('SELECT * FROM doctors WHERE id = ?').get(doctorId);
         if (!patient) return res.status(404).json({ error: 'Patient not found' });
         if (!doctor) return res.status(404).json({ error: 'Doctor not found' });
-        const countData = await db.prepare('SELECT COUNT(*) as c FROM appointments').get();
-        const count = parseInt(countData.c);
-        const apptId = `APT-${String(count + 1).padStart(4, '0')}`;
+        const maxIdData = await db.prepare('SELECT appointment_id FROM appointments ORDER BY appointment_id DESC LIMIT 1').get();
+        let nextNumber = 1;
+        if (maxIdData && maxIdData.appointment_id) {
+            const lastNumber = parseInt(maxIdData.appointment_id.split('-')[1]);
+            if (!isNaN(lastNumber)) nextNumber = lastNumber + 1;
+        }
+        const apptId = `APT-${String(nextNumber).padStart(4, '0')}`;
+
         const id = uuidv4();
         await db.prepare(`INSERT INTO appointments (id, appointment_id, patient_id, patient_name, doctor_id, doctor_name, department, date, time, type, status, notes, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)

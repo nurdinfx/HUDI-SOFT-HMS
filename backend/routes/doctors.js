@@ -87,9 +87,14 @@ router.post('/', async (req, res) => {
     const { name, email, phone, specialization, department, qualification, experience, consultationFee, availableDays, availableTimeStart, availableTimeEnd, status } = req.body;
     if (!name || !email || !specialization || !department) return res.status(400).json({ error: 'name, email, specialization, department required' });
     try {
-        const countData = await db.prepare('SELECT COUNT(*) as c FROM doctors').get();
-        const count = parseInt(countData.c);
-        const doctorId = `DOC-${String(count + 1).padStart(3, '0')}`;
+        const maxIdData = await db.prepare('SELECT doctor_id FROM doctors ORDER BY doctor_id DESC LIMIT 1').get();
+        let nextNumber = 1;
+        if (maxIdData && maxIdData.doctor_id) {
+            const lastNumber = parseInt(maxIdData.doctor_id.split('-')[1]);
+            if (!isNaN(lastNumber)) nextNumber = lastNumber + 1;
+        }
+        const doctorId = `DOC-${String(nextNumber).padStart(3, '0')}`;
+
         const id = uuidv4();
         await db.prepare(`INSERT INTO doctors (id, doctor_id, name, email, phone, specialization, department, qualification, experience, consultation_fee, available_days, available_time_start, available_time_end, status, joined_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)

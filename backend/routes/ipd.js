@@ -77,8 +77,13 @@ router.post('/admissions', async (req, res) => {
         const bed = await db.prepare('SELECT * FROM beds WHERE bed_number = ?').get(bedNumber);
         if (bed && bed.status === 'occupied') return res.status(400).json({ error: 'Bed is already occupied' });
 
-        const countData = await db.prepare('SELECT COUNT(*) as c FROM ipd_admissions').get();
-        const admId = `IPD-${String(parseInt(countData.c) + 1).padStart(4, '0')}`;
+        const maxAdmData = await db.prepare('SELECT admission_id FROM ipd_admissions ORDER BY admission_id DESC LIMIT 1').get();
+        let nextAdmNumber = 1;
+        if (maxAdmData && maxAdmData.admission_id) {
+            const lastAdmNumber = parseInt(maxAdmData.admission_id.split('-').pop());
+            if (!isNaN(lastAdmNumber)) nextAdmNumber = lastAdmNumber + 1;
+        }
+        const admId = `IPD-${String(nextAdmNumber).padStart(4, '0')}`;
         const id = uuidv4();
         const today = new Date().toISOString().split('T')[0];
 
@@ -210,8 +215,13 @@ router.post('/doctor-rounds', async (req, res) => {
             .run(id, admissionId, adm.patient_id, adm.patient_name, req.user.id, req.user.name, observations, treatmentUpdates, JSON.stringify(procedureOrders || []));
 
         if (medications && Array.isArray(medications) && medications.length > 0) {
-            const pCountData = await db.prepare('SELECT COUNT(*) as c FROM prescriptions').get();
-            const pId = `RX-IPD-${String(parseInt(pCountData.c) + 1).padStart(4, '0')}`;
+            const maxRxData = await db.prepare('SELECT prescription_id FROM prescriptions ORDER BY prescription_id DESC LIMIT 1').get();
+            let nextRxNumber = 1;
+            if (maxRxData && maxRxData.prescription_id) {
+                const lastRxNumber = parseInt(maxRxData.prescription_id.split('-').pop());
+                if (!isNaN(lastRxNumber)) nextRxNumber = lastRxNumber + 1;
+            }
+            const pId = `RX-IPD-${String(nextRxNumber).padStart(4, '0')}`;
             await db.prepare('INSERT INTO prescriptions (id, prescription_id, patient_id, patient_name, doctor_id, doctor_name, diagnosis, medicines, notes, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
                 .run(uuidv4(), pId, adm.patient_id, adm.patient_name, req.user.id, req.user.name, adm.diagnosis, JSON.stringify(medications), `From IPD Round: ${observations}`, 'pending');
         }

@@ -77,8 +77,13 @@ router.post('/', async (req, res) => {
         const today = new Date().toISOString().split('T')[0];
         const tokenCountData = await db.prepare("SELECT COUNT(*) as c FROM opd_visits WHERE date = ?").get(today);
         const tokenCount = parseInt(tokenCountData.c);
-        const countData = await db.prepare('SELECT COUNT(*) as c FROM opd_visits').get();
-        const visitId = `OPD-${String(parseInt(countData.c) + 1).padStart(4, '0')}`;
+        const maxVisitData = await db.prepare('SELECT visit_id FROM opd_visits ORDER BY visit_id DESC LIMIT 1').get();
+        let nextVisitNumber = 1;
+        if (maxVisitData && maxVisitData.visit_id) {
+            const lastVisitNumber = parseInt(maxVisitData.visit_id.split('-').pop());
+            if (!isNaN(lastVisitNumber)) nextVisitNumber = lastVisitNumber + 1;
+        }
+        const visitId = `OPD-${String(nextVisitNumber).padStart(4, '0')}`;
         const id = uuidv4();
 
         await db.prepare(`INSERT INTO opd_visits (id, visit_id, patient_id, patient_name, doctor_id, doctor_name, department, date, time, chief_complaint, vitals, status, token_number, visit_type)
@@ -170,17 +175,27 @@ router.put('/:id/consultation', async (req, res) => {
 
         if (completeVisit) {
             if (medications && Array.isArray(medications) && medications.length > 0) {
-                const pCountData = await db.prepare('SELECT COUNT(*) as c FROM prescriptions').get();
-                const rxId = `RX-OPD-${String(parseInt(pCountData.c) + 1).padStart(4, '0')}`;
+                const maxRxData = await db.prepare('SELECT prescription_id FROM prescriptions ORDER BY prescription_id DESC LIMIT 1').get();
+                let nextRxNumber = 1;
+                if (maxRxData && maxRxData.prescription_id) {
+                    const lastRxNumber = parseInt(maxRxData.prescription_id.split('-').pop());
+                    if (!isNaN(lastRxNumber)) nextRxNumber = lastRxNumber + 1;
+                }
+                const rxId = `RX-OPD-${String(nextRxNumber).padStart(4, '0')}`;
                 await db.prepare(`INSERT INTO prescriptions (id, prescription_id, patient_id, patient_name, doctor_id, doctor_name, date, diagnosis, medicines, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
                     .run(uuidv4(), rxId, row.patient_id, row.patient_name, row.doctor_id, row.doctor_name, new Date().toISOString().split('T')[0], diagnosis || 'OPD Consultation', JSON.stringify(medications), 'pending');
             }
 
-            const doctor = await db.prepare('SELECT consultation_fee FROM doctors WHERE id = ?').get(row.doctor_id);
-            const fee = doctor ? doctor.consultation_fee : 50;
-            const invCountData = await db.prepare('SELECT COUNT(*) as c FROM invoices').get();
-            const invId = `INV-OPD-${String(parseInt(invCountData.c) + 1).padStart(4, '0')}`;
+            const doc = await db.prepare('SELECT consultation_fee FROM doctors WHERE id = ?').get(row.doctor_id);
+            const fee = doc ? doc.consultation_fee : 50;
+            const maxInvData = await db.prepare('SELECT invoice_id FROM invoices ORDER BY invoice_id DESC LIMIT 1').get();
+            let nextInvNumber = 1;
+            if (maxInvData && maxInvData.invoice_id) {
+                const lastInvNumber = parseInt(maxInvData.invoice_id.split('-').pop());
+                if (!isNaN(lastInvNumber)) nextInvNumber = lastInvNumber + 1;
+            }
+            const invId = `INV-OPD-${String(nextInvNumber).padStart(4, '0')}`;
             const items = [{ description: `Consultation Fee (${row.visit_id})`, category: 'Service', quantity: 1, unitPrice: fee, total: fee }];
 
             await db.prepare(`INSERT INTO invoices (id, invoice_id, patient_id, patient_name, date, due_date, items, subtotal, tax, total, paid_amount, status)

@@ -117,8 +117,14 @@ router.post('/claims', async (req, res) => {
     if (!patientId || !insuranceCompany || !claimAmount) return res.status(400).json({ error: 'patientId, insuranceCompany, claimAmount required' });
     try {
         const patient = await db.prepare('SELECT * FROM patients WHERE id = ?').get(patientId);
-        const countData = await db.prepare('SELECT COUNT(*) as c FROM insurance_claims').get();
-        const claimId = `CLM-${String(parseInt(countData.c) + 1).padStart(4, '0')}`;
+        const maxClaimData = await db.prepare("SELECT claim_id FROM insurance_claims WHERE claim_id LIKE 'CLM-%' ORDER BY claim_id DESC LIMIT 1").get();
+        let nextClaimNumber = 1;
+        if (maxClaimData && maxClaimData.claim_id) {
+            const lastClaimNumber = parseInt(maxClaimData.claim_id.split('-').pop());
+            if (!isNaN(lastClaimNumber)) nextClaimNumber = lastClaimNumber + 1;
+        }
+        const claimId = `CLM-${String(nextClaimNumber).padStart(4, '0')}`;
+
         const id = uuidv4();
         await db.prepare(`INSERT INTO insurance_claims (id, claim_id, patient_id, patient_name, insurance_company, policy_number, invoice_id, claim_amount, status, submitted_at, policy_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)

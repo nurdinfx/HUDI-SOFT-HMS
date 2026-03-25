@@ -38,8 +38,14 @@ router.post('/', async (req, res) => {
     if (!name || !category) return res.status(400).json({ error: 'name and category required' });
 
     try {
-        const countData = await db.prepare('SELECT COUNT(*) as c FROM inventory_items').get();
-        const itemId = `INV-${String(parseInt(countData.c) + 1).padStart(4, '0')}`;
+        const maxItemData = await db.prepare("SELECT item_id FROM inventory_items WHERE item_id LIKE 'INV-%' ORDER BY item_id DESC LIMIT 1").get();
+        let nextItemNumber = 1;
+        if (maxItemData && maxItemData.item_id) {
+            const lastItemNumber = parseInt(maxItemData.item_id.split('-').pop());
+            if (!isNaN(lastItemNumber)) nextItemNumber = lastItemNumber + 1;
+        }
+        const itemId = `INV-${String(nextItemNumber).padStart(4, '0')}`;
+
         const id = uuidv4();
         const qty = parseInt(quantity) || 0;
         const rl = parseInt(reorderLevel) || 5;
