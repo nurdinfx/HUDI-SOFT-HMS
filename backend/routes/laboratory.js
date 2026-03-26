@@ -210,10 +210,13 @@ router.post('/', async (req, res) => {
             const maxInvData = await db.prepare("SELECT invoice_id FROM invoices WHERE invoice_id LIKE 'INV-%' AND invoice_id NOT LIKE 'INV-POS-%' AND invoice_id NOT LIKE 'INV-OPD-%' ORDER BY LENGTH(invoice_id) DESC, invoice_id DESC LIMIT 1").get();
             let nextInvNumber = 1;
             if (maxInvData && maxInvData.invoice_id) {
-                const lastInvNumber = parseInt(maxInvData.invoice_id.split('-').pop());
-                if (!isNaN(lastInvNumber)) nextInvNumber = lastInvNumber + 1;
+                const parts = maxInvData.invoice_id.split('-');
+                const lastPart = parts[parts.length - 1].length === 4 ? parts[parts.length - 2] : parts[parts.length - 1];
+                const lastNumber = parseInt(lastPart);
+                if (!isNaN(lastNumber)) nextInvNumber = lastNumber + 1;
             }
-            const invIdStr = `INV-${String(nextInvNumber).padStart(4, '0')}`;
+            const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+            const invIdStr = `INV-${String(nextInvNumber).padStart(4, '0')}-${randomSuffix}`;
             const invUuid = uuidv4();
             const settings = await db.prepare('SELECT tax_rate FROM hospital_settings WHERE id = 1').get();
             const taxRate = settings ? settings.tax_rate : 10;

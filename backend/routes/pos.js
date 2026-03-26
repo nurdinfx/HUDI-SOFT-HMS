@@ -224,13 +224,20 @@ router.post('/checkout', async (req, res) => {
         const today = new Date().toISOString().split('T')[0];
 
         // Prepare Invoice Record
+        // Prepare Invoice Record with random suffix to prevent collisions during high concurrency
         const maxInvData = await db.prepare("SELECT invoice_id FROM invoices WHERE invoice_id LIKE 'INV-POS-%' ORDER BY LENGTH(invoice_id) DESC, invoice_id DESC LIMIT 1").get();
         let nextNumber = 1;
         if (maxInvData && maxInvData.invoice_id) {
-            const lastNumber = parseInt(maxInvData.invoice_id.split('-').pop());
+            const parts = maxInvData.invoice_id.split('-');
+            // Support formats like INV-POS-00001 or INV-POS-00001-ABCD
+            const lastPart = parts[parts.length - 1].length === 4 ? parts[parts.length - 2] : parts[parts.length - 1];
+            const lastNumber = parseInt(lastPart);
             if (!isNaN(lastNumber)) nextNumber = lastNumber + 1;
         }
-        const invoiceUID = `INV-POS-${String(nextNumber).padStart(5, '0')}`;
+        
+        // Add a 4-character random suffix to guarantee uniqueness even if two requests hit at once
+        const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const invoiceUID = `INV-POS-${String(nextNumber).padStart(5, '0')}-${randomSuffix}`;
         const invoiceDbId = uuidv4();
 
         // 3. Process each item and update linked modules

@@ -78,13 +78,16 @@ router.post('/', async (req, res) => {
         const patient = await db.prepare('SELECT * FROM patients WHERE id = ?').get(patientId);
         if (!patient) return res.status(404).json({ error: 'Patient not found' });
 
-        const maxIdData = await db.prepare("SELECT invoice_id FROM invoices WHERE invoice_id LIKE 'INV-%' AND invoice_id NOT LIKE 'INV-POS-%' ORDER BY LENGTH(invoice_id) DESC, invoice_id DESC LIMIT 1").get();
+        const maxIdData = await db.prepare("SELECT invoice_id FROM invoices WHERE invoice_id LIKE 'INV-%' AND invoice_id NOT LIKE 'INV-POS-%' AND invoice_id NOT LIKE 'INV-OPD-%' ORDER BY LENGTH(invoice_id) DESC, invoice_id DESC LIMIT 1").get();
         let nextNumber = 1;
         if (maxIdData && maxIdData.invoice_id) {
-            const lastNumber = parseInt(maxIdData.invoice_id.split('-').pop());
+            const parts = maxIdData.invoice_id.split('-');
+            const lastPart = parts[parts.length - 1].length === 4 ? parts[parts.length - 2] : parts[parts.length - 1];
+            const lastNumber = parseInt(lastPart);
             if (!isNaN(lastNumber)) nextNumber = lastNumber + 1;
         }
-        const invId = `INV-${String(nextNumber).padStart(4, '0')}`;
+        const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const invId = `INV-${String(nextNumber).padStart(4, '0')}-${randomSuffix}`;
 
 
         const subtotal = items.reduce((s, item) => s + (item.total || item.quantity * item.unitPrice || 0), 0);
