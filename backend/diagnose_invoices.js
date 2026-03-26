@@ -9,9 +9,9 @@ const db = require('./database');
         console.log('\n--- NEW LOGIC WOULD FIND ---');
         console.log(latest);
         
-        const schema = await db.prepare("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'invoices'").all();
-        console.log('\n--- INVOICES SCHEMA ---');
-        console.log(schema);
+        const schema2 = await db.prepare("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'hospital_settings'").all();
+        console.log('\n--- HOSPITAL_SETTINGS SCHEMA ---');
+        console.log(schema2);
         
         process.exit(0);
     } catch (e) {

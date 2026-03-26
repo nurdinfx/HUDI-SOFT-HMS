@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { AuthProvider } from '@/lib/auth-context'
 import { Toaster } from 'sonner'
 import { PwaInstallPrompt } from '@/components/pwa-install-prompt'
+import { TrialGuard } from '@/components/trial-guard'
 import './globals.css'
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
@@ -70,6 +71,7 @@ export default function RootLayout({
             {children}
             <Toaster position="top-right" richColors closeButton />
             <PwaInstallPrompt />
+            <TrialGuard />
           </AuthProvider>
         </ThemeProvider>
         <Analytics />
