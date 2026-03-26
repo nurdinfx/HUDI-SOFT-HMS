@@ -1,12 +1,13 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
-const { authenticate, logAction } = require('../middleware/auth');
+const { authenticate, logAction, authorize } = require('../middleware/auth');
 const { sendPushNotification } = require('../utils/push-notify');
 const { recordGranularPayment } = require('../utils/finance');
 
 const router = express.Router();
 router.use(authenticate);
+router.use(authorize(['pharmacist', 'admin']));
 
 // â”€â”€ Table Initialization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function initTables() {
@@ -114,7 +115,7 @@ router.post('/transactions', async (req, res) => {
     
     try {
         const txId = uuidv4();
-        const maxInvData = await db.prepare('SELECT invoice_id FROM pharmacy_transactions ORDER BY invoice_id DESC LIMIT 1').get();
+        const maxInvData = await db.prepare("SELECT invoice_id FROM pharmacy_transactions ORDER BY LENGTH(invoice_id) DESC, invoice_id DESC LIMIT 1").get();
         let nextInvNumber = 1;
         if (maxInvData && maxInvData.invoice_id) {
             const lastInvNumber = parseInt(maxInvData.invoice_id.split('-').pop());

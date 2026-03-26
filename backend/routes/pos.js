@@ -1,11 +1,12 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
-const { authenticate, logAction } = require('../middleware/auth');
+const { authenticate, logAction, authorize } = require('../middleware/auth');
 const { recordGranularPayment } = require('../utils/finance');
 
 const router = express.Router();
 router.use(authenticate);
+router.use(authorize(['receptionist', 'admin']));
 
 // GET /api/pos/pending/:patientId
 router.get('/pending/:patientId', async (req, res) => {
@@ -223,8 +224,13 @@ router.post('/checkout', async (req, res) => {
         const today = new Date().toISOString().split('T')[0];
 
         // Prepare Invoice Record
-        const invCountData = await db.prepare('SELECT COUNT(*) as c FROM invoices').get();
-        const invoiceUID = `INV-POS-${String(parseInt(invCountData.c) + 1).padStart(5, '0')}`;
+        const maxInvData = await db.prepare("SELECT invoice_id FROM invoices WHERE invoice_id LIKE 'INV-POS-%' ORDER BY LENGTH(invoice_id) DESC, invoice_id DESC LIMIT 1").get();
+        let nextNumber = 1;
+        if (maxInvData && maxInvData.invoice_id) {
+            const lastNumber = parseInt(maxInvData.invoice_id.split('-').pop());
+            if (!isNaN(lastNumber)) nextNumber = lastNumber + 1;
+        }
+        const invoiceUID = `INV-POS-${String(nextNumber).padStart(5, '0')}`;
         const invoiceDbId = uuidv4();
 
         // 3. Process each item and update linked modules

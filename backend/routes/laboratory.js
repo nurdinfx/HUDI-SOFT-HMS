@@ -1,10 +1,11 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
-const { authenticate, logAction } = require('../middleware/auth');
+const { authenticate, logAction, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 router.use(authenticate);
+router.use(authorize(['lab_tech', 'admin']));
 
 // ── Table Initialization ──────────────────────────────────────────────
 async function initTables() {
@@ -206,10 +207,10 @@ router.post('/', async (req, res) => {
 
         let invoiceId = null;
         if (cost > 0) {
-            const maxInvData = await db.prepare('SELECT invoice_id FROM invoices ORDER BY invoice_id DESC LIMIT 1').get();
+            const maxInvData = await db.prepare("SELECT invoice_id FROM invoices WHERE invoice_id LIKE 'INV-%' AND invoice_id NOT LIKE 'INV-POS-%' AND invoice_id NOT LIKE 'INV-OPD-%' ORDER BY LENGTH(invoice_id) DESC, invoice_id DESC LIMIT 1").get();
             let nextInvNumber = 1;
             if (maxInvData && maxInvData.invoice_id) {
-                const lastInvNumber = parseInt(maxInvData.invoice_id.split('-')[1]);
+                const lastInvNumber = parseInt(maxInvData.invoice_id.split('-').pop());
                 if (!isNaN(lastInvNumber)) nextInvNumber = lastInvNumber + 1;
             }
             const invIdStr = `INV-${String(nextInvNumber).padStart(4, '0')}`;

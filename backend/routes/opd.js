@@ -1,10 +1,11 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
-const { authenticate, logAction } = require('../middleware/auth');
+const { authenticate, logAction, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 router.use(authenticate);
+router.use(authorize(['doctor', 'receptionist', 'admin']));
 
 const fmt = (v) => ({
     id: v.id, visitId: v.visit_id, patientId: v.patient_id, patientName: v.patient_name,
@@ -189,7 +190,7 @@ router.put('/:id/consultation', async (req, res) => {
 
             const doc = await db.prepare('SELECT consultation_fee FROM doctors WHERE id = ?').get(row.doctor_id);
             const fee = doc ? doc.consultation_fee : 50;
-            const maxInvData = await db.prepare('SELECT invoice_id FROM invoices ORDER BY invoice_id DESC LIMIT 1').get();
+            const maxInvData = await db.prepare("SELECT invoice_id FROM invoices WHERE invoice_id LIKE 'INV-OPD-%' ORDER BY LENGTH(invoice_id) DESC, invoice_id DESC LIMIT 1").get();
             let nextInvNumber = 1;
             if (maxInvData && maxInvData.invoice_id) {
                 const lastInvNumber = parseInt(maxInvData.invoice_id.split('-').pop());
