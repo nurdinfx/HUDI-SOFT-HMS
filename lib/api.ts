@@ -364,6 +364,7 @@ export const revenueAnalyticsApi = {
     deleteServiceCategory: (id: string) => del<{ message: string }>(`/revenue-analytics/service-categories/${id}`),
     
     getReport: (params?: { startDate?: string; endDate?: string }) => get<RevenueReport>('/revenue-analytics/report' + toQuery(params)),
+    updateCell: (data: { date: string; department: string; category: string; amount: number | '' }) => post<{ success: boolean }>('/revenue-analytics/report/cell', data),
 };
 
 export interface Department {

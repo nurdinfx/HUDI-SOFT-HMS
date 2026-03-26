@@ -406,3 +406,14 @@ CREATE TABLE IF NOT EXISTS daily_operations (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP
 );
+
+-- 25. Manual Daily Revenue (Spreadsheet-like)
+CREATE TABLE IF NOT EXISTS manual_daily_revenue (
+    id UUID PRIMARY KEY,
+    date DATE NOT NULL,
+    department TEXT NOT NULL,
+    category TEXT NOT NULL,
+    amount NUMERIC DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(date, department, category)
+);

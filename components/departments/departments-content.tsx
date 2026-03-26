@@ -66,6 +66,48 @@ export function DepartmentsContent() {
     }
   }, [])
 
+  const [pendingSaves, setPendingSaves] = useState<Record<string, boolean>>({})
+
+  const handleCellChange = async (department: string, category: string, value: string) => {
+    if (!report) return
+    const numValue = value === "" ? "" : parseFloat(value)
+    
+    // Optimistic UI update
+    const newReport = { ...report }
+    const rowIndex = newReport.rows.findIndex(r => r.department === department)
+    if (rowIndex >= 0) {
+       const oldVal = newReport.rows[rowIndex].totals[category] || 0
+       const newVal = typeof numValue === "number" ? numValue : 0
+       
+       newReport.rows[rowIndex].totals[category] = newVal
+       newReport.rows[rowIndex].rowTotal = newReport.rows[rowIndex].rowTotal - oldVal + newVal
+       
+       newReport.columnTotals[category] = (newReport.columnTotals[category] || 0) - oldVal + newVal
+       newReport.grandTotal = newReport.grandTotal - oldVal + newVal
+       newReport.netIncome = newReport.grandTotal - (newReport.totalExpenses || 0)
+       
+       setReport(newReport)
+    }
+    
+    const cellKey = `${department}-${category}`
+    setPendingSaves(prev => ({ ...prev, [cellKey]: true }))
+    
+    try {
+       await revenueAnalyticsApi.updateCell({
+         date: reportDate,
+         department,
+         category,
+         amount: numValue
+       })
+    } catch (error) {
+       toast.error(`Failed to save value for ${department}`)
+       fetchReport(reportDate) // revert on error
+    } finally {
+       setPendingSaves(prev => ({ ...prev, [cellKey]: false }))
+    }
+  }
+
+
   const handleDeleteDepartment = async (id: string) => {
     if (!window.confirm("Delete this department?")) return
     try {
@@ -252,8 +294,22 @@ export function DepartmentsContent() {
                             {row.department}
                           </td>
                           {report.columns.map(col => (
-                            <td key={col} className="px-4 py-2.5 text-right border-r border-slate-100">
-                              {fmtNum(row.totals[col] || 0)}
+                            <td key={col} className="px-2 py-1 text-right border-r border-slate-100 relative">
+                              {pendingSaves[`${row.department}-${col}`] && (
+                                <div className="absolute inset-0 bg-white/50 animate-pulse pointer-events-none rounded" />
+                              )}
+                              <input 
+                                type="number" 
+                                defaultValue={row.totals[col] || ""}
+                                onBlur={(e) => {
+                                  const val = e.target.value;
+                                  if (parseFloat(val) !== (row.totals[col] || 0) && !(val === "" && !row.totals[col])) {
+                                     handleCellChange(row.department, col, val);
+                                  }
+                                }}
+                                className="w-full min-w-[60px] text-right bg-transparent border border-transparent hover:border-slate-300 focus:border-blue-500 focus:bg-white rounded px-2 py-1 outline-none transition-all placeholder:text-slate-300 font-semibold text-slate-700"
+                                placeholder="0"
+                              />
                             </td>
                           ))}
                           <td className="px-4 py-2.5 text-right font-black text-slate-900 bg-yellow-50">

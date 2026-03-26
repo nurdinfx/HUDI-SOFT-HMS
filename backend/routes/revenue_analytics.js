@@ -123,11 +123,11 @@ router.get('/report', async (req, res) => {
         const departments = await db.prepare('SELECT name FROM departments WHERE is_active = 1 ORDER BY name ASC').all();
         const categories = await db.prepare('SELECT name FROM service_categories WHERE is_active = 1 ORDER BY name ASC').all();
 
-        // 2. Fetch aggregated revenue data
+        // 2. Fetch manual revenue data instead of calculated data
         let query = `
-            SELECT department, category, SUM(amount) as revenue
-            FROM account_entries
-            WHERE type = 'income' AND status = 'completed'
+            SELECT department, category, amount as revenue
+            FROM manual_daily_revenue
+            WHERE 1=1
         `;
         const params = [];
         if (startDate) {
@@ -138,7 +138,6 @@ router.get('/report', async (req, res) => {
             query += ' AND date <= ?';
             params.push(endDate);
         }
-        query += ' GROUP BY department, category';
 
         const rawData = await db.prepare(query).all(...params);
 
@@ -148,8 +147,8 @@ router.get('/report', async (req, res) => {
             let deptTotal = 0;
 
             categories.forEach(cat => {
-                const match = rawData.find(d => d.department === dept.name && d.category === cat.name);
-                const val = match ? parseFloat(match.revenue) : 0;
+                const matchs = rawData.filter(d => d.department === dept.name && d.category === cat.name);
+                const val = matchs.reduce((sum, m) => sum + parseFloat(m.revenue), 0);
                 row.totals[cat.name] = val;
                 deptTotal += val;
             });
@@ -201,6 +200,33 @@ router.get('/report', async (req, res) => {
             totalExpenses,
             netIncome: grandTotal - totalExpenses
         });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /api/revenue-analytics/report/cell
+router.post('/report/cell', authorize(['admin']), async (req, res) => {
+    const { date, department, category, amount } = req.body;
+    if (!date || !department || !category) {
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+    try {
+        const id = uuidv4();
+        // Since sqlite (local) uses REPLACE or INSERT ON CONFLICT depending on version, 
+        // Postgres uses INSERT ON CONFLICT. Our wrapper converts INSERT to correct DB syntax, 
+        // but it's safer to delete and insert for compatibility across environments.
+        await db.prepare('DELETE FROM manual_daily_revenue WHERE date = ? AND department = ? AND category = ?')
+            .run(date, department, category);
+        
+        if (amount !== undefined && amount !== null && amount !== '') {
+            await db.prepare(`
+                INSERT INTO manual_daily_revenue (id, date, department, category, amount)
+                VALUES (?, ?, ?, ?, ?)
+            `).run(id, date, department, category, parseFloat(amount) || 0);
+        }
+        
+        res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
