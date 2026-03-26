@@ -100,6 +100,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
   
   // Invoice View
   const [invoiceToPrint, setInvoiceToPrint] = useState<any>(null)
+  const [invoiceItems, setInvoiceItems] = useState<any[]>([])
   const [settings, setSettings] = useState<HospitalSettings | null>(null)
 
   const fetchData = async () => {
@@ -142,6 +143,21 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
       setPendingCharges([])
     }
   }, [selectedPatientId])
+
+  useEffect(() => {
+    const fetchItems = async () => {
+      if (invoiceToPrint?.id) {
+        try {
+          const res = await pharmacyApi.getTransactionItems(invoiceToPrint.id);
+          setInvoiceItems(res);
+        } catch (e) {
+          console.error("Failed to fetch items", e);
+          setInvoiceItems([]);
+        }
+      }
+    };
+    fetchItems();
+  }, [invoiceToPrint]);
 
   const fetchCreditCustomers = async () => {
     try {
@@ -905,77 +921,91 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
           <div id="thermal-receipt-content" className="hidden">
             <div className="thermal-receipt">
               <div className="thermal-header">
+                {settings?.logo && (
+                    <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+                        <img src={settings.logo} alt="Logo" style={{ maxWidth: '80px', maxHeight: '80px' }} />
+                    </div>
+                )}
                 <div className="thermal-title">{settings?.name || "HMS PHARMACY"}</div>
                 <div className="thermal-subtitle">Official Receipt</div>
-                <div className="thermal-info" style={{ textAlign: 'center', marginTop: '2px' }}>
-                  {settings?.address} <br/> Tel: {settings?.phone}
+                <div className="thermal-payment-codes">
+                  {settings?.pharmacy_zaad && <div>ZAAD: {settings.pharmacy_zaad}</div>}
+                  {settings?.pharmacy_sahal && <div>SAHAL: {settings.pharmacy_sahal}</div>}
+                  {settings?.pharmacy_edahab && <div>EDAHAB: {settings.pharmacy_edahab}</div>}
+                  {settings?.pharmacy_mycash && <div>MYCASH: {settings.pharmacy_mycash}</div>}
                 </div>
               </div>
 
-              <div className="thermal-payment-codes">
-                {settings?.pharmacy_zaad && <div>ZAAD: {settings.pharmacy_zaad}</div>}
-                {settings?.pharmacy_sahal && <div>SAHAL: {settings.pharmacy_sahal}</div>}
-                {settings?.pharmacy_edahab && <div>EDAHAB: {settings.pharmacy_edahab}</div>}
-                {settings?.pharmacy_mycash && <div>MYCASH: {settings.pharmacy_mycash}</div>}
-              </div>
-
               <div className="thermal-info">
-                <div><span className="thermal-label">Invoice:</span> {invoiceToPrint?.invoice_id}</div>
-                <div><span className="thermal-label">Date:</span> {invoiceToPrint?.created_at && format(new Date(invoiceToPrint.created_at), "dd/MM/yyyy HH:mm")}</div>
-                <div><span className="thermal-label">Patient:</span> {invoiceToPrint?.patient_name}</div>
-                <div><span className="thermal-label">Method:</span> {invoiceToPrint?.payment_method}</div>
+                <div><span className="thermal-label">Receipt Number : </span>{invoiceToPrint?.invoice_id}</div>
+                <div><span className="thermal-label">Served By : </span>{invoiceToPrint?.created_by || 'Pharmacist'}</div>
+                <div><span className="thermal-label">Customer : </span>{invoiceToPrint?.patient_name || 'Walking Customer'}</div>
+                <div><span className="thermal-label">Date : </span>{invoiceToPrint?.created_at && format(new Date(invoiceToPrint.created_at), "dd/MM/yyyy HH:mm")}</div>
               </div>
 
               <table className="thermal-table">
                 <thead>
                   <tr>
-                    <th>Description</th>
-                    <th style={{ textAlign: 'right' }}>Total</th>
+                    <th style={{ width: '45%' }}>Item.</th>
+                    <th style={{ width: '15%', textAlign: 'center' }}>No.</th>
+                    <th style={{ width: '15%', textAlign: 'center' }}>Price.</th>
+                    <th style={{ width: '25%', textAlign: 'right' }}>Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td>{invoiceToPrint?.items_summary || "Pharmaceutical Items"}</td>
-                    <td style={{ textAlign: 'right' }}>${Number(invoiceToPrint?.total_amount || 0).toLocaleString()}</td>
-                  </tr>
+                  {invoiceItems && invoiceItems.length > 0 ? (
+                    invoiceItems.map((item, i) => (
+                      <tr key={i}>
+                        <td style={{ wordBreak: 'break-word', fontWeight: 'bold' }}>{item.medicine_name}</td>
+                        <td style={{ textAlign: 'center' }}>{item.quantity}</td>
+                        <td style={{ textAlign: 'center' }}>{Number(item.unit_price).toFixed(1)}</td>
+                        <td style={{ textAlign: 'right' }}>{Number(item.total_price).toFixed(1)}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td style={{ wordBreak: 'break-word', fontWeight: 'bold' }}>{invoiceToPrint?.items_summary || "Pharmaceutical Items"}</td>
+                      <td style={{ textAlign: 'center' }}>1</td>
+                      <td style={{ textAlign: 'center' }}>{Number(invoiceToPrint?.total_amount || 0).toFixed(1)}</td>
+                      <td style={{ textAlign: 'right' }}>{Number(invoiceToPrint?.total_amount || 0).toFixed(1)}</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
 
+              <div className="thermal-separator"></div>
+
               <div className="thermal-totals">
                 <div className="thermal-row">
-                  <span>SUBTOTAL</span>
-                  <span>${Number(invoiceToPrint?.total_amount || 0).toLocaleString()}</span>
-                </div>
-                {Number(invoiceToPrint?.discount || 0) > 0 && (
-                  <div className="thermal-row">
-                    <span>DISCOUNT</span>
-                    <span>-${Number(invoiceToPrint.discount).toLocaleString()}</span>
-                  </div>
-                )}
-                <div className="thermal-row" style={{ fontSize: '16px', marginTop: '4px', borderTop: '1px solid #000', paddingTop: '4px' }}>
-                  <span>TOTAL</span>
-                  <span>${Number((invoiceToPrint?.total_amount || 0) - (invoiceToPrint?.discount || 0)).toLocaleString()}</span>
+                  <span>Vat @ 5 %</span>
+                  <span>0.0</span>
                 </div>
                 <div className="thermal-row">
-                  <span>PAID</span>
-                  <span>${Number(invoiceToPrint?.paid_amount || 0).toLocaleString()}</span>
+                  <span>Paid Amount</span>
+                  <span>{Number(invoiceToPrint?.paid_amount || 0).toFixed(1)}</span>
                 </div>
-                <div className="thermal-row">
-                  <span>BALANCE</span>
-                  <span>${Number(invoiceToPrint?.credit_amount || 0).toLocaleString()}</span>
+                
+                <div className="thermal-separator"></div>
+                
+                <div className="thermal-row" style={{ fontSize: '13px', fontWeight: '800' }}>
+                  <span>Total : {Number((invoiceToPrint?.total_amount || 0) - (invoiceToPrint?.discount || 0)).toFixed(1)}</span>
+                  <span></span>
+                </div>
+                <div className="thermal-row" style={{ fontSize: '13px', fontWeight: '800' }}>
+                  <span>Total L/Currency : 0</span>
+                  <span></span>
                 </div>
               </div>
 
+              <div className="thermal-separator"></div>
+
               <div className="qr-container">
-                <div style={{ padding: '10px', border: '1px solid #000', borderRadius: '4px' }}>
-                   <div style={{ fontSize: '10px', fontWeight: 'bold' }}>SCAN TO VERIFY</div>
-                   <div style={{ fontSize: '8px' }}>{invoiceToPrint?.invoice_id}</div>
-                </div>
+                 <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${invoiceToPrint?.invoice_id}`} className="qr-image" alt="QR Code" />
               </div>
 
               <div className="thermal-footer">
-                Thank You for visiting us! <br/>
-                Get well soon.
+                <div style={{ marginBottom: '5px', textTransform: 'uppercase' }}>Thank you for visiting us</div>
+                <div style={{ fontSize: '10px' }}>Powered by HUDI-SOFT</div>
               </div>
             </div>
           </div>

@@ -356,12 +356,12 @@ export function POSTerminal() {
     }
 
     const PAYMENT_METHODS = [
-        { id: 'cash', label: 'ZAAD', icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-        { id: 'card', label: 'SAHAL', icon: CreditCard, color: 'text-blue-500', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
-        { id: 'mobile', label: 'EDAHAB', icon: Smartphone, color: 'text-purple-500', bg: 'bg-purple-50 text-purple-700 border-purple-200' },
-        { id: 'bank', label: 'MYCASH', icon: Landmark, color: 'text-indigo-500', bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-        { id: 'insurance', label: 'Insurance', icon: ShieldCheck, color: 'text-cyan-500', bg: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
-        { id: 'credit', label: 'Credit', icon: History, color: 'text-rose-500', bg: 'bg-rose-50 text-rose-700 border-rose-200' }
+        { id: 'ZAAD', label: 'ZAAD', icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+        { id: 'SAHAL', label: 'SAHAL', icon: CreditCard, color: 'text-blue-500', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
+        { id: 'EDAHAB', label: 'EDAHAB', icon: Smartphone, color: 'text-purple-500', bg: 'bg-purple-50 text-purple-700 border-purple-200' },
+        { id: 'MYCASH', label: 'MYCASH', icon: Landmark, color: 'text-indigo-500', bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+        { id: 'INSURANCE', label: 'Insurance', icon: ShieldCheck, color: 'text-cyan-500', bg: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
+        { id: 'CREDIT', label: 'Credit', icon: History, color: 'text-rose-500', bg: 'bg-rose-50 text-rose-700 border-rose-200' }
     ]
 
     return (
@@ -942,6 +942,11 @@ export function POSTerminal() {
                     <div className="hidden">
                         <div id="thermal-receipt-content" className="thermal-receipt">
                             <div className="thermal-header">
+                                {hospitalSettings?.logo && (
+                                    <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+                                        <img src={hospitalSettings.logo} alt="Logo" style={{ maxWidth: '80px', maxHeight: '80px' }} />
+                                    </div>
+                                )}
                                 <div className="thermal-title">{hospitalSettings?.name || 'GarGaar Hospital'}</div>
                                 <div className="thermal-subtitle">{hospitalSettings?.tagline || 'Health & Care Center'}</div>
                                 <div className="thermal-payment-codes">

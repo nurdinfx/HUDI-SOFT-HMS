@@ -106,6 +106,15 @@ router.get('/transactions', async (req, res) => {
     }
 });
 
+router.get('/transactions/:id/items', async (req, res) => {
+    try {
+        const items = await db.prepare('SELECT * FROM pharmacy_transaction_items WHERE transaction_id = ?').all(req.params.id);
+        res.json(items);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 router.post('/transactions', async (req, res) => {
     const { 
         patientId, patientName, items, totalAmount, 
@@ -118,10 +127,13 @@ router.post('/transactions', async (req, res) => {
         const maxInvData = await db.prepare("SELECT invoice_id FROM pharmacy_transactions ORDER BY LENGTH(invoice_id) DESC, invoice_id DESC LIMIT 1").get();
         let nextInvNumber = 1;
         if (maxInvData && maxInvData.invoice_id) {
-            const lastInvNumber = parseInt(maxInvData.invoice_id.split('-').pop());
-            if (!isNaN(lastInvNumber)) nextInvNumber = lastInvNumber + 1;
+            const parts = maxInvData.invoice_id.split('-');
+            const lastPart = parts[parts.length - 1].length === 4 ? parts[parts.length - 2] : parts[parts.length - 1];
+            const lastNumber = parseInt(lastPart);
+            if (!isNaN(lastNumber)) nextInvNumber = lastNumber + 1;
         }
-        const invoiceId = `PHARM-INV-${String(nextInvNumber).padStart(4, '0')}`;
+        const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const invoiceId = `PHARM-INV-${String(nextInvNumber).padStart(4, '0')}-${randomSuffix}`;
         
         await db.run('BEGIN TRANSACTION');
 
