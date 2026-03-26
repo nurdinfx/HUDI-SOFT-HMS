@@ -1,17 +1,17 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { AlertTriangle, Phone, ExternalLink, ShieldCheck, Clock } from "lucide-react"
-import { cn } from "@/lib/utils"
+import Image from "next/image"
+import { AlertTriangle, Phone, ShieldCheck, Lock } from "lucide-react"
 
-// Trial duration: 48 hours (2 days) as requested in Somali "labadii casho"
-const TRIAL_DURATION_MS = 48 * 60 * 60 * 1000 
+// Trial duration: 10 hours as requested
+const TRIAL_DURATION_MS = 10 * 60 * 60 * 1000 
 const STORAGE_KEY = "hms_trial_start"
 const CEO_NUMBER = "0638326814"
 
 export function TrialGuard() {
+  const [mounted, setMounted] = useState(false)
   const [isExpired, setIsExpired] = useState(false)
-  const [timeLeft, setTimeLeft] = useState<string>("")
 
   useEffect(() => {
     const checkTrial = () => {
@@ -26,22 +26,16 @@ export function TrialGuard() {
       const expired = elapsed >= TRIAL_DURATION_MS
       
       setIsExpired(expired)
-
-      if (!expired) {
-        const remaining = TRIAL_DURATION_MS - elapsed
-        const hours = Math.floor(remaining / (1000 * 60 * 60))
-        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
-        setTimeLeft(`${hours}h ${minutes}m`)
-      }
     }
 
+    setMounted(true)
     checkTrial()
     // Re-check every minute
     const interval = setInterval(checkTrial, 60000)
     return () => clearInterval(interval)
   }, [])
 
-  if (!isExpired) return null
+  if (!mounted || !isExpired) return null
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xl animate-in fade-in duration-500">
@@ -51,14 +45,24 @@ export function TrialGuard() {
         <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
 
         <div className="relative z-10 space-y-8">
-          <div className="flex flex-col items-center text-center space-y-4">
-            <div className="p-4 bg-destructive/20 rounded-2xl ring-4 ring-destructive/10 animate-pulse">
-              <AlertTriangle className="w-12 h-12 text-destructive" />
+          <div className="flex flex-col items-center text-center space-y-6">
+            {/* LOGO ADDED HERE */}
+            <div className="relative w-24 h-24 bg-white/10 rounded-2xl p-2 backdrop-blur-md border border-white/20 shadow-xl overflow-hidden ring-4 ring-primary/20">
+              <Image 
+                src="/logo.jpg" 
+                alt="HUDI_SOFT Logo" 
+                fill 
+                className="object-cover rounded-xl"
+              />
             </div>
             
-            <div className="space-y-2">
-              <h2 className="text-4xl font-bold tracking-tight text-white drop-shadow-sm">
-                Trial Expired
+            <div className="p-3 bg-destructive/10 rounded-full ring-2 ring-destructive/20 animate-pulse">
+              <Lock className="w-8 h-8 text-destructive" />
+            </div>
+            
+            <div className="space-y-3">
+              <h2 className="text-5xl font-extrabold tracking-tighter text-white drop-shadow-2xl">
+                SYSTEM SUSPENDED
               </h2>
               <p className="text-xl text-blue-100/80 font-medium">
                 Your free trial days are ended
