@@ -107,6 +107,41 @@ export function DepartmentsContent() {
     }
   }
 
+  const handleSystemValueChange = async (key: string, value: string) => {
+    if (!report) return
+    const numValue = value === "" ? "" : parseFloat(value)
+    
+    // Optimistic UI update
+    const newReport = { ...report }
+    newReport.systemValues = { ...(newReport.systemValues || {}) }
+    newReport.systemValues[key] = typeof numValue === "number" ? numValue : 0
+    
+    // Update legacy fields if needed
+    if (key === 'EXPENSES') {
+        newReport.totalExpenses = newReport.systemValues[key]
+        newReport.netIncome = newReport.grandTotal - newReport.totalExpenses
+    }
+    
+    setReport(newReport)
+    
+    const cellKey = `SYSTEM-${key}`
+    setPendingSaves(prev => ({ ...prev, [cellKey]: true }))
+    
+    try {
+       await revenueAnalyticsApi.updateCell({
+         date: reportDate,
+         department: key,
+         category: "SYSTEM_VALUES",
+         amount: numValue
+       })
+    } catch (error) {
+       toast.error(`Failed to save ${key}`)
+       fetchReport(reportDate)
+    } finally {
+       setPendingSaves(prev => ({ ...prev, [cellKey]: false }))
+    }
+  }
+
 
   const handleDeleteDepartment = async (id: string) => {
     if (!window.confirm("Delete this department?")) return
@@ -346,34 +381,69 @@ export function DepartmentsContent() {
                 <Card className="border-slate-200 shadow-sm overflow-hidden">
                   <CardHeader className="bg-slate-800 py-3 px-4">
                     <CardTitle className="text-sm font-bold text-white uppercase tracking-wide">
-                      Payment Method Summary
+                      Payment Method & Loan Summary
                     </CardTitle>
                   </CardHeader>
                   <table className="w-full text-sm">
                     <tbody>
-                      {["ZAAD", "SAHAL", "EDAHAB", "MYCASH", "cash", "credit"].map(method => {
-                        const match = report.paymentBreakdown?.find(p => p.method?.toLowerCase() === method.toLowerCase())
+                      {["ZAAD", "SAHAL", "EDAHAB", "MYCASH", "CASH", "CREDIT"].map(method => {
+                        const val = report.systemValues?.[method] || 0;
                         return (
                           <tr key={method} className="border-b last:border-0 hover:bg-slate-50">
-                            <td className="px-4 py-2.5">
-                              <PaymentMethodBadge method={method.toUpperCase()} />
+                            <td className="px-4 py-2.5 w-1/2">
+                              <PaymentMethodBadge method={method} />
                             </td>
-                            <td className="px-4 py-2.5 text-right font-bold text-slate-700">
-                              {match ? <span>${match.total.toFixed(2)}</span> : <span className="text-slate-300">$0.00</span>}
+                            <td className="px-4 py-1.5 text-right w-1/2 relative">
+                              {pendingSaves[`SYSTEM-${method}`] && <div className="absolute inset-0 bg-white/50 animate-pulse pointer-events-none rounded" />}
+                              <input 
+                                type="number" 
+                                defaultValue={val || ""}
+                                onBlur={(e) => {
+                                  if (parseFloat(e.target.value) !== val && !(e.target.value === "" && !val)) {
+                                     handleSystemValueChange(method, e.target.value);
+                                  }
+                                }}
+                                className="w-full text-right bg-transparent border border-transparent hover:border-slate-300 focus:border-blue-500 focus:bg-white rounded px-2 py-1 outline-none transition-all placeholder:text-slate-300 font-semibold text-slate-700"
+                                placeholder="0"
+                              />
                             </td>
                           </tr>
                         )
                       })}
-                      {/* Show any methods not in the predefined list */}
-                      {report.paymentBreakdown?.filter(p => !["zaad","sahal","edahab","mycash","cash","credit"].includes(p.method?.toLowerCase())).map(p => (
-                        <tr key={p.method} className="border-b last:border-0 hover:bg-slate-50">
-                          <td className="px-4 py-2.5"><PaymentMethodBadge method={p.method} /></td>
-                          <td className="px-4 py-2.5 text-right font-bold text-slate-700">${p.total.toFixed(2)}</td>
-                        </tr>
-                      ))}
+                      
+                      <tr className="border-b hover:bg-slate-50">
+                        <td className="px-4 py-2.5 font-bold text-slate-600 text-xs tracking-wide">DAYMAHA DAILYGA AH (Loans Given)</td>
+                        <td className="px-4 py-1.5 text-right relative">
+                          {pendingSaves[`SYSTEM-DAYMAHA_DAILYGA_AH`] && <div className="absolute inset-0 bg-white/50 animate-pulse pointer-events-none rounded" />}
+                          <input type="number" defaultValue={report.systemValues?.['DAYMAHA_DAILYGA_AH'] || ""} 
+                            onBlur={(e) => {
+                              if (parseFloat(e.target.value) !== (report.systemValues?.['DAYMAHA_DAILYGA_AH'] || 0) && !(e.target.value === "" && !(report.systemValues?.['DAYMAHA_DAILYGA_AH'] || 0))) {
+                                handleSystemValueChange('DAYMAHA_DAILYGA_AH', e.target.value);
+                              }
+                            }}
+                            className="w-full text-right bg-transparent border border-transparent hover:border-slate-300 focus:border-blue-500 focus:bg-white rounded px-2 py-1 outline-none transition-all placeholder:text-slate-300 font-semibold text-amber-600" placeholder="0" />
+                        </td>
+                      </tr>
+                      
+                      <tr className="border-b hover:bg-slate-50">
+                        <td className="px-4 py-2.5 font-bold text-slate-600 text-xs tracking-wide">DAYMAHA SOO XAROODA (Loans Paid)</td>
+                        <td className="px-4 py-1.5 text-right relative">
+                          {pendingSaves[`SYSTEM-DAYMAHA_SOO_XAROODA`] && <div className="absolute inset-0 bg-white/50 animate-pulse pointer-events-none rounded" />}
+                          <input type="number" defaultValue={report.systemValues?.['DAYMAHA_SOO_XAROODA'] || ""} 
+                            onBlur={(e) => {
+                              if (parseFloat(e.target.value) !== (report.systemValues?.['DAYMAHA_SOO_XAROODA'] || 0) && !(e.target.value === "" && !(report.systemValues?.['DAYMAHA_SOO_XAROODA'] || 0))) {
+                                handleSystemValueChange('DAYMAHA_SOO_XAROODA', e.target.value);
+                              }
+                            }}
+                            className="w-full text-right bg-transparent border border-transparent hover:border-slate-300 focus:border-blue-500 focus:bg-white rounded px-2 py-1 outline-none transition-all placeholder:text-slate-300 font-semibold text-emerald-600" placeholder="0" />
+                        </td>
+                      </tr>
+
                       <tr className="bg-slate-100 border-t-2 border-slate-300">
-                        <td className="px-4 py-3 font-extrabold text-slate-900 text-xs uppercase tracking-wide">TOTAL</td>
-                        <td className="px-4 py-3 text-right font-black text-slate-900">${report.grandTotal.toFixed(2)}</td>
+                        <td className="px-4 py-3 font-extrabold text-slate-900 text-xs uppercase tracking-wide">TOTAL PAYMENTS</td>
+                        <td className="px-4 py-3 text-right font-black text-slate-900">
+                          ${(["ZAAD", "SAHAL", "EDAHAB", "MYCASH", "CASH", "CREDIT"].reduce((sum, method) => sum + (report.systemValues?.[method] || 0), 0)).toFixed(2)}
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -383,29 +453,62 @@ export function DepartmentsContent() {
                 <Card className="border-slate-200 shadow-sm overflow-hidden">
                   <CardHeader className="bg-slate-800 py-3 px-4">
                     <CardTitle className="text-sm font-bold text-white uppercase tracking-wide">
-                      Net Income Summary
+                      Net Income & Balance Summary
                     </CardTitle>
                   </CardHeader>
                   <table className="w-full text-sm">
                     <tbody>
                       <tr className="border-b hover:bg-slate-50">
-                        <td className="px-4 py-3 font-medium text-slate-600 flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4 text-emerald-500" /> Total Income
+                        <td className="px-4 py-3 font-bold text-slate-600 flex items-center gap-2">
+                           Matrix Grand Total
                         </td>
-                        <td className="px-4 py-3 text-right font-bold text-emerald-600">${report.grandTotal.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-right font-bold text-slate-700">${report.grandTotal.toFixed(2)}</td>
                       </tr>
-                      <tr className="border-b hover:bg-slate-50">
-                        <td className="px-4 py-3 font-medium text-slate-600 flex items-center gap-2">
-                          <TrendingDown className="h-4 w-4 text-rose-500" /> Daily Expenses
+
+                      <tr className="border-b hover:bg-slate-50 bg-rose-50/30">
+                        <td className="px-4 py-2.5 font-bold text-slate-600 flex items-center gap-2">
+                          <TrendingDown className="h-4 w-4 text-rose-500" /> EXPENSES (Lass Daily)
                         </td>
-                        <td className="px-4 py-3 text-right font-bold text-rose-600">${(report.totalExpenses || 0).toFixed(2)}</td>
+                        <td className="px-4 py-1.5 text-right relative">
+                          {pendingSaves[`SYSTEM-EXPENSES`] && <div className="absolute inset-0 bg-white/50 animate-pulse pointer-events-none rounded" />}
+                          <input type="number" defaultValue={report.systemValues?.['EXPENSES'] || ""} 
+                            onBlur={(e) => {
+                              if (parseFloat(e.target.value) !== (report.systemValues?.['EXPENSES'] || 0) && !(e.target.value === "" && !(report.systemValues?.['EXPENSES'] || 0))) {
+                                handleSystemValueChange('EXPENSES', e.target.value);
+                              }
+                            }}
+                            className="w-full text-right bg-transparent border border-transparent hover:border-slate-300 focus:border-rose-500 focus:bg-white rounded px-2 py-1 outline-none transition-all placeholder:text-slate-300 font-bold text-rose-600" placeholder="0" />
+                        </td>
                       </tr>
+
                       <tr className="bg-indigo-50 border-t-2 border-indigo-200">
-                        <td className="px-4 py-4 font-extrabold text-indigo-900 text-xs uppercase tracking-wide">NET INCOME</td>
+                        <td className="px-4 py-4 font-extrabold text-indigo-900 text-xs uppercase tracking-wide">NET INCOME <br/><span className="text-[10px] text-indigo-600 font-medium">(Matrix - Expenses)</span></td>
                         <td className={`px-4 py-4 text-right font-black text-xl ${(report.netIncome || 0) >= 0 ? "text-indigo-700" : "text-rose-700"}`}>
                           ${(report.netIncome || 0).toFixed(2)}
                         </td>
                       </tr>
+                      
+                      {(() => {
+                        const totalPayments = ["ZAAD", "SAHAL", "EDAHAB", "MYCASH", "CASH", "CREDIT"].reduce((sum, m) => sum + (report.systemValues?.[m] || 0), 0)
+                        const loansGiven = report.systemValues?.['DAYMAHA_DAILYGA_AH'] || 0
+                        const loansReceived = report.systemValues?.['DAYMAHA_SOO_XAROODA'] || 0
+                        const expectedCash = report.grandTotal + loansReceived
+                        const actualCash = totalPayments + loansGiven
+                        const diff = expectedCash - actualCash
+                        return (
+                          <tr className={`border-t-4 border-slate-300 ${diff === 0 ? "bg-emerald-50" : "bg-rose-100"}`}>
+                            <td className="px-4 py-4 font-extrabold text-slate-900 text-sm uppercase tracking-wide">
+                              DIFFERENCE
+                              <div className="text-[10px] font-medium text-slate-500 normal-case mt-0.5 font-mono">
+                                (Total + Paid Loans) - (Payments + Given Loans)
+                              </div>
+                            </td>
+                            <td className={`px-4 py-4 text-right font-black text-2xl ${diff === 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                              ${diff.toFixed(2)}
+                            </td>
+                          </tr>
+                        )
+                      })()}
                     </tbody>
                   </table>
                 </Card>

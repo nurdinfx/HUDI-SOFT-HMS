@@ -166,39 +166,32 @@ router.get('/report', async (req, res) => {
             grandTotal += total;
         });
 
-        // 5. Payment Method Breakdown
-        let pmQuery = `
-            SELECT payment_method, SUM(amount) as total
-            FROM account_entries
-            WHERE type = 'income' AND status = 'completed'
-        `;
-        const pmParams = [];
-        if (startDate) { pmQuery += ' AND date >= ?'; pmParams.push(startDate); }
-        if (endDate) { pmQuery += ' AND date <= ?'; pmParams.push(endDate); }
-        pmQuery += ' GROUP BY payment_method';
-        const paymentBreakdown = await db.prepare(pmQuery).all(...pmParams);
+        // 5. System Values (Payment Methods, Daymaha, Expenses)
+        let sysQuery = `SELECT department as key, SUM(amount) as value FROM manual_daily_revenue WHERE category = 'SYSTEM_VALUES'`;
+        const sysParams = [];
+        if (startDate) { sysQuery += ' AND date >= ?'; sysParams.push(startDate); }
+        if (endDate) { sysQuery += ' AND date <= ?'; sysParams.push(endDate); }
+        sysQuery += ' GROUP BY department';
+        const systemValuesRaw = await db.prepare(sysQuery).all(...sysParams);
+        
+        const systemValues = {};
+        systemValuesRaw.forEach(row => {
+            systemValues[row.key] = parseFloat(row.value) || 0;
+        });
 
-        // 6. Expenses Breakdown
-        let expQuery = `
-            SELECT category, department, SUM(amount) as total
-            FROM account_entries
-            WHERE type = 'expense' AND status = 'completed'
-        `;
-        const expParams = [];
-        if (startDate) { expQuery += ' AND date >= ?'; expParams.push(startDate); }
-        if (endDate) { expQuery += ' AND date <= ?'; expParams.push(endDate); }
-        expQuery += ' GROUP BY category, department';
-        const expenseRows = await db.prepare(expQuery).all(...expParams);
-        const totalExpenses = expenseRows.reduce((sum, r) => sum + parseFloat(r.total || 0), 0);
+        // Calculate legacy fields from systemValues just in case anything else uses them.
+        const totalExpenses = parseFloat(systemValues['EXPENSES']) || 0;
+        const autoNetIncome = grandTotal - totalExpenses;
 
         res.json({
             columns: categories.map(c => c.name),
             rows: report,
             columnTotals,
             grandTotal,
-            paymentBreakdown: paymentBreakdown.map(p => ({ method: p.payment_method, total: parseFloat(p.total || 0) })),
+            paymentBreakdown: [], // Deprecated in favor of systemValues
             totalExpenses,
-            netIncome: grandTotal - totalExpenses
+            netIncome: autoNetIncome,
+            systemValues
         });
     } catch (err) {
         res.status(500).json({ error: err.message });

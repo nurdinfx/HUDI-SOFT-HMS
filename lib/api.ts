@@ -395,6 +395,7 @@ export interface RevenueReport {
     paymentBreakdown: { method: string; total: number }[];
     totalExpenses: number;
     netIncome: number;
+    systemValues: Record<string, number>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────
