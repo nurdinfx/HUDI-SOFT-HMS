@@ -18,7 +18,11 @@ const fmt = (s) => ({
     zaad: s.zaad,
     sahal: s.sahal,
     edahab: s.edahab,
-    mycash: s.mycash
+    mycash: s.mycash,
+    pharmacy_zaad: s.pharmacy_zaad,
+    pharmacy_sahal: s.pharmacy_sahal,
+    pharmacy_edahab: s.pharmacy_edahab,
+    pharmacy_mycash: s.pharmacy_mycash
 });
 
 router.get('/', async (req, res) => {
@@ -35,13 +39,13 @@ router.put('/', async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
     try {
         const existing = await db.prepare('SELECT * FROM hospital_settings WHERE id = 1').get();
-        const { name, tagline, address, phone, email, website, currency, taxRate, logo, zaad, sahal, edahab, mycash } = req.body;
+        const { name, tagline, address, phone, email, website, currency, taxRate, logo, zaad, sahal, edahab, mycash, pharmacy_zaad, pharmacy_sahal, pharmacy_edahab, pharmacy_mycash } = req.body;
         if (!existing) {
-            await db.prepare('INSERT INTO hospital_settings (id, name, tagline, address, phone, email, website, currency, tax_rate, logo, zaad, sahal, edahab, mycash) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-                .run(name || 'Hospital', tagline || '', address || '', phone || '', email || '', website || '', currency || 'USD', taxRate || 10, logo || null, zaad || '', sahal || '', edahab || '', mycash || '');
+            await db.prepare('INSERT INTO hospital_settings (id, name, tagline, address, phone, email, website, currency, tax_rate, logo, zaad, sahal, edahab, mycash, pharmacy_zaad, pharmacy_sahal, pharmacy_edahab, pharmacy_mycash) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+                .run(name || 'Hospital', tagline || '', address || '', phone || '', email || '', website || '', currency || 'USD', taxRate || 10, logo || null, zaad || '', sahal || '', edahab || '', mycash || '', pharmacy_zaad || '', pharmacy_sahal || '', pharmacy_edahab || '', pharmacy_mycash || '');
         } else {
-            await db.prepare('UPDATE hospital_settings SET name=?, tagline=?, address=?, phone=?, email=?, website=?, currency=?, tax_rate=?, logo=?, zaad=?, sahal=?, edahab=?, mycash=? WHERE id=1')
-                .run(name || existing.name, tagline ?? existing.tagline, address || existing.address, phone || existing.phone, email || existing.email, website ?? existing.website, currency || existing.currency, taxRate ?? existing.tax_rate, logo ?? existing.logo, zaad ?? existing.zaad, sahal ?? existing.sahal, edahab ?? existing.edahab, mycash ?? existing.mycash);
+            await db.prepare('UPDATE hospital_settings SET name=?, tagline=?, address=?, phone=?, email=?, website=?, currency=?, tax_rate=?, logo=?, zaad=?, sahal=?, edahab=?, mycash=?, pharmacy_zaad=?, pharmacy_sahal=?, pharmacy_edahab=?, pharmacy_mycash=? WHERE id=1')
+                .run(name || existing.name, tagline ?? existing.tagline, address || existing.address, phone || existing.phone, email || existing.email, website ?? existing.website, currency || existing.currency, taxRate ?? existing.tax_rate, logo ?? existing.logo, zaad ?? existing.zaad, sahal ?? existing.sahal, edahab ?? existing.edahab, mycash ?? existing.mycash, pharmacy_zaad ?? existing.pharmacy_zaad, pharmacy_sahal ?? existing.pharmacy_sahal, pharmacy_edahab ?? existing.pharmacy_edahab, pharmacy_mycash ?? existing.pharmacy_mycash);
         }
         logAction(req.user.id, req.user.name, req.user.role, 'UPDATE', 'Settings', 'Hospital settings updated', req.ip);
         const updatedRow = await db.prepare('SELECT * FROM hospital_settings WHERE id = 1').get();

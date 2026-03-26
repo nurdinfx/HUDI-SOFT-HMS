@@ -88,6 +88,7 @@ dbModule.promise.then(async () => {
         await require('./migrate_purchase_hub')();
         await require('./migrate_push_subscriptions')();
         await require('./migrate_procedures')();
+        await require('./migrate_pharmacy_accounts')();
     } catch (err) {
         console.error('⚠️ Migration warning:', err.message);
     }

@@ -35,7 +35,7 @@ import {
   Trash2,
   Check
 } from "lucide-react"
-import { pharmacyApi, patientsApi, posApi, creditApi, type Medicine, type Patient } from "@/lib/api"
+import { pharmacyApi, patientsApi, posApi, creditApi, settingsApi, type Medicine, type Patient, type HospitalSettings } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -100,6 +100,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
   
   // Invoice View
   const [invoiceToPrint, setInvoiceToPrint] = useState<any>(null)
+  const [settings, setSettings] = useState<HospitalSettings | null>(null)
 
   const fetchData = async () => {
     setLoading(true)
@@ -122,7 +123,17 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
   useEffect(() => {
     fetchData()
     fetchCreditCustomers()
+    loadSettings()
   }, [])
+
+  const loadSettings = async () => {
+    try {
+      const s = await settingsApi.get()
+      setSettings(s)
+    } catch (e) {
+      console.error("Failed to load settings", e)
+    }
+  }
 
   useEffect(() => {
     if (selectedPatientId) {
@@ -333,6 +344,76 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+  }
+
+  const handlePrintReceipt = () => {
+    const printContent = document.getElementById('thermal-receipt-content')
+    if (!printContent) return
+
+    const iframe = document.createElement('iframe')
+    iframe.style.position = 'absolute'
+    iframe.style.top = '-1000px'
+    document.body.appendChild(iframe)
+
+    const doc = iframe.contentWindow?.document
+    if (doc) {
+        doc.open()
+        doc.write(`
+            <html>
+            <head>
+                <title>Pharmacy Receipt</title>
+                <style>
+                    @page { size: 58mm auto; margin: 0; }
+                    body { padding: 0; margin: 0; background: #fff; width: 58mm; color: #000; }
+                    .thermal-receipt { 
+                        width: 58mm; 
+                        padding: 2mm 1mm; 
+                        font-family: 'Inter', 'Segoe UI', Arial, sans-serif; 
+                        font-size: 13px; 
+                        line-height: 1.1; 
+                        box-sizing: border-box; 
+                        margin: 0;
+                        text-align: center;
+                    }
+                    .thermal-header { margin-bottom: 5px; }
+                    .thermal-title { font-size: 18px; font-weight: 800; margin-bottom: 2px; text-transform: uppercase; }
+                    .thermal-subtitle { font-size: 14px; font-weight: 600; margin-bottom: 1px; }
+                    .thermal-payment-codes { font-size: 11px; font-weight: bold; margin-bottom: 5px; border-bottom: 1px dashed #000; padding-bottom: 5px; }
+                    .thermal-payment-codes div { margin: 2px 0; }
+                    
+                    .thermal-info { font-size: 12px; margin-bottom: 5px; text-align: left; padding: 0 2mm; }
+                    .thermal-info div { margin-bottom: 3px; }
+                    .thermal-label { font-weight: bold; }
+                    
+                    .thermal-separator { border-top: 1px dashed #000; margin: 5px 0; }
+                    
+                    .thermal-table { width: 100%; text-align: left; border-collapse: collapse; font-size: 12px; padding: 0 1mm; }
+                    .thermal-table th { border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0; text-align: left; font-weight: bold; }
+                    .thermal-table td { padding: 4px 0; }
+                    
+                    .thermal-totals { border-top: 1px dashed #000; padding: 5px 2mm; text-align: left; }
+                    .thermal-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-weight: bold; }
+                    
+                    .thermal-footer { text-align: center; font-size: 13px; padding-top: 5px; font-weight: bold; }
+                    .qr-container { display: flex; justify-content: center; margin: 8px 0; }
+                    .qr-image { width: 140px; height: 140px; }
+                </style>
+            </head>
+            <body>
+                ${printContent.outerHTML}
+            </body>
+            </html>
+        `)
+        doc.close()
+
+        setTimeout(() => {
+            iframe.contentWindow?.focus()
+            iframe.contentWindow?.print()
+            setTimeout(() => {
+                document.body.removeChild(iframe)
+            }, 1000)
+        }, 250)
+    }
   }
 
   const statsToDisplay = useMemo(() => {
@@ -814,11 +895,90 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
           </div>
           <DialogFooter className="p-8 bg-slate-50 border-t">
             <Button variant="ghost" className="rounded-xl font-bold" onClick={() => setInvoiceToPrint(null)}>Close</Button>
-            <Button className="rounded-xl font-black px-10 gap-2 bg-slate-900 shadow-xl shadow-slate-200" onClick={() => window.print()}>
+            <Button className="rounded-xl font-black px-10 gap-2 bg-slate-900 shadow-xl shadow-slate-200" onClick={handlePrintReceipt}>
               <Printer className="size-4" />
-              PRINT SECURE INVOICE
+              PRINT 58mm RECEIPT
             </Button>
           </DialogFooter>
+
+          {/* Hidden Thermal Receipt Content */}
+          <div id="thermal-receipt-content" className="hidden">
+            <div className="thermal-receipt">
+              <div className="thermal-header">
+                <div className="thermal-title">{settings?.name || "HMS PHARMACY"}</div>
+                <div className="thermal-subtitle">Official Receipt</div>
+                <div className="thermal-info" style={{ textAlign: 'center', marginTop: '2px' }}>
+                  {settings?.address} <br/> Tel: {settings?.phone}
+                </div>
+              </div>
+
+              <div className="thermal-payment-codes">
+                {settings?.pharmacy_zaad && <div>ZAAD: {settings.pharmacy_zaad}</div>}
+                {settings?.pharmacy_sahal && <div>SAHAL: {settings.pharmacy_sahal}</div>}
+                {settings?.pharmacy_edahab && <div>EDAHAB: {settings.pharmacy_edahab}</div>}
+                {settings?.pharmacy_mycash && <div>MYCASH: {settings.pharmacy_mycash}</div>}
+              </div>
+
+              <div className="thermal-info">
+                <div><span className="thermal-label">Invoice:</span> {invoiceToPrint?.invoice_id}</div>
+                <div><span className="thermal-label">Date:</span> {invoiceToPrint?.created_at && format(new Date(invoiceToPrint.created_at), "dd/MM/yyyy HH:mm")}</div>
+                <div><span className="thermal-label">Patient:</span> {invoiceToPrint?.patient_name}</div>
+                <div><span className="thermal-label">Method:</span> {invoiceToPrint?.payment_method}</div>
+              </div>
+
+              <table className="thermal-table">
+                <thead>
+                  <tr>
+                    <th>Description</th>
+                    <th style={{ textAlign: 'right' }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>{invoiceToPrint?.items_summary || "Pharmaceutical Items"}</td>
+                    <td style={{ textAlign: 'right' }}>${Number(invoiceToPrint?.total_amount || 0).toLocaleString()}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div className="thermal-totals">
+                <div className="thermal-row">
+                  <span>SUBTOTAL</span>
+                  <span>${Number(invoiceToPrint?.total_amount || 0).toLocaleString()}</span>
+                </div>
+                {Number(invoiceToPrint?.discount || 0) > 0 && (
+                  <div className="thermal-row">
+                    <span>DISCOUNT</span>
+                    <span>-${Number(invoiceToPrint.discount).toLocaleString()}</span>
+                  </div>
+                )}
+                <div className="thermal-row" style={{ fontSize: '16px', marginTop: '4px', borderTop: '1px solid #000', paddingTop: '4px' }}>
+                  <span>TOTAL</span>
+                  <span>${Number((invoiceToPrint?.total_amount || 0) - (invoiceToPrint?.discount || 0)).toLocaleString()}</span>
+                </div>
+                <div className="thermal-row">
+                  <span>PAID</span>
+                  <span>${Number(invoiceToPrint?.paid_amount || 0).toLocaleString()}</span>
+                </div>
+                <div className="thermal-row">
+                  <span>BALANCE</span>
+                  <span>${Number(invoiceToPrint?.credit_amount || 0).toLocaleString()}</span>
+                </div>
+              </div>
+
+              <div className="qr-container">
+                <div style={{ padding: '10px', border: '1px solid #000', borderRadius: '4px' }}>
+                   <div style={{ fontSize: '10px', fontWeight: 'bold' }}>SCAN TO VERIFY</div>
+                   <div style={{ fontSize: '8px' }}>{invoiceToPrint?.invoice_id}</div>
+                </div>
+              </div>
+
+              <div className="thermal-footer">
+                Thank You for visiting us! <br/>
+                Get well soon.
+              </div>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

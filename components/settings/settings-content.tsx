@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
 import { PageHeader } from "@/components/shared/page-header"
 import { settingsApi } from "@/lib/api"
 import type { HospitalSettings } from "@/lib/api"
@@ -220,6 +221,47 @@ export function SettingsContent({ settings }: SettingsContentProps) {
               />
             </div>
           </div>
+
+          <Separator className="my-4" />
+          <h3 className="text-sm font-bold uppercase tracking-wider text-primary">Pharmacy Accounts</h3>
+          
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label>Pharmacy ZAAD</Label>
+              <Input
+                value={form.pharmacy_zaad ?? ""}
+                onChange={(e) => setForm((p) => ({ ...p, pharmacy_zaad: e.target.value }))}
+                placeholder="Pharmacy ZAAD Number"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Pharmacy SAHAL</Label>
+              <Input
+                value={form.pharmacy_sahal ?? ""}
+                onChange={(e) => setForm((p) => ({ ...p, pharmacy_sahal: e.target.value }))}
+                placeholder="Pharmacy SAHAL Number"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label>Pharmacy EDAHAB</Label>
+              <Input
+                value={form.pharmacy_edahab ?? ""}
+                onChange={(e) => setForm((p) => ({ ...p, pharmacy_edahab: e.target.value }))}
+                placeholder="Pharmacy EDAHAB Number"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Pharmacy MYCASH</Label>
+              <Input
+                value={form.pharmacy_mycash ?? ""}
+                onChange={(e) => setForm((p) => ({ ...p, pharmacy_mycash: e.target.value }))}
+                placeholder="Pharmacy MYCASH Number"
+              />
+            </div>
+          </div>
+
           <Button type="button" onClick={handleSave} disabled={isSaving}>
             {isSaving ? "Saving..." : "Save Changes"}
           </Button>
