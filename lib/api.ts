@@ -693,6 +693,7 @@ export interface HospitalSettings {
     email: string; website: string; currency: string; taxRate: number; logo?: string;
     zaad?: string; sahal?: string; edahab?: string; mycash?: string;
     pharmacy_zaad?: string; pharmacy_sahal?: string; pharmacy_edahab?: string; pharmacy_mycash?: string;
+    trialStartedAt?: string;
 }
 
 export interface DashboardData {
