@@ -33,6 +33,20 @@ async function migrate() {
         `);
         console.log('✅ Service Categories table created/verified');
 
+        // 3. Create Manual Daily Revenue Table
+        await db.exec(`
+            CREATE TABLE IF NOT EXISTS manual_daily_revenue (
+                id UUID PRIMARY KEY,
+                date DATE NOT NULL,
+                department TEXT NOT NULL,
+                category TEXT NOT NULL,
+                amount NUMERIC DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(date, department, category)
+            )
+        `);
+        console.log('✅ Manual Daily Revenue table created/verified');
+
         // 3. Seed Initial Departments
         const initialDepts = [
             'Cardiology', 'Laboratory', 'Radiology', 'Pharmacy', 'Emergency', 'Surgery', 'OPD', 'IPD'
