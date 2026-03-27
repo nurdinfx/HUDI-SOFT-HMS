@@ -22,8 +22,7 @@ const fmt = (s) => ({
     pharmacy_zaad: s.pharmacy_zaad,
     pharmacy_sahal: s.pharmacy_sahal,
     pharmacy_edahab: s.pharmacy_edahab,
-    pharmacy_mycash: s.pharmacy_mycash,
-    trialStartedAt: s.trial_started_at
+    pharmacy_mycash: s.pharmacy_mycash
 });
 
 router.get('/', async (req, res) => {
