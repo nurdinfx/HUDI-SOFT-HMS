@@ -356,12 +356,12 @@ export function POSTerminal() {
     }
 
     const PAYMENT_METHODS = [
-        { id: 'ZAAD', label: 'ZAAD', icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-        { id: 'SAHAL', label: 'SAHAL', icon: CreditCard, color: 'text-blue-500', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
-        { id: 'EDAHAB', label: 'EDAHAB', icon: Smartphone, color: 'text-purple-500', bg: 'bg-purple-50 text-purple-700 border-purple-200' },
-        { id: 'MYCASH', label: 'MYCASH', icon: Landmark, color: 'text-indigo-500', bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-        { id: 'INSURANCE', label: 'Insurance', icon: ShieldCheck, color: 'text-cyan-500', bg: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
-        { id: 'CREDIT', label: 'Credit', icon: History, color: 'text-rose-500', bg: 'bg-rose-50 text-rose-700 border-rose-200' }
+        { id: 'zaad', label: 'ZAAD', icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+        { id: 'sahal', label: 'SAHAL', icon: CreditCard, color: 'text-blue-500', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
+        { id: 'edahab', label: 'EDAHAB', icon: Smartphone, color: 'text-purple-500', bg: 'bg-purple-50 text-purple-700 border-purple-200' },
+        { id: 'mycash', label: 'MYCASH', icon: Landmark, color: 'text-indigo-500', bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+        { id: 'insurance', label: 'Insurance', icon: ShieldCheck, color: 'text-cyan-500', bg: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
+        { id: 'credit', label: 'Credit', icon: History, color: 'text-rose-500', bg: 'bg-rose-50 text-rose-700 border-rose-200' }
     ]
 
     return (
@@ -660,42 +660,69 @@ export function POSTerminal() {
                                 )}
                                 
                                 {paymentMethod === 'credit' && (
-                                    <div className="w-1/2 relative space-y-2">
-                                        <Select 
-                                            value={selectedCreditCustomer?.id || ""} 
-                                            onValueChange={(val) => {
-                                                const customer = creditCustomers.find(c => c.id === val);
-                                                setSelectedCreditCustomer(customer || null);
-                                            }}
-                                        >
-                                            <SelectTrigger className="h-14 bg-white border-slate-200 text-slate-900 font-bold rounded-2xl focus:ring-rose-500 shadow-sm w-full">
-                                                <SelectValue placeholder="Select Credit Customer" />
-                                            </SelectTrigger>
-                                            <SelectContent className="max-h-[300px]">
-                                                {creditCustomers.map(c => (
-                                                    <SelectItem key={c.id} value={c.id} className="py-3 cursor-pointer">
-                                                        <div className="flex flex-col">
-                                                            <span className="font-bold text-slate-900">{c.full_name}</span>
-                                                            <div className="flex items-center gap-2 mt-1">
-                                                                <Badge variant="outline" className="text-[10px] text-rose-600 border-rose-200 bg-rose-50 font-bold">${parseFloat(c.outstanding_balance).toLocaleString()} owed</Badge>
-                                                                <span className="text-[10px] text-slate-500 font-mono italic">{c.customer_id}</span>
-                                                            </div>
-                                                        </div>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        
-                                        {selectedCreditCustomer && (
-                                            <div className="absolute -top-12 left-0 right-0 bg-white border border-rose-100 rounded-lg p-2 flex justify-between items-center shadow-lg animate-in slide-in-from-bottom-2 z-50">
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Limit Remaining</span>
-                                                <span className={cn("text-xs font-black", 
-                                                    (parseFloat(selectedCreditCustomer.credit_limit) - parseFloat(selectedCreditCustomer.outstanding_balance)) < 100 ? "text-rose-600" : "text-emerald-600"
-                                                )}>
-                                                    ${(parseFloat(selectedCreditCustomer.credit_limit) - parseFloat(selectedCreditCustomer.outstanding_balance)).toLocaleString()}
-                                                </span>
+                                    <div className="w-full relative">
+                                        <div className="flex flex-col gap-2">
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                                                <Input 
+                                                    className="h-14 pl-10 bg-white border-slate-200 text-slate-900 font-bold rounded-2xl focus-visible:ring-rose-500 shadow-sm"
+                                                    placeholder="Search Credit Customer (Name/ID)..."
+                                                    value={creditSearch}
+                                                    onChange={e => setCreditSearch(e.target.value)}
+                                                />
                                             </div>
-                                        )}
+
+                                            {creditSearch && (
+                                                <div className="absolute top-16 left-0 right-0 bg-white border border-slate-200 shadow-2xl rounded-2xl z-[100] overflow-hidden max-h-[300px] overflow-y-auto animate-in fade-in slide-in-from-top-2">
+                                                    {filteredCreditCustomers.length > 0 ? (
+                                                        filteredCreditCustomers.map((c) => (
+                                                            <div
+                                                                key={c.id}
+                                                                className="p-4 border-b border-slate-50 hover:bg-rose-50 cursor-pointer flex justify-between items-center transition-colors"
+                                                                onClick={() => {
+                                                                    setSelectedCreditCustomer(c);
+                                                                    setCreditSearch("");
+                                                                }}
+                                                            >
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-bold text-slate-900 text-sm">{c.full_name}</span>
+                                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                                        <span className="text-[10px] text-slate-500 font-mono">{c.customer_id}</span>
+                                                                        {c.phone && <span className="text-[10px] text-slate-400">• {c.phone}</span>}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <Badge variant="outline" className="text-[10px] text-rose-600 border-rose-200 bg-rose-50 font-bold">
+                                                                        ${parseFloat(c.outstanding_balance).toLocaleString()} owed
+                                                                    </Badge>
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="p-4 text-center">
+                                                            <User className="size-6 text-slate-300 mx-auto mb-2" />
+                                                            <p className="text-sm font-medium text-slate-600">No customers found</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {selectedCreditCustomer && (
+                                                <div className="flex justify-between items-center px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[10px] font-black text-rose-500 uppercase">Limit Status</span>
+                                                        <span className={cn("text-xs font-black", 
+                                                            (parseFloat(selectedCreditCustomer.credit_limit) - parseFloat(selectedCreditCustomer.outstanding_balance)) < 100 ? "text-rose-600" : "text-emerald-600"
+                                                        )}>
+                                                            ${(parseFloat(selectedCreditCustomer.credit_limit) - parseFloat(selectedCreditCustomer.outstanding_balance)).toLocaleString()} available
+                                                        </span>
+                                                    </div>
+                                                    <Badge variant="secondary" className="bg-rose-100 text-rose-700 font-bold uppercase text-[9px]">
+                                                        {selectedCreditCustomer.customer_id}
+                                                    </Badge>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                                 
