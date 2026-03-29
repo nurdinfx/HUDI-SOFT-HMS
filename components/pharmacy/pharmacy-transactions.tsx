@@ -434,33 +434,45 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
 
   const statsToDisplay = useMemo(() => {
     if (!revenueStats) return null
-    if (activePaymentMethod === "all" && statusFilter === "all" && !dateFilter.start && !dateFilter.end) {
+    
+    const hasDateFilter = dateFilter.start || dateFilter.end
+    const hasOtherFilters = activePaymentMethod !== "all" || statusFilter !== "all" || search !== ""
+    
+    if (!hasDateFilter && !hasOtherFilters) {
       return revenueStats
     }
 
-    const totalSales = filteredTransactions.reduce((sum, t) => sum + (parseFloat(t.total_amount) || 0), 0)
-    const txCount = filteredTransactions.length
-    const totalDue = filteredTransactions.reduce((sum, t) => sum + (parseFloat(t.credit_amount) || 0), 0)
+    const now = new Date().setHours(0,0,0,0)
     
-    // For filtered view, we'll use sales minus returns from the BASE stats if no specific transactions are filtered
-    // But usually user wants sales only if specific filter is active.
+    // Default to today's context if no date range is selected, ensuring 'Revenue Today' is actually today's revenue even with filters.
+    const transactionsToSum = filteredTransactions.filter(t => {
+      if (hasDateFilter) return true;
+      return new Date(t.created_at).setHours(0,0,0,0) === now;
+    });
+
+    const totalSales = transactionsToSum.reduce((sum, t) => sum + (parseFloat(t.total_amount) || 0), 0)
+    const totalPaid = transactionsToSum.reduce((sum, t) => sum + (parseFloat(t.paid_amount) || 0), 0)
+    const txCount = transactionsToSum.length
+    const totalDue = transactionsToSum.reduce((sum, t) => sum + (parseFloat(t.credit_amount) || 0), 0)
+    
     return {
       ...revenueStats,
       totalSales: totalSales,
+      totalPaid: totalPaid,
       transactionCount: txCount,
       outstandingCredit: totalDue
     }
-  }, [revenueStats, filteredTransactions, activePaymentMethod, statusFilter, dateFilter])
+  }, [revenueStats, filteredTransactions, activePaymentMethod, statusFilter, dateFilter, search])
 
-  const netRevenue = (statsToDisplay?.totalSales || 0) - (statsToDisplay?.totalReturns || 0)
+  const netRevenue = (statsToDisplay?.totalPaid || statsToDisplay?.totalSales || 0) - (statsToDisplay?.totalReturns || 0)
 
   return (
     <div className="space-y-6">
       {/* DASHBOARD STATS */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard 
-          title="Revenue Today" 
-          value={`$${Number(statsToDisplay?.totalSales || 0).toLocaleString()}`} 
+          title={dateFilter.start || dateFilter.end ? "Total Revenue" : "Revenue Today"} 
+          value={`$${Number(statsToDisplay?.totalPaid || statsToDisplay?.totalSales || 0).toLocaleString()}`} 
           icon={TrendingUp} 
           iconClassName="bg-emerald-100 text-emerald-600" 
         />

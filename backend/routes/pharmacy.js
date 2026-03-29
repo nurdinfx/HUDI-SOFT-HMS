@@ -401,10 +401,11 @@ router.get('/stats/revenue', async (req, res) => {
     try {
         const stats = {
             totalSales: (await db.prepare("SELECT SUM(total_amount) as s FROM pharmacy_transactions WHERE DATE(created_at) = CURRENT_DATE").get()).s || 0,
+            totalPaid: (await db.prepare("SELECT SUM(paid_amount) as s FROM pharmacy_transactions WHERE DATE(created_at) = CURRENT_DATE").get()).s || 0,
             totalReturns: (await db.prepare("SELECT SUM(amount) as s FROM pharmacy_returns WHERE DATE(created_at) = CURRENT_DATE").get()).s || 0,
             transactionCount: (await db.prepare("SELECT COUNT(*) as c FROM pharmacy_transactions WHERE DATE(created_at) = CURRENT_DATE").get()).c || 0,
             outstandingCredit: (await db.query("SELECT SUM(patient_credits.balance) as s FROM patient_credits")).rows[0].s || 0,
-            breakdown: await db.prepare("SELECT payment_method, SUM(total_amount) as amount FROM pharmacy_transactions WHERE DATE(created_at) = CURRENT_DATE GROUP BY payment_method").all()
+            breakdown: await db.prepare("SELECT payment_method, SUM(paid_amount) as amount FROM pharmacy_transactions WHERE DATE(created_at) = CURRENT_DATE GROUP BY payment_method").all()
         };
         res.json(stats);
     } catch (err) {
