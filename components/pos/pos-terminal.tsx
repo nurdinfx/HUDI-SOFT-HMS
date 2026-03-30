@@ -62,7 +62,6 @@ export function POSTerminal() {
 
     // Credit Module State
     const [creditCustomers, setCreditCustomers] = useState<any[]>([])
-    const [creditSearch, setCreditSearch] = useState("")
     const [selectedCreditCustomer, setSelectedCreditCustomer] = useState<any | null>(null)
     const [hospitalSettings, setHospitalSettings] = useState<HospitalSettings | null>(null)
 
@@ -133,14 +132,7 @@ export function POSTerminal() {
         ).slice(0, 5)
     }, [patients, patientSearch])
 
-    const filteredCreditCustomers = useMemo(() => {
-        if (!creditSearch) return [];
-        return creditCustomers.filter(c =>
-            c.full_name.toLowerCase().includes(creditSearch.toLowerCase()) ||
-            c.customer_id.toLowerCase().includes(creditSearch.toLowerCase()) ||
-            c.phone?.includes(creditSearch)
-        ).slice(0, 5)
-    }, [creditCustomers, creditSearch])
+
 
     const handlePatientSelect = async (patient: Patient) => {
         setSelectedPatient(patient)
@@ -662,50 +654,44 @@ export function POSTerminal() {
                                 {paymentMethod === 'credit' && (
                                     <div className="w-full relative">
                                         <div className="flex flex-col gap-2">
-                                            <div className="relative">
-                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-                                                <Input 
-                                                    className="h-14 pl-10 bg-white border-slate-200 text-slate-900 font-bold rounded-2xl focus-visible:ring-rose-500 shadow-sm"
-                                                    placeholder="Search Credit Customer (Name/ID)..."
-                                                    value={creditSearch}
-                                                    onChange={e => setCreditSearch(e.target.value)}
-                                                />
-                                            </div>
-
-                                            {creditSearch && (
-                                                <div className="absolute top-16 left-0 right-0 bg-white border border-slate-200 shadow-2xl rounded-2xl z-[100] overflow-hidden max-h-[300px] overflow-y-auto animate-in fade-in slide-in-from-top-2">
-                                                    {filteredCreditCustomers.length > 0 ? (
-                                                        filteredCreditCustomers.map((c) => (
-                                                            <div
-                                                                key={c.id}
-                                                                className="p-4 border-b border-slate-50 hover:bg-rose-50 cursor-pointer flex justify-between items-center transition-colors"
-                                                                onClick={() => {
-                                                                    setSelectedCreditCustomer(c);
-                                                                    setCreditSearch("");
-                                                                }}
-                                                            >
-                                                                <div className="flex flex-col">
-                                                                    <span className="font-bold text-slate-900 text-sm">{c.full_name}</span>
+                                            <Select 
+                                                value={selectedCreditCustomer?.id || ""} 
+                                                onValueChange={(value) => {
+                                                    const customer = creditCustomers.find(c => c.id === value);
+                                                    setSelectedCreditCustomer(customer || null);
+                                                }}
+                                            >
+                                                <SelectTrigger className="h-14 bg-white border-slate-200 text-slate-900 font-bold rounded-2xl focus:ring-rose-500 shadow-sm px-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <User className="size-4 text-slate-400" />
+                                                        <SelectValue placeholder="Select Credit Customer..." />
+                                                    </div>
+                                                </SelectTrigger>
+                                                <SelectContent className="rounded-2xl max-h-[300px]">
+                                                    {creditCustomers.length > 0 ? (
+                                                        creditCustomers.map((c) => (
+                                                            <SelectItem key={c.id} value={c.id} className="p-3 border-b border-slate-50 last:border-0">
+                                                                <div className="flex flex-col text-left">
+                                                                    <div className="flex justify-between items-center gap-4">
+                                                                        <span className="font-bold text-slate-900 text-sm">{c.full_name}</span>
+                                                                        <Badge variant="outline" className="text-[9px] text-rose-600 border-rose-200 bg-rose-50 font-bold shrink-0">
+                                                                            ${parseFloat(c.outstanding_balance).toLocaleString()} Owed
+                                                                        </Badge>
+                                                                    </div>
                                                                     <div className="flex items-center gap-2 mt-0.5">
                                                                         <span className="text-[10px] text-slate-500 font-mono">{c.customer_id}</span>
                                                                         {c.phone && <span className="text-[10px] text-slate-400">• {c.phone}</span>}
                                                                     </div>
                                                                 </div>
-                                                                <div className="text-right">
-                                                                    <Badge variant="outline" className="text-[10px] text-rose-600 border-rose-200 bg-rose-50 font-bold">
-                                                                        ${parseFloat(c.outstanding_balance).toLocaleString()} owed
-                                                                    </Badge>
-                                                                </div>
-                                                            </div>
+                                                            </SelectItem>
                                                         ))
                                                     ) : (
                                                         <div className="p-4 text-center">
-                                                            <User className="size-6 text-slate-300 mx-auto mb-2" />
                                                             <p className="text-sm font-medium text-slate-600">No customers found</p>
                                                         </div>
                                                     )}
-                                                </div>
-                                            )}
+                                                </SelectContent>
+                                            </Select>
 
                                             {selectedCreditCustomer && (
                                                 <div className="flex justify-between items-center px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl">
