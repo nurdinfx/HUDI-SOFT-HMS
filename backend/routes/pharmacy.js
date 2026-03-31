@@ -247,13 +247,42 @@ router.post('/transactions', async (req, res) => {
                 uuidv4(), creditCustomerId, new Date().toISOString().split('T')[0], `Pharmacy POS Credit Purchase: ${invoiceId}`,
                 'debit', totalAmount, newBalance, transactionUID
             );
+        } else if (paymentMethod === 'employee_credit' && creditCustomerId) {
+            // Handle Employee Credit Integration
+            const employee = await db.prepare('SELECT * FROM employees WHERE id = ?').get(creditCustomerId);
+            if (!employee) throw new Error('Employee not found');
+
+            const remainingBalance = totalToReconcile - (parseFloat(paidAmount) || 0);
+
+            // 1. Log an advance in employee_expenses
+            const expenseId = uuidv4();
+            const today = new Date().toISOString().split('T')[0];
+            await db.prepare(`
+                INSERT INTO employee_expenses (id, employee_id, type, amount, date, notes, status, recorded_by)
+                VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+            `).run(expenseId, creditCustomerId, 'advance', remainingBalance, today, `Pharmacy Purchase: ${invoiceId}`, req.user.id);
+
+            // 2. Update employee's outstanding_balance
+            const newBalance = parseFloat(employee.outstanding_balance || 0) + remainingBalance;
+            await db.prepare(`
+                UPDATE employees 
+                SET outstanding_balance = ? 
+                WHERE id = ?
+            `).run(newBalance, creditCustomerId);
+
+            // 3. Insert into employee_ledger
+            await db.prepare(`
+                INSERT INTO employee_ledger (id, employee_id, date, description, type, amount, reference_id)
+                VALUES (?, ?, ?, ?, 'debit', ?, ?)
+            `).run(uuidv4(), creditCustomerId, today, `Pharmacy Purchase: ${invoiceId}`, remainingBalance, expenseId);
+
         } else if (patientId) {
             // Internal Patient Credit Fallback
             if (safeAppliedCredit > 0) {
                 await db.prepare('UPDATE patient_credits SET balance = patient_credits.balance - ?, last_updated = CURRENT_TIMESTAMP WHERE patient_id = ?')
                     .run(safeAppliedCredit, patientId);
             }
-            if (creditAmount > 0 && paymentMethod !== 'credit') {
+            if (creditAmount > 0 && paymentMethod !== 'credit' && paymentMethod !== 'employee_credit') {
                 await db.prepare(`INSERT INTO patient_credits (id, patient_id, balance) 
                     VALUES (?, ?, ?) 
                     ON CONFLICT(patient_id) DO UPDATE SET balance = patient_credits.balance + ?, last_updated = CURRENT_TIMESTAMP`)

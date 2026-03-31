@@ -35,7 +35,7 @@ import {
   Trash2,
   Check
 } from "lucide-react"
-import { pharmacyApi, patientsApi, posApi, creditApi, settingsApi, type Medicine, type Patient, type HospitalSettings } from "@/lib/api"
+import { pharmacyApi, patientsApi, posApi, creditApi, settingsApi, hrApi, type Medicine, type Patient, type HospitalSettings } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -95,6 +95,8 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
   const [insuranceInfo, setInsuranceInfo] = useState({ company: '', policyNumber: '', claimAmount: 0 })
   const [creditCustomers, setCreditCustomers] = useState<any[]>([])
   const [selectedCreditCustomerId, setSelectedCreditCustomerId] = useState<string | null>(null)
+  const [employees, setEmployees] = useState<any[]>([])
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [pendingCharges, setPendingCharges] = useState<any[]>([])
   const [isLoadingCharges, setIsLoadingCharges] = useState(false)
   
@@ -124,8 +126,18 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
   useEffect(() => {
     fetchData()
     fetchCreditCustomers()
+    fetchEmployees()
     loadSettings()
   }, [])
+
+  const fetchEmployees = async () => {
+    try {
+      const data = await hrApi.getEmployees()
+      setEmployees(data)
+    } catch (e) {
+      console.error("Failed to fetch employees", e)
+    }
+  }
 
   const loadSettings = async () => {
     try {
@@ -286,7 +298,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
         appliedCredit: appliedCreditValue,
         paymentMethod,
         discount,
-        creditCustomerId: selectedCreditCustomerId,
+        creditCustomerId: paymentMethod === 'employee_credit' ? selectedEmployeeId : selectedCreditCustomerId,
         status
       }
       
@@ -1290,16 +1302,16 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                   </div>
                   <div className="p-4 sm:p-6 space-y-4">
                      <div className="flex items-center gap-2 overflow-x-auto pb-2 hide-scrollbar">
-                        {['ZAAD', 'SAHAL', 'EDAHAB', 'MYCASH', 'INSURANCE', 'CREDIT'].map(m => (
+                        {['ZAAD', 'SAHAL', 'EDAHAB', 'MYCASH', 'INSURANCE', 'CREDIT', 'EMPLOYEE_CREDIT'].map(m => (
                           <button 
                             key={m}
                             className={`px-4 py-2 rounded-full border flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${paymentMethod === m ? 'bg-emerald-500 text-white border-emerald-500 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}
                             onClick={() => setPaymentMethod(m)}
                           >
                              {m === 'ZAAD' && <Smartphone className="size-3" />}
-                             {m === 'CREDIT' && <RotateCcw className="size-3" />}
+                             {(m === 'CREDIT' || m === 'EMPLOYEE_CREDIT') && <RotateCcw className="size-3" />}
                              {m === 'INSURANCE' && <ShieldCheck className="size-3" />}
-                             {m}
+                             {m === 'EMPLOYEE_CREDIT' ? 'Emp. Credit' : m}
                           </button>
                         ))}
                      </div>
@@ -1325,6 +1337,27 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                        </div>
                      )}
 
+                     {paymentMethod === 'EMPLOYEE_CREDIT' && (
+                       <div className="space-y-2 p-4 bg-slate-900 rounded-2xl animate-in slide-in-from-bottom-2 duration-300">
+                          <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Select Employee</Label>
+                          <Select onValueChange={(v) => setSelectedEmployeeId(v)}>
+                             <SelectTrigger className="h-10 rounded-xl bg-white/5 border-white/10 text-white font-bold text-xs">
+                                <SelectValue placeholder="Search employee..." />
+                             </SelectTrigger>
+                             <SelectContent className="rounded-xl bg-slate-900 border-slate-800 text-white">
+                                {employees.map(e => (
+                                  <SelectItem key={e.id} value={e.id} className="font-bold py-2 hover:bg-white/5">
+                                     <div className="flex flex-col">
+                                        <span className="text-xs">{e.full_name}</span>
+                                        <span className="text-[8px] text-amber-400 font-black uppercase mt-0.5">${e.outstanding_balance || 0} balance</span>
+                                     </div>
+                                  </SelectItem>
+                                ))}
+                             </SelectContent>
+                          </Select>
+                       </div>
+                     )}
+
                      <div className="flex items-center gap-3">
                         <div className="flex-1 relative">
                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</div>
@@ -1339,7 +1372,7 @@ export function PharmacyTransactions({ medicines, onRefresh }: Props) {
                         <Button 
                            className="flex-[2] h-12 rounded-2xl bg-slate-900 text-white font-black text-sm uppercase tracking-tighter italic shadow-xl transition-all hover:bg-slate-800 active:scale-95 flex items-center justify-center gap-3 group disabled:opacity-50"
                            onClick={handleCreateSale}
-                           disabled={loading || cart.length === 0 || (paymentMethod === 'CREDIT' && !selectedCreditCustomerId)}
+                           disabled={loading || cart.length === 0 || (paymentMethod === 'CREDIT' && !selectedCreditCustomerId) || (paymentMethod === 'EMPLOYEE_CREDIT' && !selectedEmployeeId)}
                         >
                            {loading ? (
                              <Activity className="size-5 animate-spin" />
