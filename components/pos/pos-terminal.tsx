@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { pharmacyApi, laboratoryApi, patientsApi, posApi, creditApi, settingsApi, type POSItem, type Patient, type HospitalSettings } from "@/lib/api"
+import { pharmacyApi, laboratoryApi, patientsApi, posApi, creditApi, settingsApi, hrApi, type POSItem, type Patient, type HospitalSettings } from "@/lib/api"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -65,14 +65,19 @@ export function POSTerminal() {
     const [selectedCreditCustomer, setSelectedCreditCustomer] = useState<any | null>(null)
     const [hospitalSettings, setHospitalSettings] = useState<HospitalSettings | null>(null)
 
+    // Employee Credit State
+    const [employees, setEmployees] = useState<any[]>([])
+    const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null)
+
     // Load Initial Data
     useEffect(() => {
         async function loadData() {
             try {
-                const [meds, labs, pats] = await Promise.all([
+                const [meds, labs, pats, emps] = await Promise.all([
                     pharmacyApi.getMedicines(),
                     laboratoryApi.getCatalog(),
-                    patientsApi.getAll()
+                    patientsApi.getAll(),
+                    hrApi.getEmployees().catch(() => [])
                 ]);
 
                 const formattedMeds: CatalogItem[] = (meds || []).map(m => ({
@@ -94,6 +99,7 @@ export function POSTerminal() {
 
                 setCatalog([...formattedMeds, ...formattedLabs])
                 setPatients(pats || [])
+                setEmployees(emps || [])
                 
                 // Load Hospital Settings
                 try {
@@ -240,13 +246,13 @@ export function POSTerminal() {
 
             const res = await posApi.checkout({
                 patientId: selectedPatient ? selectedPatient.id : null,
-                patientName: selectedPatient ? `${selectedPatient.firstName} ${selectedPatient.lastName}` : (selectedCreditCustomer ? selectedCreditCustomer.full_name : "Walk-In Patient"),
+                patientName: selectedPatient ? `${selectedPatient.firstName} ${selectedPatient.lastName}` : (selectedCreditCustomer ? selectedCreditCustomer.full_name : (selectedEmployee ? selectedEmployee.full_name : "Walk-In Patient")),
                 items: cart,
                 discount: parsedDiscount,
                 paymentMethod: paymentMethod,
                 amountPaid: parsedAmountPaid,
                 insuranceInfo: insData,
-                creditCustomerId: paymentMethod === 'credit' ? selectedCreditCustomer?.id : undefined
+                creditCustomerId: paymentMethod === 'credit' ? selectedCreditCustomer?.id : (paymentMethod === 'employee_credit' ? selectedEmployee?.id : undefined)
             })
 
             setLastInvoice(res)
@@ -268,6 +274,8 @@ export function POSTerminal() {
             setInsuranceCoverage(0)
             setAmountPaid("")
             setPatientSearch("")
+            setSelectedEmployee(null)
+            setSelectedCreditCustomer(null)
             setReceiptMode('review')
             setShowReceipt(true)
         } catch (err: any) {
@@ -353,7 +361,8 @@ export function POSTerminal() {
         { id: 'edahab', label: 'EDAHAB', icon: Smartphone, color: 'text-purple-500', bg: 'bg-purple-50 text-purple-700 border-purple-200' },
         { id: 'mycash', label: 'MYCASH', icon: Landmark, color: 'text-indigo-500', bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
         { id: 'insurance', label: 'Insurance', icon: ShieldCheck, color: 'text-cyan-500', bg: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
-        { id: 'credit', label: 'Credit', icon: History, color: 'text-rose-500', bg: 'bg-rose-50 text-rose-700 border-rose-200' }
+        { id: 'credit', label: 'Credit', icon: History, color: 'text-rose-500', bg: 'bg-rose-50 text-rose-700 border-rose-200' },
+        { id: 'employee_credit', label: 'Emp. Credit', icon: User, color: 'text-amber-500', bg: 'bg-amber-50 text-amber-700 border-amber-200' }
     ]
 
     return (
@@ -430,6 +439,16 @@ export function POSTerminal() {
                                 <span className="text-[10px] font-bold text-rose-600 uppercase tracking-widest">{selectedCreditCustomer.customer_id}</span>
                             </div>
                             <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full bg-rose-100 hover:bg-rose-200 text-rose-700" onClick={() => setSelectedCreditCustomer(null)}>
+                                <X className="size-3" />
+                            </Button>
+                        </div>
+                    ) : selectedEmployee ? (
+                        <div className="flex items-center gap-3 bg-amber-50 border border-amber-100 pl-3 pr-1 py-1 rounded-full animate-in zoom-in-95">
+                            <div className="flex flex-col items-end">
+                                <span className="text-xs font-bold text-amber-900 leading-none">{selectedEmployee.full_name}</span>
+                                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">{selectedEmployee.employee_id}</span>
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-700" onClick={() => setSelectedEmployee(null)}>
                                 <X className="size-3" />
                             </Button>
                         </div>
@@ -711,6 +730,50 @@ export function POSTerminal() {
                                         </div>
                                     </div>
                                 )}
+
+                                {paymentMethod === 'employee_credit' && (
+                                    <div className="w-full relative">
+                                        <div className="flex flex-col gap-2">
+                                            <Select 
+                                                value={selectedEmployee?.id || ""} 
+                                                onValueChange={(value) => {
+                                                    const emp = employees.find(e => e.id === value);
+                                                    setSelectedEmployee(emp || null);
+                                                }}
+                                            >
+                                                <SelectTrigger className="h-14 bg-white border-slate-200 text-slate-900 font-bold rounded-2xl focus:ring-amber-500 shadow-sm px-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <User className="size-4 text-slate-400" />
+                                                        <SelectValue placeholder="Select Employee..." />
+                                                    </div>
+                                                </SelectTrigger>
+                                                <SelectContent className="rounded-2xl max-h-[300px]">
+                                                    {employees.length > 0 ? (
+                                                        employees.map((e) => (
+                                                            <SelectItem key={e.id} value={e.id} className="p-3 border-b border-slate-50 last:border-0">
+                                                                <div className="flex flex-col text-left">
+                                                                    <div className="flex justify-between items-center gap-4">
+                                                                        <span className="font-bold text-slate-900 text-sm">{e.full_name}</span>
+                                                                        <Badge variant="outline" className="text-[9px] text-amber-600 border-amber-200 bg-amber-50 font-bold shrink-0">
+                                                                            ${parseFloat(e.outstanding_balance || '0').toLocaleString()} Owed
+                                                                        </Badge>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                                        <span className="text-[10px] text-slate-500 font-mono">{e.employee_id} • {e.department}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </SelectItem>
+                                                        ))
+                                                    ) : (
+                                                        <div className="p-4 text-center">
+                                                            <p className="text-sm font-medium text-slate-600">No employees found</p>
+                                                        </div>
+                                                    )}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                )}
                                 
                                 <Button
                                     className="flex-1 h-14 rounded-2xl text-lg font-black tracking-widest uppercase bg-slate-900 text-white hover:bg-slate-800 shadow-xl transition-all hover:translate-y-[-2px] hover:shadow-2xl active:translate-y-[0px] disabled:opacity-50 disabled:hover:translate-y-0"
@@ -718,7 +781,8 @@ export function POSTerminal() {
                                         cart.length === 0 || 
                                         isProcessing || 
                                         (total > 0 && paymentMethod === 'cash' && Number(amountPaid) > 0 && Number(amountPaid) < total) ||
-                                        (paymentMethod === 'credit' && !selectedCreditCustomer)
+                                        (paymentMethod === 'credit' && !selectedCreditCustomer) ||
+                                        (paymentMethod === 'employee_credit' && !selectedEmployee)
                                     }
                                     onClick={handleCheckout}
                                 >

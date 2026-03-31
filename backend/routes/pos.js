@@ -205,7 +205,7 @@ router.post('/checkout', async (req, res) => {
         const total = Math.max(0, subtotal + tax - disc);
         
         let paidAmount = 0;
-        if (paymentMethod !== 'credit') {
+        if (paymentMethod !== 'credit' && paymentMethod !== 'employee_credit') {
             paidAmount = (amountPaid !== undefined && amountPaid !== null && !isNaN(parseFloat(amountPaid)))
                 ? parseFloat(amountPaid)
                 : total;
@@ -331,8 +331,8 @@ router.post('/checkout', async (req, res) => {
                 );
         }
 
-        // 6. Account entry for payment (only if not credit)
-        if (paidAmount > 0 && paymentMethod !== 'credit') {
+        // 6. Account entry for payment (only if not credit or employee_credit)
+        if (paidAmount > 0 && paymentMethod !== 'credit' && paymentMethod !== 'employee_credit') {
             await recordGranularPayment({
                 invoiceId: invoiceUID,
                 dbInvoiceId: invoiceDbId,
@@ -386,6 +386,40 @@ router.post('/checkout', async (req, res) => {
                 uuidv4(), creditCustomerId, today, `POS Credit Purchase: ${invoiceUID}`,
                 'debit', total, newBalance, transactionUID
             );
+        }
+
+        // 8. Handle Employee Credit Transaction
+        if (paymentMethod === 'employee_credit') {
+            const { creditCustomerId } = req.body; // reusing creditCustomerId field
+            if (!creditCustomerId) {
+                throw new Error('Employee ID is required for employee credit transactions');
+            }
+
+            const employee = await db.prepare('SELECT * FROM employees WHERE id = ?').get(creditCustomerId);
+            if (!employee) throw new Error('Employee not found');
+
+            const remainingBalance = total - paidAmount;
+
+            // 1. Log an advance in employee_expenses
+            const expenseId = uuidv4();
+            await db.prepare(`
+                INSERT INTO employee_expenses (id, employee_id, type, amount, date, notes, status, recorded_by)
+                VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+            `).run(expenseId, creditCustomerId, 'advance', remainingBalance, today, `POS Purchase: ${invoiceUID}`, req.user.id);
+
+            // 2. Update employee's outstanding_balance
+            const newBalance = parseFloat(employee.outstanding_balance || 0) + remainingBalance;
+            await db.prepare(`
+                UPDATE employees 
+                SET outstanding_balance = ? 
+                WHERE id = ?
+            `).run(newBalance, creditCustomerId);
+
+            // 3. Insert into employee_ledger
+            await db.prepare(`
+                INSERT INTO employee_ledger (id, employee_id, date, description, type, amount, reference_id)
+                VALUES (?, ?, ?, ?, 'debit', ?, ?)
+            `).run(uuidv4(), creditCustomerId, today, `POS Purchase: ${invoiceUID}`, remainingBalance, expenseId);
         }
 
         await db.exec('COMMIT');

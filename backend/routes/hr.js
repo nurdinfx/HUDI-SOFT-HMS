@@ -92,6 +92,13 @@ router.post('/expenses', async (req, res) => {
             VALUES (?, ?, ?, ?, 'debit', ?, ?)
         `).run(uuidv4(), employeeId, expDate, `${type.charAt(0).toUpperCase() + type.slice(1)}: ${notes || ''}`, amt, expenseId);
 
+        // Update employee's outstanding balance
+        await db.prepare(`
+            UPDATE employees
+            SET outstanding_balance = COALESCE(outstanding_balance, 0) + ?
+            WHERE id = ?
+        `).run(amt, employeeId);
+
         await db.exec('COMMIT');
         
         logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'HR', `Recorded ${type}: ${amt} for ${employee.full_name}`, req.ip);
@@ -138,6 +145,67 @@ router.delete('/employees/:id', async (req, res) => {
     }
 });
 
+// ─── REPAYMENTS ──────────────────────────────────────────────────
+
+// POST /api/hr/employees/:id/repay - Record a direct repayment
+router.post('/employees/:id/repay', async (req, res) => {
+    const { id } = req.params;
+    const { amount, method, notes, date } = req.body;
+
+    if (!amount || amount <= 0) {
+        return res.status(400).json({ error: 'Valid repayment amount is required' });
+    }
+
+    try {
+        await db.exec('BEGIN');
+
+        const employee = await db.prepare('SELECT * FROM employees WHERE id = ?').get(id);
+        if (!employee) throw new Error('Employee not found');
+
+        const repayAmt = parseFloat(amount);
+        const repayDate = date || new Date().toISOString().split('T')[0];
+
+        // Ensure we do not overpay
+        let newBalance = parseFloat(employee.outstanding_balance || 0) - repayAmt;
+        if (newBalance < 0) newBalance = 0;
+
+        await db.prepare(`
+            UPDATE employees 
+            SET outstanding_balance = ?
+            WHERE id = ?
+        `).run(newBalance, id);
+
+        const repaymentId = uuidv4();
+        await db.prepare(`
+            INSERT INTO employee_ledger (id, employee_id, date, description, type, amount, reference_id)
+            VALUES (?, ?, ?, ?, 'credit', ?, ?)
+        `).run(repaymentId, id, repayDate, `Advance Repayment: ${notes || 'Manual partial payment'}`, repayAmt, repaymentId);
+
+        // Mark incoming cash as income
+        await db.prepare(`
+            INSERT INTO account_entries (id, date, type, category, description, amount, payment_method, department, status, user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?)
+        `).run(
+            uuidv4(), repayDate, 'income', 'Staff Repayment',
+            `Advance Repayment - ${employee.full_name}`,
+            repayAmt, method || 'cash', employee.department || 'HR', req.user.id
+        );
+
+        // Since they repaid directly, we can optionally credit an equal amount against their pending expenses
+        // so that the next payroll doesn't over-deduct. We will achieve this safely by letting outstanding_balance
+        // be the source of truth for payroll deductions.
+
+        await db.exec('COMMIT');
+        
+        logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'HR', `Recorded repayment of ${repayAmt} for ${employee.full_name}`, req.ip);
+        res.json({ message: 'Repayment recorded successfully' });
+    } catch (err) {
+        await db.exec('ROLLBACK');
+        console.error('❌ Repayment Error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ─── PAYROLL ───────────────────────────────────────────────────
 
 // GET /api/hr/payroll/summary/:monthYear - Get payroll summary for a month
@@ -147,14 +215,8 @@ router.get('/payroll/summary/:monthYear', async (req, res) => {
         
         const employees = await db.prepare("SELECT * FROM employees WHERE status = 'active'").all();
         const summary = await Promise.all(employees.map(async (emp) => {
-            // Get total pending deductions (advances/expenses)
-            const deductions = await db.prepare(`
-                SELECT SUM(amount) as total 
-                FROM employee_expenses 
-                WHERE employee_id = ? AND status = 'pending'
-            `).get(emp.id);
-
-            const totalDeductions = parseFloat(deductions.total || 0);
+            // Deductions are now solely based on their explicit outstanding_balance
+            const totalDeductions = parseFloat(emp.outstanding_balance || 0);
             const finalSalary = parseFloat(emp.base_salary) - totalDeductions;
 
             return {
@@ -191,13 +253,7 @@ router.post('/payroll/process', async (req, res) => {
         if (existing) throw new Error('Salary already processed for this month');
 
         // Calculate deductions
-        const deductionsRes = await db.prepare(`
-            SELECT SUM(amount) as total 
-            FROM employee_expenses 
-            WHERE employee_id = ? AND status = 'pending'
-        `).get(employeeId);
-
-        const totalDeductions = parseFloat(deductionsRes.total || 0);
+        const totalDeductions = parseFloat(employee.outstanding_balance || 0);
         const finalSalary = parseFloat(employee.base_salary) - totalDeductions;
         const payDate = paymentDate || new Date().toISOString().split('T')[0];
         const payrollId = uuidv4();
@@ -208,11 +264,17 @@ router.post('/payroll/process', async (req, res) => {
             VALUES (?, ?, ?, ?, ?, ?, 'paid', ?)
         `).run(payrollId, employeeId, monthYear, employee.base_salary, totalDeductions, finalSalary, payDate);
 
-        // 2. Mark pending expenses as deducted
+        // 2. Mark pending expenses as deducted and reset outstanding_balance
         await db.prepare(`
             UPDATE employee_expenses 
             SET status = 'deducted' 
             WHERE employee_id = ? AND status = 'pending'
+        `).run(employeeId);
+
+        await db.prepare(`
+            UPDATE employees
+            SET outstanding_balance = 0
+            WHERE id = ?
         `).run(employeeId);
 
         // 3. Add to ledger (as a credit - salary payout)

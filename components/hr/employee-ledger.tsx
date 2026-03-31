@@ -54,18 +54,22 @@ export function EmployeeLedger({ employee, open, onOpenChange }: EmployeeLedgerP
                     </div>
                 </DialogHeader>
 
-                <div className="grid grid-cols-3 gap-4 py-4">
+                <div className="grid grid-cols-4 gap-4 py-4">
                     <div className="p-4 bg-slate-100 rounded-2xl">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Monthly Base</p>
-                        <p className="text-lg font-black text-slate-900 mt-1">${parseFloat(employee?.base_salary || 0).toLocaleString()}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Monthly Base</p>
+                        <p className="text-lg font-black text-slate-900">${parseFloat(employee?.base_salary || 0).toLocaleString()}</p>
                     </div>
                     <div className="p-4 bg-rose-50 rounded-2xl border border-rose-100/50">
-                        <p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest leading-none text-rose-500">Total Deducted</p>
-                        <p className="text-lg font-black text-rose-600 mt-1">${(data?.expenses?.reduce((s:any, e:any) => s + (e.status === 'deducted' ? parseFloat(e.amount) : 0), 0) || 0).toLocaleString()}</p>
+                        <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest leading-none mb-1">Total Deducted</p>
+                        <p className="text-lg font-black text-rose-600">${(data?.expenses?.reduce((s:any, e:any) => s + (e.status === 'deducted' ? parseFloat(e.amount) : 0), 0) || 0).toLocaleString()}</p>
                     </div>
                     <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100/50">
-                        <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest leading-none text-emerald-500">Total Paid</p>
-                        <p className="text-lg font-black text-emerald-600 mt-1">${(data?.payroll?.reduce((s:any, p:any) => s + (p.payment_status === 'paid' ? parseFloat(p.final_salary) : 0), 0) || 0).toLocaleString()}</p>
+                        <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest leading-none mb-1">Total Paid</p>
+                        <p className="text-lg font-black text-emerald-600">${(data?.payroll?.reduce((s:any, p:any) => s + (p.payment_status === 'paid' ? parseFloat(p.final_salary) : 0), 0) || 0).toLocaleString()}</p>
+                    </div>
+                    <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100/50">
+                        <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest leading-none mb-1">Outstanding</p>
+                        <p className="text-lg font-black text-amber-600">${parseFloat(employee?.outstanding_balance || 0).toLocaleString()}</p>
                     </div>
                 </div>
 

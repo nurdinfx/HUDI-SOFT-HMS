@@ -64,6 +64,15 @@ export function EmployeeManagementContent() {
         date: format(new Date(), 'yyyy-MM-dd')
     })
 
+    // Repayment Dialog
+    const [showRepayment, setShowRepayment] = useState(false)
+    const [repayment, setRepayment] = useState({
+        amount: "",
+        method: "cash",
+        notes: "",
+        date: format(new Date(), 'yyyy-MM-dd')
+    })
+
     // Ledger Dialog
     const [showLedger, setShowLedger] = useState(false)
     const [selectedProfile, setSelectedProfile] = useState<any>(null)
@@ -161,6 +170,24 @@ export function EmployeeManagementContent() {
             loadData()
         } catch (err) {
             toast.error("Failed to record expense")
+        }
+    }
+
+    const handleRecordRepayment = async () => {
+        if (!repayment.amount || parseFloat(repayment.amount) <= 0) return toast.error("Invalid amount")
+        try {
+            await hrApi.recordRepayment(selectedEmployee.id, {
+                amount: parseFloat(repayment.amount),
+                method: repayment.method,
+                notes: repayment.notes,
+                date: repayment.date
+            })
+            toast.success(`Repayment recorded successfully`)
+            setShowRepayment(false)
+            setRepayment({...repayment, amount: '', notes: ''})
+            loadData()
+        } catch (err) {
+            toast.error("Failed to record repayment")
         }
     }
 
@@ -373,7 +400,7 @@ export function EmployeeManagementContent() {
                                     </div>
                                 </CardHeader>
                                 <CardContent className="p-5 pt-0 space-y-4">
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-3 gap-2">
                                         <div className="p-2.5 bg-slate-50 rounded-xl">
                                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">Salary</p>
                                             <p className="text-sm font-black text-slate-900 mt-1">${parseFloat(emp.base_salary).toLocaleString()}</p>
@@ -382,51 +409,68 @@ export function EmployeeManagementContent() {
                                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">Joined</p>
                                             <p className="text-sm font-bold text-slate-600 mt-1">{format(new Date(emp.date_joined), 'MMM yyyy')}</p>
                                         </div>
+                                        <div className={cn("p-2.5 rounded-xl border", parseFloat(emp.outstanding_balance) > 0 ? "bg-rose-50 border-rose-100" : "bg-emerald-50 border-emerald-100")}>
+                                            <p className={cn("text-[9px] font-bold uppercase tracking-widest leading-none", parseFloat(emp.outstanding_balance) > 0 ? "text-rose-500" : "text-emerald-500")}>Advances</p>
+                                            <p className={cn("text-sm font-black mt-1", parseFloat(emp.outstanding_balance) > 0 ? "text-rose-700" : "text-emerald-700")}>
+                                                ${parseFloat(emp.outstanding_balance || 0).toLocaleString()}
+                                            </p>
+                                        </div>
                                     </div>
 
-                                    <div className="flex items-center justify-between gap-2">
+                                    <div className="grid grid-cols-2 gap-2">
                                         <Button 
                                             variant="outline" 
-                                            className="h-9 flex-1 text-xs rounded-xl font-bold border-slate-200 hover:bg-slate-50"
+                                            className="h-9 w-full text-xs rounded-xl font-bold border-slate-200 hover:bg-slate-50 text-slate-600"
                                             onClick={() => {
                                                 setSelectedEmployee(emp)
                                                 setShowExpense(true)
                                             }}
                                         >
-                                            <Plus className="mr-2 size-3" /> Record Advance
+                                            <Plus className="mr-2 size-3" /> Advance
                                         </Button>
-                                        <div className="flex gap-1.5">
-                                            <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-9 w-9 rounded-xl text-blue-500 hover:bg-blue-50"
-                                                onClick={() => {
-                                                    setEditingEmployee({...emp})
-                                                    setShowEditEmployee(true)
-                                                }}
-                                            >
-                                                <Edit className="size-4" />
-                                            </Button>
-                                            <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-9 w-9 rounded-xl text-slate-400"
-                                                onClick={() => {
-                                                    setSelectedProfile(emp)
-                                                    setShowLedger(true)
-                                                }}
-                                            >
-                                                <ArrowUpRight className="size-4" />
-                                            </Button>
-                                            <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-9 w-9 rounded-xl text-rose-500 hover:bg-rose-50"
-                                                onClick={() => setDeleteConfirmId(emp.id)}
-                                            >
-                                                <Trash2 className="size-4" />
-                                            </Button>
-                                        </div>
+                                        <Button 
+                                            variant="outline" 
+                                            className="h-9 w-full text-xs rounded-xl font-bold border-emerald-200 hover:bg-emerald-50 text-emerald-600 bg-emerald-50/50"
+                                            onClick={() => {
+                                                setSelectedEmployee(emp)
+                                                setShowRepayment(true)
+                                            }}
+                                            disabled={parseFloat(emp.outstanding_balance || 0) <= 0}
+                                        >
+                                            <CheckCircle2 className="mr-2 size-3" /> Repay
+                                        </Button>
+                                    </div>
+                                    <div className="flex justify-between items-center bg-slate-50/50 p-1 rounded-xl">
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-9 w-9 rounded-lg text-blue-500 hover:bg-blue-50"
+                                            onClick={() => {
+                                                setEditingEmployee({...emp})
+                                                setShowEditEmployee(true)
+                                            }}
+                                        >
+                                            <Edit className="size-4" />
+                                        </Button>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-9 w-9 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-200"
+                                            onClick={() => {
+                                                setSelectedProfile(emp)
+                                                setShowLedger(true)
+                                            }}
+                                        >
+                                            <FileText className="size-4" />
+                                        </Button>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-9 w-9 rounded-lg text-rose-500 hover:bg-rose-50"
+                                            onClick={() => setDeleteConfirmId(emp.id)}
+                                        >
+                                            <Trash2 className="size-4" />
+                                        </Button>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -553,6 +597,65 @@ export function EmployeeManagementContent() {
                     <DialogFooter>
                         <Button variant="outline" className="h-10 rounded-xl" onClick={() => setShowExpense(false)}>Cancel</Button>
                         <Button className="h-10 rounded-xl bg-slate-900 shadow-lg text-white font-bold" onClick={handleRecordExpense}>Record Deduction</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* REPAYMENT DIALOG */}
+            <Dialog open={showRepayment} onOpenChange={setShowRepayment}>
+                <DialogContent className="max-w-md rounded-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-bold">Record Repayment</DialogTitle>
+                        <DialogDescription>Employee <b>{selectedEmployee?.full_name}</b> is paying back their advance.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex justify-between items-center mb-2">
+                            <div>
+                                <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest">Total Outstanding Debt</p>
+                                <p className="text-xl font-black text-rose-700">${parseFloat(selectedEmployee?.outstanding_balance || 0).toLocaleString()}</p>
+                            </div>
+                            <div className="h-10 w-10 rounded-xl bg-white border border-rose-200 flex items-center justify-center">
+                                <History className="size-5 text-rose-400" />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Payment Method</Label>
+                                <Select value={repayment.method} onValueChange={v => setRepayment({...repayment, method: v})}>
+                                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="cash">Cash</SelectItem>
+                                        <SelectItem value="bank">Bank Transfer</SelectItem>
+                                        <SelectItem value="mobile">Mobile Money</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Amount ($)</Label>
+                                <Input 
+                                    type="number" 
+                                    placeholder="0.00" 
+                                    className="font-bold text-emerald-600 focus-visible:ring-emerald-500"
+                                    value={repayment.amount}
+                                    onChange={e => setRepayment({...repayment, amount: e.target.value})}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Date</Label>
+                            <Input type="date" value={repayment.date} onChange={e => setRepayment({...repayment, date: e.target.value})} />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Notes</Label>
+                            <Input placeholder="Direct cash repayment, etc." value={repayment.notes} onChange={e => setRepayment({...repayment, notes: e.target.value})} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" className="h-10 rounded-xl" onClick={() => setShowRepayment(false)}>Cancel</Button>
+                        <Button className="h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 shadow-lg text-white font-bold" onClick={handleRecordRepayment}>Confirm Payment</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

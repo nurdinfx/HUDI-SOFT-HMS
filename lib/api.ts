@@ -342,6 +342,7 @@ export const hrApi = {
     registerEmployee: (data: any) => apiFetch<any>('/hr/employees', { method: 'POST', body: data }),
     getEmployeeDetails: (id: string) => apiFetch<any>(`/hr/employees/${id}`),
     recordExpense: (data: any) => apiFetch<any>('/hr/expenses', { method: 'POST', body: data }),
+    recordRepayment: (id: string, data: any) => apiFetch<any>(`/hr/employees/${id}/repay`, { method: 'POST', body: data }),
     getPayrollSummary: (monthYear: string) => apiFetch<any[]>(`/hr/payroll/summary/${monthYear}`),
     processPayroll: (data: any) => apiFetch<any>('/hr/payroll/process', { method: 'POST', body: data }),
     getStats: () => apiFetch<any>('/hr/stats'),
