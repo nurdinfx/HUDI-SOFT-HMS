@@ -84,10 +84,10 @@ const navGroups = [
   },
   {
     label: "Administration",
-    roles: ["admin", "accountant"],
+    roles: ["admin", "accountant", "receptionist"],
     items: [
       { title: "Employee Management", href: "/hr", icon: Users, roles: ["admin", "accountant"] },
-      { title: "Departments", href: "/departments", icon: Warehouse, roles: ["admin"] },
+      { title: "Departments", href: "/departments", icon: Warehouse, roles: ["admin", "receptionist"] },
       { title: "Users", href: "/users", icon: UserCog, roles: ["admin"] },
       { title: "Audit Logs", href: "/audit-logs", icon: ScrollText },
       { title: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
