@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Calendar, Clock, User, Phone, Mail, FileText, CheckCircle2, ChevronRight, AlertCircle, Loader2 } from "lucide-react";
 import { getDoctors, Doctor } from "@/services/doctorService";
@@ -8,7 +8,7 @@ import { getDepartments } from "@/services/deptService";
 import { bookPublicAppointment } from "@/services/appointmentService";
 import { cn } from "@/lib/utils";
 
-export default function AppointmentPage() {
+function AppointmentForm() {
   const searchParams = useSearchParams();
   const initialDoctorId = searchParams.get("doctor") || "";
 
@@ -282,5 +282,17 @@ export default function AppointmentPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AppointmentPage() {
+  return (
+    <Suspense fallback={
+        <div className="flex justify-center items-center min-h-[60rem]">
+            <Loader2 className="h-10 w-10 text-blue-600 animate-spin" />
+        </div>
+    }>
+      <AppointmentForm />
+    </Suspense>
   );
 }

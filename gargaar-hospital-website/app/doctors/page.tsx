@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Filter, Search, User, Award, Clock, Calendar, CheckCircle2 } from "lucide-react";
+import { Filter, Search, User, Award, Clock, Calendar, CheckCircle2, Loader2 } from "lucide-react";
 import { getDoctors, Doctor } from "@/services/doctorService";
 import { getDepartments } from "@/services/deptService";
 import { cn } from "@/lib/utils";
 
-export default function DoctorsPage() {
+function DoctorsList() {
   const searchParams = useSearchParams();
   const initialDept = searchParams.get("department") || "";
 
@@ -199,5 +199,17 @@ export default function DoctorsPage() {
             </div>
        </section>
     </div>
+  );
+}
+
+export default function DoctorsPage() {
+  return (
+    <Suspense fallback={
+        <div className="flex justify-center items-center min-h-[40rem]">
+            <Loader2 className="h-10 w-10 text-blue-600 animate-spin" />
+        </div>
+    }>
+      <DoctorsList />
+    </Suspense>
   );
 }
