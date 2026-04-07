@@ -79,6 +79,7 @@ export function AppointmentsContent({
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
   const [vitals, setVitals] = useState<Vitals[]>([])
   const [loadingVitals, setLoadingVitals] = useState(false)
+  const [doctorFilter, setDoctorFilter] = useState("all")
   const perPage = 10
 
   const [formData, setFormData] = useState({
@@ -111,6 +112,20 @@ export function AppointmentsContent({
     }
     setPrevApptsHash(currentHash)
   }, [initial])
+
+  useEffect(() => {
+    if (initialDoctorId) {
+      setDoctorFilter(initialDoctorId)
+      return
+    }
+    if (user?.role === 'doctor' && doctors.length > 0) {
+      const dr = doctors.find(d => 
+        d.email?.toLowerCase() === user.email?.toLowerCase() || 
+        d.name.toLowerCase().trim() === user.name.toLowerCase().trim()
+      )
+      if (dr) setDoctorFilter(dr.id)
+    }
+  }, [user, doctors, initialDoctorId])
 
   useEffect(() => {
     if (selectedAppointment) {
@@ -242,9 +257,10 @@ export function AppointmentsContent({
       const matchSearch = !search || a.patientName.toLowerCase().includes(search.toLowerCase()) || a.doctorName.toLowerCase().includes(search.toLowerCase()) || a.appointmentId.toLowerCase().includes(search.toLowerCase())
       const matchStatus = statusFilter === "all" || a.status === statusFilter
       const matchType = typeFilter === "all" || a.type === typeFilter
-      return matchSearch && matchStatus && matchType
+      const matchDoctor = doctorFilter === "all" || a.doctorId === doctorFilter
+      return matchSearch && matchStatus && matchType && matchDoctor
     })
-  }, [appointmentsList, search, statusFilter, typeFilter])
+  }, [appointmentsList, search, statusFilter, typeFilter, doctorFilter])
 
   const totalPages = Math.ceil(filtered.length / perPage)
   const paginated = filtered.slice((currentPage - 1) * perPage, currentPage * perPage)
@@ -374,6 +390,15 @@ export function AppointmentsContent({
                 <SelectItem value="follow-up">Follow-up</SelectItem>
                 <SelectItem value="routine-checkup">Routine Checkup</SelectItem>
                 <SelectItem value="emergency">Emergency</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={doctorFilter} onValueChange={(v) => { setDoctorFilter(v); setCurrentPage(1) }}>
+              <SelectTrigger className="w-[180px] h-10"><SelectValue placeholder="Filter by Doctor" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Doctors</SelectItem>
+                {doctors.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
