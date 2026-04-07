@@ -176,94 +176,116 @@ export default function NurseVitalsPage() {
                                 <CardDescription>Enter the latest clinical measurements for the selected patient</CardDescription>
                             </CardHeader>
                             <CardContent className="pt-8 pb-8">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-10">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-12">
                                     {/* BP */}
-                                    <div className="space-y-3">
-                                        <Label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                                            <Activity className="size-4 text-blue-500" />
-                                            Blood Pressure (BP)
-                                        </Label>
-                                        <div className="relative">
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <Label className="flex items-center gap-2 text-sm font-black text-slate-900 uppercase tracking-tight">
+                                                <Activity className="size-4 text-blue-500" />
+                                                Blood Pressure
+                                            </Label>
+                                            <span className="text-[10px] font-black px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full border border-blue-200 uppercase tracking-tighter italic">BP Range: 90/60 - 120/80</span>
+                                        </div>
+                                        <div className="relative group">
                                             <Input 
-                                                placeholder="e.g. 120/80" 
-                                                className="h-12 border-slate-200 focus:ring-blue-500/20 pr-12 text-lg font-medium"
+                                                placeholder="120/80" 
+                                                className="h-14 border-slate-200 focus:ring-blue-500/20 pr-16 text-xl font-black bg-white/50 backdrop-blur-sm transition-all group-hover:border-blue-400 group-focus-within:border-blue-500 group-focus-within:bg-white"
                                                 value={formData.bp}
                                                 onChange={(e) => setFormData({...formData, bp: e.target.value})}
                                             />
-                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground uppercase opacity-50">mmHg</span>
+                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-muted-foreground uppercase opacity-40">mmHg</span>
                                         </div>
                                     </div>
 
                                     {/* Temperature */}
-                                    <div className="space-y-3">
-                                        <Label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                                            <Thermometer className="size-4 text-orange-500" />
-                                            Temperature
-                                        </Label>
-                                        <div className="relative">
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <Label className="flex items-center gap-2 text-sm font-black text-slate-900 uppercase tracking-tight">
+                                                <Thermometer className="size-4 text-orange-500" />
+                                                Body Temperature
+                                            </Label>
+                                            <div className="flex gap-1">
+                                                <span className="text-[10px] font-black px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full border border-orange-100 uppercase tracking-tighter italic">Low: &lt;36</span>
+                                                <span className="text-[10px] font-black px-2 py-0.5 bg-orange-100 text-orange-800 rounded-full border border-orange-200 uppercase tracking-tighter italic font-extrabold underline">Normal: 36.5-37.5</span>
+                                                <span className="text-[10px] font-black px-2 py-0.5 bg-red-50 text-red-700 rounded-full border border-red-100 uppercase tracking-tighter italic">High: &gt;38</span>
+                                            </div>
+                                        </div>
+                                        <div className="relative group">
                                             <Input 
                                                 type="number"
                                                 step="0.1"
-                                                placeholder="e.g. 36.5" 
-                                                className="h-12 border-slate-200 focus:ring-orange-500/20 pr-10 text-lg font-medium"
+                                                placeholder="37.0" 
+                                                className="h-14 border-slate-200 focus:ring-orange-500/20 pr-12 text-xl font-black bg-white/50 backdrop-blur-sm transition-all group-hover:border-orange-400 group-focus-within:border-orange-500 group-focus-within:bg-white"
                                                 value={formData.temperature}
                                                 onChange={(e) => setFormData({...formData, temperature: e.target.value})}
                                             />
-                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black text-muted-foreground uppercase opacity-50">°C</span>
+                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black text-muted-foreground uppercase opacity-40">°C</span>
                                         </div>
                                     </div>
 
                                     {/* Pulse */}
-                                    <div className="space-y-3">
-                                        <Label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                                            <Heart className="size-4 text-rose-500" />
-                                            Pulse Rate
-                                        </Label>
-                                        <div className="relative">
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <Label className="flex items-center gap-2 text-sm font-black text-slate-900 uppercase tracking-tight">
+                                                <Heart className="size-4 text-rose-500" />
+                                                Pulse Rate
+                                            </Label>
+                                            <span className="text-[10px] font-black px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full border border-rose-200 uppercase tracking-tighter italic font-extrabold underline">Normal: 60-100 BPM</span>
+                                        </div>
+                                        <div className="relative group">
                                             <Input 
                                                 type="number"
-                                                placeholder="e.g. 72" 
-                                                className="h-12 border-slate-200 focus:ring-rose-500/20 pr-12 text-lg font-medium"
+                                                placeholder="72" 
+                                                className="h-14 border-slate-200 focus:ring-rose-500/20 pr-16 text-xl font-black bg-white/50 backdrop-blur-sm transition-all group-hover:border-rose-400 group-focus-within:border-rose-500 group-focus-within:bg-white"
                                                 value={formData.pulse}
                                                 onChange={(e) => setFormData({...formData, pulse: e.target.value})}
                                             />
-                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground uppercase opacity-50">BPM</span>
+                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-muted-foreground uppercase opacity-40">BPM</span>
                                         </div>
                                     </div>
 
                                     {/* SPO2 */}
-                                    <div className="space-y-3">
-                                        <Label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                                            <Droplets className="size-4 text-sky-500" />
-                                            Oxygen Saturation (SPO2)
-                                        </Label>
-                                        <div className="relative">
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <Label className="flex items-center gap-2 text-sm font-black text-slate-900 uppercase tracking-tight">
+                                                <Droplets className="size-4 text-sky-500" />
+                                                Oxygen Saturation (SPO2)
+                                            </Label>
+                                            <div className="flex gap-1">
+                                                <span className="text-[10px] font-black px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200 uppercase tracking-tighter italic font-extrabold underline">Normal: 95-100%</span>
+                                                <span className="text-[10px] font-black px-2 py-0.5 bg-red-100 text-red-800 rounded-full border border-red-200 uppercase tracking-tighter italic">Low: &lt;90%</span>
+                                            </div>
+                                        </div>
+                                        <div className="relative group">
                                             <Input 
                                                 type="number"
-                                                placeholder="e.g. 98" 
-                                                className="h-12 border-slate-200 focus:ring-sky-500/20 pr-10 text-lg font-medium"
+                                                placeholder="98" 
+                                                className="h-14 border-slate-200 focus:ring-sky-500/20 pr-12 text-xl font-black bg-white/50 backdrop-blur-sm transition-all group-hover:border-sky-400 group-focus-within:border-sky-500 group-focus-within:bg-white"
                                                 value={formData.spo2}
                                                 onChange={(e) => setFormData({...formData, spo2: e.target.value})}
                                             />
-                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black text-muted-foreground uppercase opacity-50">%</span>
+                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black text-muted-foreground uppercase opacity-40">%</span>
                                         </div>
                                     </div>
 
                                     {/* Blood Sugar */}
-                                    <div className="space-y-3">
-                                        <Label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                                            <FlaskConical className="size-4 text-emerald-500" />
-                                            Blood Sugar
-                                        </Label>
-                                        <div className="relative">
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <Label className="flex items-center gap-2 text-sm font-black text-slate-900 uppercase tracking-tight">
+                                                <FlaskConical className="size-4 text-emerald-600" />
+                                                Blood Sugar
+                                            </Label>
+                                            <span className="text-[10px] font-black px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200 uppercase tracking-tighter italic underline">Target: 70-130 mg/dL</span>
+                                        </div>
+                                        <div className="relative group">
                                             <Input 
                                                 type="number"
-                                                placeholder="e.g. 100" 
-                                                className="h-12 border-slate-200 focus:ring-emerald-500/20 pr-12 text-lg font-medium"
+                                                placeholder="100" 
+                                                className="h-14 border-slate-200 focus:ring-emerald-500/20 pr-16 text-xl font-black bg-white/50 backdrop-blur-sm transition-all group-hover:border-emerald-400 group-focus-within:border-emerald-500 group-focus-within:bg-white"
                                                 value={formData.bloodSugar}
                                                 onChange={(e) => setFormData({...formData, bloodSugar: e.target.value})}
                                             />
-                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground uppercase opacity-50">mg/dL</span>
+                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-muted-foreground uppercase opacity-40">mg/dL</span>
                                         </div>
                                     </div>
                                 </div>
