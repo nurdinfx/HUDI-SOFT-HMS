@@ -306,6 +306,12 @@ export const settingsApi = {
     update: (data: Partial<HospitalSettings>) => put<HospitalSettings>('/settings', data),
 };
 
+// ─── Vitals ──────────────────────────────────────────────────────
+export const vitalsApi = {
+    create: (data: Partial<Vitals>) => post<Vitals>('/vitals', data),
+    getByPatientId: (patientId: string) => get<Vitals[]>(`/vitals/patient/${patientId}`),
+};
+
 // ─── POS ─────────────────────────────────────────────────────────
 // ===== POS API =====
 export const posApi = {
@@ -750,6 +756,19 @@ export interface Payment {
     patientName: string;
     invoiceTotal: number;
     description: string;
+}
+
+export interface Vitals {
+    id: string;
+    patientId: string;
+    bp?: string;
+    temperature?: number;
+    pulse?: number;
+    spo2?: number;
+    bloodSugar?: number;
+    createdBy: string;
+    createdByName?: string;
+    createdAt: string;
 }
 
 // ===== Daily Operations =====

@@ -17,11 +17,29 @@ const fmt = (a) => ({
 router.get('/', async (req, res) => {
     const { search, status, date, doctorId, patientId } = req.query;
     let q = 'SELECT * FROM appointments WHERE 1=1'; const p = [];
+    
+    // Automatically filter for doctors
+    if (req.user.role === 'doctor') {
+        try {
+            const dr = await db.prepare('SELECT id FROM doctors WHERE LOWER(email) = ?').get(req.user.email.toLowerCase());
+            if (dr) {
+                q += ' AND doctor_id = ?';
+                p.push(dr.id);
+            } else {
+                q += ' AND 1=0'; // No doctor record found for this user email
+            }
+        } catch (e) {
+            console.error('Doctor filter error:', e);
+        }
+    } else if (doctorId) {
+        q += ' AND doctor_id = ?'; p.push(doctorId);
+    }
+
     if (search) { q += ` AND (patient_name LIKE ? OR doctor_name LIKE ? OR appointment_id LIKE ?)`; const s = `%${search}%`; p.push(s, s, s); }
     if (status) { q += ' AND status = ?'; p.push(status); }
     if (date) { q += ' AND date = ?'; p.push(date); }
-    if (doctorId) { q += ' AND doctor_id = ?'; p.push(doctorId); }
     if (patientId) { q += ' AND patient_id = ?'; p.push(patientId); }
+    
     q += ' ORDER BY date DESC, time DESC';
     try {
         const rows = await db.prepare(q).all(...p);
