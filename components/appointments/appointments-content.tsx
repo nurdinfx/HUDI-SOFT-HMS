@@ -371,10 +371,10 @@ export function AppointmentsContent({
               <Input placeholder="Search appointments..." className="pl-9 h-10" value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }} />
             </div>
             {user?.role !== 'doctor' && (
-              <Select value={search} onValueChange={(v) => { setSearch(v); setCurrentPage(1) }}>
+              <Select value={search || "all"} onValueChange={(v) => { setSearch(v === "all" ? "" : v); setCurrentPage(1) }}>
                 <SelectTrigger className="w-[200px] h-10"><SelectValue placeholder="All Doctors" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Doctors</SelectItem>
+                  <SelectItem value="all">All Doctors</SelectItem>
                   {doctors.map(d => (
                     <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
                   ))}
