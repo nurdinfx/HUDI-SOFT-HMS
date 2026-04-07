@@ -247,9 +247,15 @@ export function AppointmentsContent({
     return appointmentsList.filter((a) => {
       // 1. Role-based filtering for Doctors
       if (user?.role === 'doctor') {
-        const currentUserDoctorName = user.name.toLowerCase();
-        // Match by name or explicitly by doctorId if available
-        const isMyAppointment = a.doctorName.toLowerCase().includes(currentUserDoctorName) || a.doctorId === user.id
+        const currentUserFirstWord = user.name.toLowerCase().split(' ')[0].trim();
+        const currentUserFullName = user.name.toLowerCase().trim();
+        
+        // Match by exact ID, full name, or first name substring
+        const isMyAppointment = 
+          a.doctorId === user.id || 
+          a.doctorName.toLowerCase().trim() === currentUserFullName ||
+          a.doctorName.toLowerCase().includes(currentUserFirstWord);
+          
         if (!isMyAppointment) return false
       }
 

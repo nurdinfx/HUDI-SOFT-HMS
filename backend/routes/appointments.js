@@ -21,12 +21,23 @@ router.get('/', async (req, res) => {
     // Automatically filter for doctors
     if (req.user.role === 'doctor') {
         try {
-            const dr = await db.prepare('SELECT id FROM doctors WHERE LOWER(email) = ?').get(req.user.email.toLowerCase());
+            // Robust lookup: Match by email OR by name (trimmed and case-insensitive)
+            const userEmail = req.user.email.toLowerCase();
+            const userName = req.user.name.toLowerCase().trim();
+            
+            const dr = await db.prepare(`
+                SELECT id FROM doctors 
+                WHERE LOWER(email) = ? 
+                OR LOWER(TRIM(name)) = ? 
+                OR LOWER(TRIM(name)) LIKE ?
+            `).get(userEmail, userName, `%${userName.split(' ')[0]}%`);
+
             if (dr) {
                 q += ' AND doctor_id = ?';
                 p.push(dr.id);
             } else {
-                q += ' AND 1=0'; // No doctor record found for this user email
+                console.warn(`🔍 [Appointments] No doctor record found for user: ${userName} (${userEmail})`);
+                q += ' AND 1=0'; 
             }
         } catch (e) {
             console.error('Doctor filter error:', e);
