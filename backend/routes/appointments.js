@@ -50,7 +50,6 @@ router.get('/', async (req, res) => {
     if (status) { q += ' AND status = ?'; p.push(status); }
     if (date) { q += ' AND date = ?'; p.push(date); }
     if (patientId) { q += ' AND patient_id = ?'; p.push(patientId); }
-    
     q += ' ORDER BY date DESC, time DESC';
     try {
         const rows = await db.prepare(q).all(...p);

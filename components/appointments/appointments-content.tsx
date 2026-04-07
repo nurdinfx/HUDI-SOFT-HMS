@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { Plus, Search, Eye, Stethoscope, BedDouble, Check, CheckCheck, Printer, Activity, Thermometer, Heart, Droplets, FlaskConical } from "lucide-react"
+import { Plus, Search, Eye, Stethoscope, BedDouble, Check, CheckCheck, Printer, HeartPulse, Activity } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,7 +23,6 @@ import { appointmentsApi, vitalsApi, type Appointment, type Doctor, type Patient
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth-context"
 import { format } from "date-fns"
-import { cn } from "@/lib/utils"
 
 function playNotificationSound() {
   try {
@@ -76,10 +75,10 @@ export function AppointmentsContent({
   const [currentPage, setCurrentPage] = useState(1)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null)
+  const { user } = useAuth()
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
   const [vitals, setVitals] = useState<Vitals[]>([])
   const [loadingVitals, setLoadingVitals] = useState(false)
-  const { user } = useAuth()
   const perPage = 10
 
   const [formData, setFormData] = useState({
@@ -114,8 +113,17 @@ export function AppointmentsContent({
   }, [initial])
 
   useEffect(() => {
-    // Removed auto-refresh polling as requested
-  }, [])
+    if (selectedAppointment) {
+      setLoadingVitals(true)
+      vitalsApi.getByPatientId(selectedAppointment.patientId)
+        .then(setVitals)
+        .catch(err => {
+          console.error("Failed to fetch vitals", err)
+          toast.error("Failed to load patient vitals")
+        })
+        .finally(() => setLoadingVitals(false))
+    }
+  }, [selectedAppointment])
 
   const handlePrintCard = (appt: Appointment) => {
     const printWindow = window.open('', '_blank');
@@ -223,48 +231,20 @@ export function AppointmentsContent({
     }
   }
 
-  const fetchVitals = async (patientId: string) => {
-    setLoadingVitals(true)
-    try {
-      const data = await vitalsApi.getByPatientId(patientId)
-      setVitals(Array.isArray(data) ? data : [])
-    } catch (err) {
-      console.error("Failed to fetch vitals", err)
-      toast.error("Could not load vitals")
-    } finally {
-      setLoadingVitals(false)
-    }
+  const handleViewVitals = (appointment: Appointment) => {
+    setSelectedAppointment(appointment)
+    handleDoctorView(appointment)
   }
-
-  useEffect(() => {
-    if (selectedAppt) {
-      fetchVitals(selectedAppt.patientId)
-    }
-  }, [selectedAppt])
 
   const appointmentsList = Array.isArray(initial) ? initial : []
   const filtered = useMemo(() => {
     return appointmentsList.filter((a) => {
-      // 1. Role-based filtering for Doctors
-      if (user?.role === 'doctor') {
-        const currentUserFirstWord = user.name.toLowerCase().split(' ')[0].trim();
-        const currentUserFullName = user.name.toLowerCase().trim();
-        
-        // Match by exact ID, full name, or first name substring
-        const isMyAppointment = 
-          a.doctorId === user.id || 
-          a.doctorName.toLowerCase().trim() === currentUserFullName ||
-          a.doctorName.toLowerCase().includes(currentUserFirstWord);
-          
-        if (!isMyAppointment) return false
-      }
-
       const matchSearch = !search || a.patientName.toLowerCase().includes(search.toLowerCase()) || a.doctorName.toLowerCase().includes(search.toLowerCase()) || a.appointmentId.toLowerCase().includes(search.toLowerCase())
       const matchStatus = statusFilter === "all" || a.status === statusFilter
       const matchType = typeFilter === "all" || a.type === typeFilter
       return matchSearch && matchStatus && matchType
     })
-  }, [appointmentsList, search, statusFilter, typeFilter, user])
+  }, [appointmentsList, search, statusFilter, typeFilter])
 
   const totalPages = Math.ceil(filtered.length / perPage)
   const paginated = filtered.slice((currentPage - 1) * perPage, currentPage * perPage)
@@ -376,17 +356,6 @@ export function AppointmentsContent({
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input placeholder="Search appointments..." className="pl-9 h-10" value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }} />
             </div>
-            {user?.role !== 'doctor' && (
-              <Select value={search || "all"} onValueChange={(v) => { setSearch(v === "all" ? "" : v); setCurrentPage(1) }}>
-                <SelectTrigger className="w-[200px] h-10"><SelectValue placeholder="All Doctors" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Doctors</SelectItem>
-                  {doctors.map(d => (
-                    <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
             <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1) }}>
               <SelectTrigger className="w-[150px] h-10"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
@@ -447,18 +416,9 @@ export function AppointmentsContent({
                   <TableCell className="hidden md:table-cell">{a.time}</TableCell>
                   <TableCell className="hidden lg:table-cell capitalize font-medium">{a.type.replace("-", " ")}</TableCell>
                   <TableCell className="px-6"><StatusBadge status={a.status} /></TableCell>
-                  <TableCell className="px-6 text-right flex items-center justify-end gap-1">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      title="View Vitals" 
-                      className={cn(selectedAppt?.id === a.id && "bg-primary/10 text-primary")}
-                      onClick={() => {
-                        handleDoctorView(a)
-                        setSelectedAppt(a === selectedAppt ? null : a)
-                      }}
-                    >
-                      <Activity className="size-4" />
+                  <TableCell className="px-6 text-right">
+                    <Button variant="ghost" size="icon" title="View Patient Vitals" onClick={() => handleViewVitals(a)}>
+                      <HeartPulse className="size-4 text-rose-500" />
                     </Button>
                     <Button variant="ghost" size="icon" title="View Patient Profile" onClick={() => handleDoctorView(a)} asChild>
                       <Link href={`/patients/${a.patientId}`}>
@@ -489,91 +449,6 @@ export function AppointmentsContent({
         </CardContent>
       </Card>
 
-      {/* Patient Vitals Section */}
-      {selectedAppt && (
-        <Card className="border-primary/20 shadow-lg animate-in slide-in-from-bottom duration-300">
-          <CardHeader className="bg-primary/5 border-b flex flex-row items-center justify-between py-4">
-            <div>
-              <CardTitle className="text-xl flex items-center gap-2">
-                <Activity className="size-5 text-primary" />
-                Patient Vitals: <span className="text-primary">{selectedAppt.patientName}</span>
-              </CardTitle>
-              <CardDescription>Latest clinical measurements and history</CardDescription>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => setSelectedAppt(null)}>Close</Button>
-          </CardHeader>
-          <CardContent className="p-6">
-            {loadingVitals ? (
-              <div className="flex items-center justify-center p-12 animate-pulse text-muted-foreground font-medium italic">
-                Loading vitals history...
-              </div>
-            ) : vitals.length > 0 ? (
-              <div className="space-y-8">
-                {/* Latest Vitals Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  {[
-                    { label: "BP", value: vitals[0].bp || "N/A", unit: "mmHg", icon: Activity, color: "text-blue-500", bg: "bg-blue-50" },
-                    { label: "Temp", value: vitals[0].temperature || "N/A", unit: "°C", icon: Thermometer, color: "text-orange-500", bg: "bg-orange-50" },
-                    { label: "Pulse", value: vitals[0].pulse || "N/A", unit: "BPM", icon: Heart, color: "text-rose-500", bg: "bg-rose-50" },
-                    { label: "SPO2", value: vitals[0].spo2 || "N/A", unit: "%", icon: Droplets, color: "text-sky-500", bg: "bg-sky-50" },
-                    { label: "Sugar", value: vitals[0].bloodSugar || "N/A", unit: "mg/dL", icon: FlaskConical, color: "text-emerald-500", bg: "bg-emerald-50" },
-                  ].map((v, i) => (
-                    <div key={i} className={cn("p-4 rounded-2xl border flex flex-col items-center gap-1", v.bg)}>
-                      <v.icon className={cn("size-5 mb-1", v.color)} />
-                      <span className="text-2xl font-black">{v.value}</span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{v.label} ({v.unit})</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="text-xs text-muted-foreground flex items-center gap-4 border-t pt-4 px-2">
-                  <span className="font-bold uppercase tracking-wider px-2 py-1 bg-muted rounded">Last Recorded</span>
-                  <span className="font-medium text-slate-900">{format(new Date(vitals[0].createdAt), "PPP p")}</span>
-                  <span className="font-medium">by <span className="text-primary font-bold">{vitals[0].createdByName || 'Nurse'}</span></span>
-                </div>
-
-                {/* Vitals History Table */}
-                {vitals.length > 1 && (
-                  <div className="space-y-4">
-                    <h4 className="font-black text-sm uppercase tracking-widest text-slate-400">Vitals History</h4>
-                    <div className="border rounded-xl overflow-hidden">
-                      <Table>
-                        <TableHeader className="bg-muted/50">
-                          <TableRow>
-                            <TableHead className="font-bold">Date & Time</TableHead>
-                            <TableHead className="font-bold">BP</TableHead>
-                            <TableHead className="font-bold">Temp</TableHead>
-                            <TableHead className="font-bold">Pulse</TableHead>
-                            <TableHead className="font-bold">SPO2</TableHead>
-                            <TableHead className="font-bold text-right">Recorded By</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {vitals.slice(1, 5).map((v, i) => (
-                            <TableRow key={i}>
-                              <TableCell className="text-xs font-medium">{format(new Date(v.createdAt), "MMM d, HH:mm")}</TableCell>
-                              <TableCell className="font-bold text-blue-600">{v.bp || '-'}</TableCell>
-                              <TableCell className="font-bold text-orange-600">{v.temperature ? `${v.temperature}°C` : '-'}</TableCell>
-                              <TableCell className="font-bold text-rose-600">{v.pulse || '-'}</TableCell>
-                              <TableCell className="font-bold text-sky-600">{v.spo2 ? `${v.spo2}%` : '-'}</TableCell>
-                              <TableCell className="text-right text-xs font-semibold text-muted-foreground">{v.createdByName}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="p-12 text-center text-muted-foreground italic bg-muted/20 rounded-3xl border-2 border-dashed border-muted">
-                No vitals recorded for this patient yet.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
       {totalPages > 1 && (
         <div className="flex items-center justify-between px-2">
           <p className="text-sm text-muted-foreground font-medium">Showing {(currentPage - 1) * perPage + 1}-{Math.min(currentPage * perPage, filtered.length)} of {filtered.length}</p>
@@ -582,6 +457,84 @@ export function AppointmentsContent({
             <Button variant="outline" size="sm" className="font-bold" disabled={currentPage === totalPages} onClick={() => setCurrentPage(currentPage + 1)}>Next</Button>
           </div>
         </div>
+      )}
+
+      {selectedAppointment && (
+        <Card className="border-primary/20 shadow-md animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 bg-muted/20">
+            <div className="space-y-1">
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <Activity className="size-5 text-rose-500" />
+                Patient Vitals: {selectedAppointment.patientName}
+              </CardTitle>
+              <CardDescription>Latest clinical measurements for this patient</CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedAppointment(null)}>Close</Button>
+          </CardHeader>
+          <CardContent className="p-6">
+            {loadingVitals ? (
+              <div className="flex items-center justify-center h-32 animate-pulse text-muted-foreground italic">Fetching latest vitals...</div>
+            ) : vitals.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground italic">No vitals history found for this patient.</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Latest Vitals Card */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-black text-muted-foreground uppercase tracking-widest px-1">Latest Reading</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
+                      <span className="text-[10px] font-black text-muted-foreground uppercase">Blood Pressure</span>
+                      <span className="text-xl font-black text-slate-900">{vitals[0].bp || "--"} <span className="text-xs text-slate-400">mmHg</span></span>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
+                      <span className="text-[10px] font-black text-muted-foreground uppercase">Temperature</span>
+                      <span className="text-xl font-black text-slate-900">{vitals[0].temperature || "--"} <span className="text-xs text-slate-400">°C</span></span>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
+                      <span className="text-[10px] font-black text-muted-foreground uppercase">Pulse Rate</span>
+                      <span className="text-xl font-black text-slate-900">{vitals[0].pulse || "--"} <span className="text-xs text-slate-400">BPM</span></span>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
+                      <span className="text-[10px] font-black text-muted-foreground uppercase">SPO2</span>
+                      <span className="text-xl font-black text-slate-900">{vitals[0].spo2 || "--"} <span className="text-xs text-slate-400">%</span></span>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1 col-span-2">
+                      <span className="text-[10px] font-black text-muted-foreground uppercase">Blood Sugar</span>
+                      <span className="text-xl font-black text-slate-900">{vitals[0].bloodSugar || "--"} <span className="text-xs text-slate-400">mg/dL</span></span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between px-2 pt-2 text-xs text-muted-foreground border-t border-slate-100">
+                    <span>Recorded: {format(new Date(vitals[0].createdAt), "MMM d, yyyy · HH:mm")}</span>
+                    <span className="font-bold text-slate-900">By {vitals[0].createdByName}</span>
+                  </div>
+                </div>
+
+                {/* History List */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-black text-muted-foreground uppercase tracking-widest px-1">History (Previous)</h4>
+                  <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                    {vitals.slice(1).map((v) => (
+                      <div key={v.id} className="p-3 rounded-xl border border-slate-100 bg-white shadow-sm flex items-center justify-between text-sm hover:bg-muted/30 transition-colors">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-bold text-slate-900">{format(new Date(v.createdAt), "MMM d, HH:mm")}</span>
+                          <span className="text-[10px] text-muted-foreground">Nurse: {v.createdByName}</span>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs font-mono">
+                          {v.bp && <span title="BP"><span className="text-muted-foreground mr-1">BP</span>{v.bp}</span>}
+                          {v.temperature && <span title="Temp"><span className="text-muted-foreground mr-1">T</span>{v.temperature}°</span>}
+                          {v.pulse && <span title="Pulse"><span className="text-muted-foreground mr-1">P</span>{v.pulse}</span>}
+                        </div>
+                      </div>
+                    ))}
+                    {vitals.length <= 1 && (
+                      <div className="text-center py-10 text-muted-foreground italic text-xs">No previous measurements.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   )

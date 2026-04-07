@@ -308,8 +308,8 @@ export const settingsApi = {
 
 // ─── Vitals ──────────────────────────────────────────────────────
 export const vitalsApi = {
-    create: (data: Partial<Vitals>) => post<Vitals>('/vitals', data),
     getByPatientId: (patientId: string) => get<Vitals[]>(`/vitals/patient/${patientId}`),
+    create: (data: Partial<Vitals>) => post<Vitals>('/vitals', data),
 };
 
 // ─── POS ─────────────────────────────────────────────────────────
@@ -403,6 +403,19 @@ export interface RevenueReport {
     totalExpenses: number;
     netIncome: number;
     systemValues: Record<string, number>;
+}
+
+export interface Vitals {
+    id: string;
+    patientId: string;
+    bp: string;
+    temperature: number;
+    pulse: number;
+    spo2: number;
+    bloodSugar: number;
+    createdBy: string;
+    createdByName?: string;
+    createdAt: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────
@@ -756,19 +769,6 @@ export interface Payment {
     patientName: string;
     invoiceTotal: number;
     description: string;
-}
-
-export interface Vitals {
-    id: string;
-    patientId: string;
-    bp?: string;
-    temperature?: number;
-    pulse?: number;
-    spo2?: number;
-    bloodSugar?: number;
-    createdBy: string;
-    createdByName?: string;
-    createdAt: string;
 }
 
 // ===== Daily Operations =====
