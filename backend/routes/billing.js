@@ -6,7 +6,7 @@ const { recordGranularPayment } = require('../utils/finance');
 
 const router = express.Router();
 router.use(authenticate);
-router.use(authorize(['receptionist', 'admin', 'accountant']));
+router.use(authorize(['receptionist', 'admin', 'accountant', 'doctor']));
 
 const fmt = (i) => ({
     id: i.id, invoiceId: i.invoice_id, patientId: i.patient_id, patientName: i.patient_name,

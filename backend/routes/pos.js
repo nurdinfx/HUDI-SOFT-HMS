@@ -6,7 +6,7 @@ const { recordGranularPayment } = require('../utils/finance');
 
 const router = express.Router();
 router.use(authenticate);
-router.use(authorize(['receptionist', 'admin']));
+router.use(authorize(['receptionist', 'admin', 'doctor']));
 
 // GET /api/pos/pending/:patientId
 router.get('/pending/:patientId', async (req, res) => {
