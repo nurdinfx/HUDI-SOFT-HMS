@@ -7,7 +7,7 @@ const { recordGranularPayment } = require('../utils/finance');
 
 const router = express.Router();
 router.use(authenticate);
-router.use(authorize(['pharmacist', 'admin']));
+router.use(authorize(['pharmacist', 'admin', 'doctor']));
 
 // â”€â”€ Table Initialization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function initTables() {

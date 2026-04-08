@@ -62,7 +62,7 @@ const navGroups = [
     label: "Pharmacy & Lab",
     roles: ["admin", "pharmacist", "lab_tech", "receptionist", "doctor"],
     items: [
-      { title: "Pharmacy", href: "/pharmacy", icon: Pill, roles: ["admin", "pharmacist"] },
+      { title: "Pharmacy", href: "/pharmacy", icon: Pill, roles: ["admin", "pharmacist", "doctor"] },
       { title: "Laboratory", href: "/laboratory", icon: FlaskConical, roles: ["admin", "lab_tech", "receptionist", "doctor"] },
       { title: "Inventory", href: "/inventory", icon: Warehouse, roles: ["admin", "pharmacist", "lab_tech", "accountant"] },
     ],
