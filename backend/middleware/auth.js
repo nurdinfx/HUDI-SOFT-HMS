@@ -55,8 +55,14 @@ const authorize = (allowedRoles = []) => {
             return res.status(401).json({ error: 'Authentication required' });
         }
         if (!allowedRoles.includes(req.user.role)) {
-            console.warn(`🔍 Auth: Forbidden - Role ${req.user.role} not in [${allowedRoles.join(', ')}]`);
-            return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
+            console.error(`🚫 [AUTH FORBIDDEN] User: ${req.user.name} | Role: "${req.user.role}" | Allowed: [${allowedRoles.join(', ')}] | Path: ${req.originalUrl}`);
+            return res.status(403).json({ 
+                error: 'Forbidden: Insufficient permissions',
+                debug: process.env.NODE_ENV === 'development' ? {
+                    yourRole: req.user.role,
+                    allowedRoles: allowedRoles
+                } : undefined
+            });
         }
         next();
     };

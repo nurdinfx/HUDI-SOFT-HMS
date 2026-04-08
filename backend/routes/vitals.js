@@ -39,9 +39,9 @@ router.get('/patient/:patientId', async (req, res) => {
 router.post('/', async (req, res) => {
     const { patientId, bp, temperature, pulse, spo2, bloodSugar } = req.body;
     
-    // Only nurse and admin can create/edit vitals
-    if (req.user.role !== 'nurse' && req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Access denied. Only nurses can record vitals.' });
+    // Only nurse, doctor and admin can create/edit vitals
+    if (req.user.role !== 'nurse' && req.user.role !== 'admin' && req.user.role !== 'doctor') {
+        return res.status(403).json({ error: 'Access denied. You do not have permission to record vitals.' });
     }
 
     if (!patientId) {
