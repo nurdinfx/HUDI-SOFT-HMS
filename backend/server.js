@@ -13,27 +13,33 @@ const allowedOrigins = [
     'https://hudi-soft-hms.onrender.com'
 ];
 
-app.use(cors({
+const corsOptions = {
     origin: function (origin, callback) {
-        // allow requests with no origin (like mobile apps or curl requests)
+        // 1. Allow no-origin (Server-to-server / Postman)
         if (!origin) return callback(null, true);
         
-        const normalizedOrigin = origin.replace(/\/$/, '');
-        if (allowedOrigins.includes(normalizedOrigin)) {
+        const normalized = origin.replace(/\/$/, '');
+        
+        // 2. Exact match or subdomain match for Vercel
+        const isAllowed = allowedOrigins.includes(normalized) || 
+                         normalized.endsWith('.vercel.app') || 
+                         normalized.includes('localhost');
+        
+        if (isAllowed) {
             return callback(null, true);
         } else {
-            console.warn(`[CORS] Blocked origin: ${origin}`);
-            return callback(null, false); // Block other origins
+            console.warn(`🔍 [CORS DEBUG] Blocked request from unauthorized origin: ${origin}`);
+            return callback(null, false);
         }
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
     optionsSuccessStatus: 200
-}));
+};
 
-// Explicitly handle pre-flight for all routes
-app.options('*', cors());
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Handle all preflights with same rules
 
 // Middleware
 app.use(express.json());
@@ -41,7 +47,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // Request logging
 app.use((req, res, next) => {
-    console.log(`📡 [${new Date().toLocaleTimeString()}] ${req.method} ${req.originalUrl}`);
+    const origin = req.headers.origin || 'No Origin';
+    console.log(`📡 [${new Date().toLocaleTimeString()}] ${req.method} ${req.originalUrl} | Origin: ${origin}`);
     next();
 });
 
