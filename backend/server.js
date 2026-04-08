@@ -1,56 +1,50 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
-const cors = require('cors');
+// Removed standard cors package for a more robust manual middleware implementation
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// 1. CORS - Robust Configuration
-const allowedOrigins = [
-    'https://hudi-soft-hms.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'https://hudi-soft-hms.onrender.com'
-];
+// 1. CORS - Production Ready Manual Middleware
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    const allowedOrigins = [
+        'https://hudi-soft-hms.vercel.app',
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'https://hudi-soft-hms.onrender.com'
+    ];
+    
+    // Add FRONTEND_URL from env if available
+    if (process.env.FRONTEND_URL) {
+        allowedOrigins.push(process.env.FRONTEND_URL.replace(/\/$/, ''));
+    }
 
-// Add FRONTEND_URL from env if available
-if (process.env.FRONTEND_URL) {
-    allowedOrigins.push(process.env.FRONTEND_URL.replace(/\/$/, ''));
-}
+    // Check if origin is allowed or is a Vercel subdomain
+    const isAllowed = origin && (
+        allowedOrigins.includes(origin.replace(/\/$/, '')) || 
+        origin.endsWith('.vercel.app') || 
+        origin.includes('localhost')
+    );
 
-const corsOptions = {
-    origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl)
-        if (!origin) return callback(null, true);
-        
-        const normalized = origin.replace(/\/$/, '');
-        
-        // Exact match, subdomain match for Vercel, or localhost
-        const isAllowed = allowedOrigins.includes(normalized) || 
-                         normalized.endsWith('.vercel.app') || 
-                         normalized.includes('localhost');
-        
-        if (isAllowed) {
-            callback(null, true);
-        } else {
-            console.warn(`🔍 [CORS DEBUG] Blocked: ${origin}`);
-            // In production, we might want to be slightly more permissive 
-            // if it's definitely the right domain but failed the exact string match
-            if (origin.includes('hudi-soft-hms.vercel.app')) {
-                return callback(null, true);
-            }
-            callback(null, false);
-        }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-    optionsSuccessStatus: 200
-};
+    if (isAllowed) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+    } else if (!origin) {
+        // Allow server-to-server / non-browser requests
+        res.setHeader('Access-Control-Allow-Origin', '*');
+    }
 
-// Apply CORS immediately
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+    res.setHeader('Access-Control-Max-Age', '86400'); // Cache preflight for 24h
+
+    // Handle Preflight
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+    next();
+});
 
 // Middleware
 app.use(express.json());
