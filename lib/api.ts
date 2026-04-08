@@ -4,11 +4,9 @@
  * Base URL: http://localhost:4000/api
  */
 
-// Use proxied /api for Vercel/Production stability, but allow override via ENV
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''; 
+// Use sanitized /api for Vercel/Production stability
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '').trim().replace(/\/$/, ''); 
 
-// If API_BASE is empty, it will use relative path '/api' due to common usage in methods
-// but we should be explicit for clarity.
 const getBaseUrl = () => {
     if (API_BASE) return `${API_BASE}/api`;
     return '/api';

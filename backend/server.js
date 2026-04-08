@@ -18,15 +18,12 @@ app.use(cors({
         // allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
         
-        // Normalize origin (remove trailing slash)
         const normalizedOrigin = origin.replace(/\/$/, '');
-        
-        if (allowedOrigins.indexOf(normalizedOrigin) !== -1 || allowedOrigins.some(o => normalizedOrigin.startsWith(o))) {
+        if (allowedOrigins.includes(normalizedOrigin)) {
             return callback(null, true);
         } else {
-            console.warn(`[CORS] Request from blocked origin: ${origin}`);
-            // For now, allow but log to avoid blocking the user while we debug
-            return callback(null, true); 
+            console.warn(`[CORS] Blocked origin: ${origin}`);
+            return callback(null, false); // Block other origins
         }
     },
     credentials: true,
@@ -34,6 +31,9 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
     optionsSuccessStatus: 200
 }));
+
+// Explicitly handle pre-flight for all routes
+app.options('*', cors());
 
 // Middleware
 app.use(express.json());
