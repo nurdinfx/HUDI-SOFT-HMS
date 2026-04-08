@@ -13,23 +13,33 @@ const allowedOrigins = [
     'https://hudi-soft-hms.onrender.com'
 ];
 
+// Add FRONTEND_URL from env if available
+if (process.env.FRONTEND_URL) {
+    allowedOrigins.push(process.env.FRONTEND_URL.replace(/\/$/, ''));
+}
+
 const corsOptions = {
     origin: function (origin, callback) {
-        // 1. Allow no-origin (Server-to-server / Postman)
+        // Allow requests with no origin (like mobile apps or curl)
         if (!origin) return callback(null, true);
         
         const normalized = origin.replace(/\/$/, '');
         
-        // 2. Exact match or subdomain match for Vercel
+        // Exact match, subdomain match for Vercel, or localhost
         const isAllowed = allowedOrigins.includes(normalized) || 
                          normalized.endsWith('.vercel.app') || 
                          normalized.includes('localhost');
         
         if (isAllowed) {
-            return callback(null, true);
+            callback(null, true);
         } else {
-            console.warn(`🔍 [CORS DEBUG] Blocked request from unauthorized origin: ${origin}`);
-            return callback(null, false);
+            console.warn(`🔍 [CORS DEBUG] Blocked: ${origin}`);
+            // In production, we might want to be slightly more permissive 
+            // if it's definitely the right domain but failed the exact string match
+            if (origin.includes('hudi-soft-hms.vercel.app')) {
+                return callback(null, true);
+            }
+            callback(null, false);
         }
     },
     credentials: true,
@@ -38,8 +48,9 @@ const corsOptions = {
     optionsSuccessStatus: 200
 };
 
+// Apply CORS immediately
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Handle all preflights with same rules
+app.options('*', cors(corsOptions));
 
 // Middleware
 app.use(express.json());
@@ -123,7 +134,19 @@ app.use((req, res) => {
 // Error handler
 app.use((err, req, res, next) => {
     console.error('❌ Server Error:', err);
-    res.status(500).json({ error: 'Internal server error', message: err.message });
+    
+    // Ensure CORS headers are sent even on error
+    const origin = req.headers.origin;
+    if (origin && (origin.includes('vercel.app') || origin.includes('localhost'))) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+
+    res.status(500).json({ 
+        error: 'Internal server error', 
+        message: err.message,
+        path: req.originalUrl
+    });
 });
 
 module.exports = app;
