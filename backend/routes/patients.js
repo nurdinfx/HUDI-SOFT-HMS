@@ -1,11 +1,12 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
-const { authenticate, logAction } = require('../middleware/auth');
+const { authenticate, logAction, authorize } = require('../middleware/auth');
 const { sendPushNotification } = require('../utils/push-notify');
 
 const router = express.Router();
 router.use(authenticate);
+router.use(authorize(['admin', 'doctor', 'nurse', 'receptionist', 'lab_tech', 'pharmacist', 'accountant']));
 
 const fmt = (p) => ({
     id: p.id, patientId: p.patient_id, firstName: p.first_name, lastName: p.last_name,
