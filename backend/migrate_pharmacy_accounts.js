@@ -13,7 +13,7 @@ async function migrate() {
         
         for (const col of columns) {
             try {
-                await db.exec(`ALTER TABLE hospital_settings ADD COLUMN ${col} TEXT DEFAULT ''`);
+                await db.exec(`ALTER TABLE hospital_settings ADD COLUMN IF NOT EXISTS ${col} TEXT DEFAULT ''`);
                 console.log(`✅ Added column ${col}`);
             } catch (err) {
                 // Ignore if it already exists (Postgres throws "column already exists", SQLite throws "duplicate column name")
