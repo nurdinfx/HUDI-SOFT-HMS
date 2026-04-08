@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, FlaskConical, Plus, CheckCircle2, Clock, AlertCircle, FileText, Printer, Download, ClipboardList } from "lucide-react"
+import { Search, FlaskConical, Plus, CheckCircle2, Clock, AlertCircle, FileText, Printer, Download, ClipboardList, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -118,6 +118,18 @@ export function LabInvestigationsTab({ visit }: LabInvestigationsTabProps) {
         }
     }
 
+    const handleDeleteTest = async (testId: string) => {
+        if (!confirm("Are you sure you want to cancel this lab order? This will also remove any unpaid invoices associated with it.")) return
+        
+        try {
+            await laboratoryApi.delete(testId)
+            toast.success("Lab order cancelled successfully")
+            loadData()
+        } catch (error) {
+            toast.error("Failed to cancel lab order")
+        }
+    }
+
     const filteredCatalog = catalog.filter(item =>
         item.name.toLowerCase().includes(search.toLowerCase()) ||
         item.category.toLowerCase().includes(search.toLowerCase())
@@ -209,7 +221,19 @@ export function LabInvestigationsTab({ visit }: LabInvestigationsTabProps) {
                                             </div>
                                             <p className="text-sm font-black text-slate-900">{test.testName}</p>
                                         </div>
-                                        <StatusBadge status={test.status} />
+                                        <div className="flex items-center gap-2">
+                                            <StatusBadge status={test.status} />
+                                            {test.status === 'ordered' && (
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    className="h-7 w-7 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+                                                    onClick={() => handleDeleteTest(test.id)}
+                                                >
+                                                    <Trash2 className="size-3.5" />
+                                                </Button>
+                                            )}
+                                        </div>
                                     </div>
 
                                     {test.status === 'completed' && test.results ? (

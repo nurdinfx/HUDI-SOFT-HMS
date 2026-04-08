@@ -321,10 +321,20 @@ router.delete('/:id', async (req, res) => {
     try {
         const row = await db.prepare('SELECT * FROM lab_tests WHERE id = ?').get(req.params.id);
         if (!row) return res.status(404).json({ error: 'Not found' });
+
+        // Delete associated invoice if it exists and is unpaid
+        if (row.invoice_id) {
+            const invoice = await db.prepare('SELECT status FROM invoices WHERE id = ?').get(row.invoice_id);
+            if (invoice && invoice.status === 'unpaid') {
+                await db.prepare('DELETE FROM invoices WHERE id = ?').run(row.invoice_id);
+            }
+        }
+
         await db.prepare('DELETE FROM lab_tests WHERE id = ?').run(req.params.id);
         logAction(req.user.id, req.user.name, req.user.role, 'DELETE', 'Laboratory', `Lab test deleted: ${row.test_id}`, req.ip);
         res.json({ message: 'Deleted' });
     } catch (err) {
+        console.error('LAB DELETE ERROR:', err);
         res.status(500).json({ error: err.message });
     }
 });
