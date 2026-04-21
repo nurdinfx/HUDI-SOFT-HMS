@@ -35,11 +35,6 @@ export function LaboratoryContent({ initialLabTests }: Props) {
   const isDoctor = user?.role === 'doctor'
   const isReceptionist = user?.role === 'receptionist'
 
-  // Set receptionists to catalog tab by default
-  useEffect(() => {
-    if (isReceptionist) setActiveTab('catalog')
-  }, [isReceptionist])
-
   // Modals
   const [selectedTest, setSelectedTest] = useState<LabTest | null>(null)
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false)
@@ -382,19 +377,17 @@ export function LaboratoryContent({ initialLabTests }: Props) {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-primary/10 pb-6">
         <PageHeader title="Laboratory Management" description="Manage diagnostic investigations, samples, and official reports" />
         <div className="flex gap-2">
-          {!isReceptionist && (
-            <Button variant={activeTab === 'queue' ? 'default' : 'outline'} className="rounded-xl h-12 px-6 font-bold" onClick={() => setActiveTab('queue')}>
-              <ClipboardList className="size-4 mr-2" />
-              Tests Queue
-            </Button>
-          )}
+          <Button variant={activeTab === 'queue' ? 'default' : 'outline'} className="rounded-xl h-12 px-6 font-bold" onClick={() => setActiveTab('queue')}>
+            <ClipboardList className="size-4 mr-2" />
+            Tests Queue
+          </Button>
           {!isDoctor && (
             <Button variant={activeTab === 'catalog' ? 'default' : 'outline'} className="rounded-xl h-12 px-6 font-bold" onClick={() => setActiveTab('catalog')}>
               <Database className="size-4 mr-2" />
               Master Catalog
             </Button>
           )}
-          {activeTab === 'queue' && !isDoctor && !isReceptionist && (
+          {activeTab === 'queue' && !isDoctor && (
             <Button className="rounded-xl h-12 px-8 font-black shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]" onClick={() => { fetchDropdowns(); setIsOrderModalOpen(true); }}>
               <Plus className="size-5 mr-2" />
               NEW LAB ORDER
@@ -535,17 +528,18 @@ export function LaboratoryContent({ initialLabTests }: Props) {
                       </TableCell>
                       <TableCell className="pr-6 text-right">
                         <div className="flex justify-end gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                          {!isDoctor && !isReceptionist && test.status === 'ordered' && (
+                          {!isDoctor && test.status === 'ordered' && (
                             <Button variant="default" size="sm" className="h-8 rounded-lg bg-blue-600 hover:bg-blue-700" onClick={() => handleOpenCollect(test)}>
                               <Barcode className="size-3.5 mr-1" /> Collect
                             </Button>
                           )}
 
-                          {!isDoctor && !isReceptionist && (test.status === 'sample-collected' || test.status === 'in-progress') && (
+                          {!isDoctor && (test.status === 'sample-collected' || test.status === 'in-progress') && (
                             <Button variant="default" size="sm" className="h-8 rounded-lg bg-amber-600 hover:bg-amber-700" onClick={() => handleOpenResult(test)}>
                               <FileText className="size-3.5 mr-1" /> Result
                             </Button>
                           )}
+
 
                           {test.status === 'completed' && (
                             <>

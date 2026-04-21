@@ -5,7 +5,7 @@ const { authenticate, logAction, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 router.use(authenticate);
-router.use(authorize(['lab_tech', 'admin', 'doctor']));
+router.use(authorize(['lab_tech', 'admin', 'doctor', 'receptionist']));
 
 // ── Table Initialization ──────────────────────────────────────────────
 async function initTables() {

@@ -19,7 +19,7 @@ router.get('/departments', async (req, res) => {
 });
 
 // POST /api/revenue-analytics/departments
-router.post('/departments', authorize(['admin']), async (req, res) => {
+router.post('/departments', authorize(['admin', 'receptionist']), async (req, res) => {
     const { name, code } = req.body;
     if (!name) return res.status(400).json({ error: 'Department name is required' });
 
@@ -34,7 +34,7 @@ router.post('/departments', authorize(['admin']), async (req, res) => {
 });
 
 // PUT /api/revenue-analytics/departments/:id
-router.put('/departments/:id', authorize(['admin']), async (req, res) => {
+router.put('/departments/:id', authorize(['admin', 'receptionist']), async (req, res) => {
     const { name, code, is_active } = req.body;
     const { id } = req.params;
     if (!name) return res.status(400).json({ error: 'Department name is required' });
@@ -49,7 +49,7 @@ router.put('/departments/:id', authorize(['admin']), async (req, res) => {
 });
 
 // DELETE /api/revenue-analytics/departments/:id
-router.delete('/departments/:id', authorize(['admin']), async (req, res) => {
+router.delete('/departments/:id', authorize(['admin', 'receptionist']), async (req, res) => {
     const { id } = req.params;
     try {
         await db.prepare('DELETE FROM departments WHERE id = ?').run(id);
@@ -72,7 +72,7 @@ router.get('/service-categories', async (req, res) => {
 });
 
 // POST /api/revenue-analytics/service-categories
-router.post('/service-categories', authorize(['admin']), async (req, res) => {
+router.post('/service-categories', authorize(['admin', 'receptionist']), async (req, res) => {
     const { name, description } = req.body;
     if (!name) return res.status(400).json({ error: 'Category name is required' });
 
@@ -87,7 +87,7 @@ router.post('/service-categories', authorize(['admin']), async (req, res) => {
 });
 
 // PUT /api/revenue-analytics/service-categories/:id
-router.put('/service-categories/:id', authorize(['admin']), async (req, res) => {
+router.put('/service-categories/:id', authorize(['admin', 'receptionist']), async (req, res) => {
     const { name, description, is_active } = req.body;
     const { id } = req.params;
     if (!name) return res.status(400).json({ error: 'Category name is required' });
@@ -102,7 +102,7 @@ router.put('/service-categories/:id', authorize(['admin']), async (req, res) => 
 });
 
 // DELETE /api/revenue-analytics/service-categories/:id
-router.delete('/service-categories/:id', authorize(['admin']), async (req, res) => {
+router.delete('/service-categories/:id', authorize(['admin', 'receptionist']), async (req, res) => {
     const { id } = req.params;
     try {
         await db.prepare('DELETE FROM service_categories WHERE id = ?').run(id);
@@ -199,7 +199,7 @@ router.get('/report', async (req, res) => {
 });
 
 // POST /api/revenue-analytics/report/cell
-router.post('/report/cell', authorize(['admin']), async (req, res) => {
+router.post('/report/cell', authorize(['admin', 'receptionist']), async (req, res) => {
     const { date, department, category, amount } = req.body;
     if (!date || !department || !category) {
         return res.status(400).json({ error: 'Missing required fields' });
