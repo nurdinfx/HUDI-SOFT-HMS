@@ -3,12 +3,18 @@ const router = express.Router();
 const webpush = require('web-push');
 const db = require('../database');
 
-// Configure web-push
-webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT,
-    process.env.VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-);
+// Configure web-push (only if VAPID keys are provided)
+const vapidConfigured = process.env.VAPID_SUBJECT && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY;
+if (vapidConfigured) {
+    webpush.setVapidDetails(
+        process.env.VAPID_SUBJECT,
+        process.env.VAPID_PUBLIC_KEY,
+        process.env.VAPID_PRIVATE_KEY
+    );
+    console.log('✅ Web Push (VAPID) configured successfully');
+} else {
+    console.warn('⚠️ VAPID keys not set — push notifications disabled. Add VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY to env vars.');
+}
 
 // Store subscription
 router.post('/subscribe', async (req, res) => {
@@ -53,6 +59,10 @@ router.post('/notify', async (req, res) => {
     });
 
     try {
+        if (!vapidConfigured) {
+            return res.status(200).json({ success: true, count: 0, note: 'Push notifications not configured (VAPID keys missing).' });
+        }
+
         // Fetch all subscriptions from DB
         const sql = `SELECT subscription FROM push_subscriptions`;
         const rows = await db.prepare(sql).all();
