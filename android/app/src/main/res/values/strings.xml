@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">HUDI-SOFT HMS</string>
+    <string name="title_activity_main">HUDI-SOFT HMS</string>
+    <string name="package_name">online.hudisoft.hms</string>
+    <string name="custom_url_scheme">online.hudisoft.hms</string>
+</resources>

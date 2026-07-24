@@ -1,0 +1,342 @@
+const express = require('express');
+const { v4: uuidv4 } = require('uuid');
+const db = require('../database');
+const { authenticate, logAction, authorize } = require('../middleware/auth');
+
+const router = express.Router();
+router.use(authenticate);
+router.use(authorize(['lab_tech', 'admin', 'doctor', 'receptionist']));
+
+// ── Table Initialization ──────────────────────────────────────────────
+async function initTables() {
+    try {
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS lab_categories (
+                id UUID PRIMARY KEY,
+                name TEXT UNIQUE NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        
+        // Seed initial categories if none exist
+        const countRes = await db.query('SELECT COUNT(*) as count FROM lab_categories');
+        if (parseInt(countRes.rows[0].count) === 0) {
+            const defaults = [
+                'Hematology', 'Biochemistry', 'Microbiology', 'Serology', 
+                'Endocrinology', 'Clinical Pathology', 'Radiology', 'Molecular Biology'
+            ];
+            for (const name of defaults) {
+                await db.prepare('INSERT INTO lab_categories (id, name) VALUES (?, ?)').run(uuidv4(), name);
+            }
+        }
+    } catch (err) {
+        console.error('❌ Laboratory Table Init Error:', err.message);
+    }
+}
+initTables();
+
+// ── Categories ───────────────────────────────────────────────────────────
+router.get('/categories', async (req, res) => {
+    try {
+        const rows = await db.prepare('SELECT * FROM lab_categories ORDER BY name').all();
+        res.json(rows.map(r => ({ id: r.id, name: r.name })));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.post('/categories', async (req, res) => {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'Category name required' });
+    try {
+        const id = uuidv4();
+        await db.prepare('INSERT INTO lab_categories (id, name) VALUES (?, ?)').run(id, name);
+        res.status(201).json({ id, name });
+    } catch (err) {
+        if (err.message.includes('unique constraint')) {
+            return res.status(400).json({ error: 'Category already exists' });
+        }
+        res.status(500).json({ error: err.message });
+    }
+});
+
+const fmt = (t) => ({
+    id: t.id, testId: t.test_id, patientId: t.patient_id, patientName: t.patient_name,
+    doctorId: t.doctor_id, doctorName: t.doctor_name, testName: t.test_name,
+    testCategory: t.test_category, sampleType: t.sample_type, priority: t.priority,
+    status: t.status, orderedAt: t.ordered_at, completedAt: t.completed_at,
+    results: t.results, normalRange: t.normal_range, reportUrl: t.report_url, cost: t.cost,
+    sampleCollectedAt: t.sample_collected_at, sampleCollectedBy: t.sample_collected_by, sampleBarcode: t.sample_barcode,
+    criticalFlag: t.critical_flag === 1, technicianId: t.technician_id, clinicalNotes: t.clinical_notes,
+    isBilled: t.is_billed === 1, invoiceId: t.invoice_id,
+    admissionId: t.admission_id, orderedBy: t.ordered_by,
+    resultEnteredBy: t.result_entered_by, resultEnteredAt: t.result_entered_at,
+    ward: t.ward_name || t.ward, bedNumber: t.bed_number
+});
+
+router.get('/stats', async (req, res) => {
+    const today = new Date().toISOString().split('T')[0];
+    try {
+        const stats = {
+            totalToday: (await db.prepare("SELECT COUNT(*) as c FROM lab_tests WHERE ordered_at::text LIKE ?").get(today + '%')).c,
+            pending: (await db.prepare("SELECT COUNT(*) as c FROM lab_tests WHERE status = 'ordered'").get()).c,
+            inProgress: (await db.prepare("SELECT COUNT(*) as c FROM lab_tests WHERE status IN ('sample-collected', 'in-progress')").get()).c,
+            completed: (await db.prepare("SELECT COUNT(*) as c FROM lab_tests WHERE status = 'completed' AND ordered_at::text LIKE ?").get(today + '%')).c,
+            critical: (await db.prepare("SELECT COUNT(*) as c FROM lab_tests WHERE critical_flag = 1").get()).c,
+            revenueToday: (await db.prepare("SELECT SUM(cost) as s FROM lab_tests WHERE ordered_at::text LIKE ?").get(today + '%')).s || 0
+        };
+        res.json(stats);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/catalog', async (req, res) => {
+    try {
+        const rows = await db.prepare('SELECT * FROM lab_catalog ORDER BY category, name').all();
+        res.json(rows.map(r => ({
+            id: r.id, name: r.name, category: r.category,
+            sampleType: r.sample_type, normalRange: r.normal_range, cost: r.cost
+        })));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.post('/catalog', async (req, res) => {
+    const { name, category, sampleType, normalRange, cost } = req.body;
+    if (!name || !category) return res.status(400).json({ error: 'name and category required' });
+
+    const id = uuidv4();
+    try {
+        await db.prepare('INSERT INTO lab_catalog (id, name, category, sample_type, normal_range, cost) VALUES (?, ?, ?, ?, ?, ?)')
+            .run(id, name, category, sampleType || 'Blood', normalRange || null, cost || 0);
+
+        logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'Laboratory', `Catalog item added: ${name}`, req.ip);
+        res.status(201).json({ id, name, category, sampleType, normalRange, cost });
+    } catch (e) {
+        res.status(400).json({ error: 'Failed to add catalog item' });
+    }
+});
+
+router.put('/catalog/:id', async (req, res) => {
+    const { name, category, sampleType, normalRange, cost } = req.body;
+    try {
+        await db.prepare('UPDATE lab_catalog SET name=?, category=?, sample_type=?, normal_range=?, cost=? WHERE id=?')
+            .run(name, category, sampleType, normalRange, cost, req.params.id);
+
+        logAction(req.user.id, req.user.name, req.user.role, 'UPDATE', 'Laboratory', `Catalog item updated: ${name}`, req.ip);
+        res.json({ id: req.params.id, name, category, sampleType, normalRange, cost });
+    } catch (e) {
+        res.status(400).json({ error: 'Failed to update catalog item' });
+    }
+});
+
+router.delete('/catalog/:id', async (req, res) => {
+    try {
+        const row = await db.prepare('SELECT name FROM lab_catalog WHERE id = ?').get(req.params.id);
+        if (!row) return res.status(404).json({ error: 'Item not found' });
+
+        await db.prepare('DELETE FROM lab_catalog WHERE id = ?').run(req.params.id);
+        logAction(req.user.id, req.user.name, req.user.role, 'DELETE', 'Laboratory', `Catalog item deleted: ${row.name}`, req.ip);
+        res.json({ message: 'Deleted' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/', async (req, res) => {
+    const { search, status, priority, patientId, admissionId, critical } = req.query;
+    let q = `
+        SELECT lt.*, a.ward, a.bed_number, w.name as ward_name
+        FROM lab_tests lt
+        LEFT JOIN ipd_admissions a ON lt.admission_id = a.id
+        LEFT JOIN wards w ON a.ward = w.id
+        WHERE 1=1
+    `;
+    const p = [];
+    if (search) {
+        q += ` AND (lt.patient_name LIKE ? OR lt.test_name LIKE ? OR lt.test_id LIKE ?)`;
+        const s = `%${search}%`;
+        p.push(s, s, s);
+    }
+    if (status) { q += ' AND lt.status = ?'; p.push(status); }
+    if (priority) { q += ' AND lt.priority = ?'; p.push(priority); }
+    if (patientId) { q += ' AND lt.patient_id = ?'; p.push(patientId); }
+    if (admissionId) { q += ' AND lt.admission_id = ?'; p.push(admissionId); }
+    if (critical === '1' || critical === 'true') { q += ' AND lt.critical_flag = 1'; }
+    q += ' ORDER BY lt.ordered_at DESC';
+    try {
+        const rows = await db.prepare(q).all(...p);
+        res.json(rows.map(fmt));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/:id', async (req, res) => {
+    try {
+        const row = await db.prepare('SELECT * FROM lab_tests WHERE id = ?').get(req.params.id);
+        if (!row) return res.status(404).json({ error: 'Lab test not found' });
+        res.json(fmt(row));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.post('/', async (req, res) => {
+    const { patientId, admissionId, doctorId, testName, testCategory, sampleType, priority, cost, clinicalNotes } = req.body;
+    if (!patientId || !testName || !testCategory) return res.status(400).json({ error: 'patientId, testName, testCategory required' });
+
+    try {
+        const patient = await db.prepare('SELECT * FROM patients WHERE id = ?').get(patientId);
+        if (!patient) return res.status(404).json({ error: 'Patient not found' });
+        
+        // Safely handle doctorId - empty string is not a valid UUID
+        const safeDoctorId = (doctorId && doctorId.trim() !== '') ? doctorId : null;
+        const doctor = safeDoctorId ? await db.prepare('SELECT * FROM doctors WHERE id = ?').get(safeDoctorId) : null;
+
+        const maxIdData = await db.prepare('SELECT test_id FROM lab_tests ORDER BY test_id DESC LIMIT 1').get();
+        let nextNumber = 1;
+        if (maxIdData && maxIdData.test_id) {
+            const lastNumber = parseInt(maxIdData.test_id.split('-')[1]);
+            if (!isNaN(lastNumber)) nextNumber = lastNumber + 1;
+        }
+        const testId = `LAB-${String(nextNumber).padStart(4, '0')}`;
+        const id = uuidv4();
+
+        let invoiceId = null;
+        if (cost > 0) {
+            const maxInvData = await db.prepare("SELECT invoice_id FROM invoices WHERE invoice_id LIKE 'INV-%' AND invoice_id NOT LIKE 'INV-POS-%' AND invoice_id NOT LIKE 'INV-OPD-%' ORDER BY LENGTH(invoice_id) DESC, invoice_id DESC LIMIT 1").get();
+            let nextInvNumber = 1;
+            if (maxInvData && maxInvData.invoice_id) {
+                const parts = maxInvData.invoice_id.split('-');
+                const lastPart = parts[parts.length - 1].length === 4 ? parts[parts.length - 2] : parts[parts.length - 1];
+                const lastNumber = parseInt(lastPart);
+                if (!isNaN(lastNumber)) nextInvNumber = lastNumber + 1;
+            }
+            const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+            const invIdStr = `INV-${String(nextInvNumber).padStart(4, '0')}-${randomSuffix}`;
+            const invUuid = uuidv4();
+            const settings = await db.prepare('SELECT tax_rate FROM hospital_settings WHERE id = 1').get();
+            const taxRate = settings ? settings.tax_rate : 10;
+            const tax = cost * (taxRate / 100);
+            const total = cost + tax;
+            const items = [{ description: `Lab Test: ${testName}`, category: 'Laboratory', quantity: 1, unitPrice: cost, total: cost }];
+
+            await db.prepare(`INSERT INTO invoices (id, invoice_id, patient_id, patient_name, date, due_date, items, subtotal, tax, discount, total, paid_amount, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+                .run(invUuid, invIdStr, patientId, `${patient.first_name} ${patient.last_name}`, new Date().toISOString().split('T')[0], new Date().toISOString().split('T')[0], JSON.stringify(items), cost, tax, 0, total, 0, 'unpaid');
+            invoiceId = invUuid;
+        }
+
+        // Safely handle admissionId - empty string is not valid UUID
+        const safeAdmissionId = (admissionId && admissionId.trim() !== '') ? admissionId : null;
+
+        await db.prepare(`INSERT INTO lab_tests (id, test_id, patient_id, patient_name, doctor_id, doctor_name, test_name, test_category, sample_type, priority, status, ordered_at, cost, clinical_notes, is_billed, invoice_id, admission_id, ordered_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+            .run(id, testId, patientId, `${patient.first_name} ${patient.last_name}`, safeDoctorId, doctor ? doctor.name : '', testName, testCategory, sampleType || 'Blood', priority || 'normal', 'ordered', new Date().toISOString(), cost || 0, clinicalNotes || null, invoiceId ? 1 : 0, invoiceId, safeAdmissionId, req.user.name);
+
+        logAction(req.user.id, req.user.name, req.user.role, 'CREATE', 'Laboratory', `Lab test ordered: ${testName} (ID: ${testId})`, req.ip);
+        const row = await db.prepare(`
+            SELECT lt.*, a.ward, a.bed_number, w.name as ward_name
+            FROM lab_tests lt
+            LEFT JOIN ipd_admissions a ON lt.admission_id = a.id
+            LEFT JOIN wards w ON a.ward = w.id
+            WHERE lt.id = ?
+        `).get(id);
+        res.status(201).json(fmt(row));
+    } catch (err) {
+        console.error('LAB CREATE ERROR:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.put('/:id/collect', async (req, res) => {
+    const { collectedBy, barcode } = req.body;
+    try {
+        const row = await db.prepare('SELECT * FROM lab_tests WHERE id = ?').get(req.params.id);
+        if (!row) return res.status(404).json({ error: 'Not found' });
+
+        await db.prepare('UPDATE lab_tests SET status=?, sample_collected_at=?, sample_collected_by=?, sample_barcode=? WHERE id=?')
+            .run('sample-collected', new Date().toISOString(), collectedBy || req.user.name, barcode || `BC-${row.test_id}`, req.params.id);
+
+        await db.prepare('INSERT INTO lab_audit_logs (id, lab_test_id, action, performed_by, details) VALUES (?, ?, ?, ?, ?)')
+            .run(uuidv4(), req.params.id, 'COLLECT_SAMPLE', req.user.name, `Sample collected with barcode ${barcode}`);
+
+        const updatedRow = await db.prepare('SELECT * FROM lab_tests WHERE id = ?').get(req.params.id);
+        res.json(fmt(updatedRow));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.put('/:id', async (req, res) => {
+    try {
+        const row = await db.prepare('SELECT lt.* FROM lab_tests lt WHERE lt.id = ?').get(req.params.id);
+        if (!row) return res.status(404).json({ error: 'Not found' });
+        const { status, results, normalRange, completedAt, reportUrl, priority, criticalFlag, clinicalNotes, technicianId } = req.body;
+
+        const newStatus = status || row.status;
+        const completedTs = newStatus === 'completed' ? (completedAt || new Date().toISOString()) : row.completed_at;
+        const crit = criticalFlag !== undefined ? (criticalFlag ? 1 : 0) : row.critical_flag;
+
+        let resultEnteredBy = row.result_entered_by;
+        let resultEnteredAt = row.result_entered_at;
+
+        if (newStatus === 'completed' && row.status !== 'completed') {
+            resultEnteredBy = req.user.name;
+            resultEnteredAt = new Date().toISOString();
+        }
+
+        // Handle technicianId - must be null (not empty string) for UUID column
+        const techId = technicianId || row.technician_id || null;
+        const safeReportUrl = reportUrl ?? row.report_url ?? null;
+        const safeResults = results ?? row.results ?? null;
+        const safeNormalRange = normalRange ?? row.normal_range ?? null;
+        const safeClinicalNotes = clinicalNotes ?? row.clinical_notes ?? null;
+
+        await db.prepare('UPDATE lab_tests SET status=?, results=?, normal_range=?, completed_at=?, report_url=?, priority=?, critical_flag=?, clinical_notes=?, technician_id=?, result_entered_by=?, result_entered_at=? WHERE id=?')
+            .run(newStatus, safeResults, safeNormalRange, completedTs, safeReportUrl, priority || row.priority, crit, safeClinicalNotes, techId, resultEnteredBy, resultEnteredAt, req.params.id);
+
+        await db.prepare('INSERT INTO lab_audit_logs (id, lab_test_id, action, performed_by, details) VALUES (?, ?, ?, ?, ?)')
+            .run(uuidv4(), req.params.id, 'UPDATE_TEST', req.user.name, `Updated status to ${newStatus}`);
+
+        logAction(req.user.id, req.user.name, req.user.role, 'UPDATE', 'Laboratory', `Lab test ${row.test_id} updated to ${newStatus}`, req.ip);
+        const updatedRow = await db.prepare(`
+            SELECT lt.*, a.ward, a.bed_number, w.name as ward_name
+            FROM lab_tests lt
+            LEFT JOIN ipd_admissions a ON lt.admission_id = a.id
+            LEFT JOIN wards w ON a.ward = w.id
+            WHERE lt.id = ?
+        `).get(req.params.id);
+        res.json(fmt(updatedRow));
+    } catch (err) {
+        console.error('LAB UPDATE ERROR:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.delete('/:id', async (req, res) => {
+    try {
+        const row = await db.prepare('SELECT * FROM lab_tests WHERE id = ?').get(req.params.id);
+        if (!row) return res.status(404).json({ error: 'Not found' });
+
+        // Delete associated invoice if it exists and is unpaid
+        if (row.invoice_id) {
+            const invoice = await db.prepare('SELECT status FROM invoices WHERE id = ?').get(row.invoice_id);
+            if (invoice && invoice.status === 'unpaid') {
+                await db.prepare('DELETE FROM invoices WHERE id = ?').run(row.invoice_id);
+            }
+        }
+
+        await db.prepare('DELETE FROM lab_tests WHERE id = ?').run(req.params.id);
+        logAction(req.user.id, req.user.name, req.user.role, 'DELETE', 'Laboratory', `Lab test deleted: ${row.test_id}`, req.ip);
+        res.json({ message: 'Deleted' });
+    } catch (err) {
+        console.error('LAB DELETE ERROR:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+module.exports = router;

@@ -1,0 +1,915 @@
+/**
+ * lib/api.ts
+ * Centralized API client for the Hospital Management backend.
+ * Base URL: http://localhost:4000/api
+ */
+
+// Use sanitized /api for Vercel/Production stability
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '').trim().replace(/\/$/, ''); 
+
+const getBaseUrl = () => {
+    if (API_BASE) return `${API_BASE}/api`;
+    return '/api';
+};
+
+console.log(`🚀 HMS Frontend Engine active. API Base: ${getBaseUrl()}`);
+
+// ─── Token management ────────────────────────────────────────────
+function getToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('hms_token');
+}
+
+export function setToken(token: string) {
+    if (typeof window !== 'undefined') localStorage.setItem('hms_token', token);
+}
+
+export function clearToken() {
+    if (typeof window !== 'undefined') localStorage.removeItem('hms_token');
+}
+
+// ─── Core fetch wrapper ──────────────────────────────────────────
+interface ApiOptions extends Omit<RequestInit, 'body'> {
+    body?: any;
+}
+
+async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
+    const token = getToken();
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(options.headers as Record<string, string>),
+    };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const { body, ...rest } = options;
+    const fetchOptions: RequestInit = {
+        ...rest,
+        headers,
+        body: body && typeof body !== 'string' 
+            ? JSON.stringify(body) 
+            : body
+    };
+
+    const res = await fetch(`${getBaseUrl()}${path}`, fetchOptions);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        if (res.status === 401) clearToken();
+        throw new Error(data.error || data.message || `Request failed: ${res.status}`);
+    }
+    return data as T;
+}
+
+const get = <T>(path: string) => apiFetch<T>(path);
+const post = <T>(path: string, body: unknown) => apiFetch<T>(path, { method: 'POST', body });
+const put = <T>(path: string, body: unknown) => apiFetch<T>(path, { method: 'PUT', body });
+const del = <T>(path: string) => apiFetch<T>(path, { method: 'DELETE' });
+
+// ─── Auth ────────────────────────────────────────────────────────
+export const authApi = {
+    login: (email: string, password: string) => post<{ token: string; user: User }>('/auth/login', { email, password }),
+    me: () => get<User>('/auth/me'),
+    logout: () => post('/auth/logout', {}),
+};
+
+// ─── Dashboard ───────────────────────────────────────────────────
+export const dashboardApi = {
+    getStats: () => get<DashboardData>('/dashboard'),
+    getDoctors: () => get<Doctor[]>('/doctors'),
+};
+
+// ─── Patients ────────────────────────────────────────────────────
+export const patientsApi = {
+    getAll: (params?: QueryParams) => get<Patient[]>(`/patients${toQuery(params)}`),
+    getById: (id: string) => get<Patient>(`/patients/${id}`),
+    create: (data: Partial<Patient>) => post<Patient>('/patients', data),
+    update: (id: string, data: Partial<Patient>) => put<Patient>(`/patients/${id}`, data),
+    delete: (id: string) => del(`/patients/${id}`),
+};
+
+// ─── Doctors ─────────────────────────────────────────────────────
+export const doctorsApi = {
+    getAll: (params?: QueryParams) => get<Doctor[]>(`/doctors${toQuery(params)}`),
+    getById: (id: string) => get<Doctor>(`/doctors/${id}`),
+    getStats: () => get<DoctorStats>('/doctors/stats'),
+    getPerformance: (id: string) => get<DoctorPerformance>(`/doctors/${id}/performance`),
+    create: (data: Partial<Doctor>) => post<Doctor>('/doctors', data),
+    update: (id: string, data: Partial<Doctor>) => put<Doctor>(`/doctors/${id}`, data),
+    delete: (id: string) => del(`/doctors/${id}`),
+};
+
+// ─── Appointments ────────────────────────────────────────────────
+export const appointmentsApi = {
+    getAll: (params?: QueryParams) => get<Appointment[]>(`/appointments${toQuery(params)}`),
+    getById: (id: string) => get<Appointment>(`/appointments/${id}`),
+    create: (data: Partial<Appointment>) => post<Appointment>('/appointments', data),
+    update: (id: string, data: Partial<Appointment>) => put<Appointment>(`/appointments/${id}`, data),
+    markAsViewed: (id: string) => put<Appointment>(`/appointments/${id}/view`, {}),
+    delete: (id: string) => del(`/appointments/${id}`),
+};
+
+// ─── Pharmacy ────────────────────────────────────────────────────
+export const pharmacyApi = {
+    getMedicines: (params?: QueryParams) => get<Medicine[]>(`/pharmacy/medicines${toQuery(params)}`),
+    getExpiring: () => get<Medicine[]>('/pharmacy/medicines/expiring'),
+    getLowStock: () => get<Medicine[]>('/pharmacy/medicines/low-stock'),
+    getMedicine: (id: string) => get<Medicine>(`/pharmacy/medicines/${id}`),
+    createMedicine: (data: Partial<Medicine>) => post<Medicine>('/pharmacy/medicines', data),
+    updateMedicine: (id: string, data: Partial<Medicine>) => put<Medicine>(`/pharmacy/medicines/${id}`, data),
+    deleteMedicine: (id: string) => del(`/pharmacy/medicines/${id}`),
+    getPrescriptions: (params?: QueryParams) => get<Prescription[]>(`/pharmacy/prescriptions${toQuery(params)}`),
+    createPrescription: (data: Partial<Prescription>) => post<Prescription>('/pharmacy/prescriptions', data),
+    updatePrescription: (id: string, data: Partial<Prescription>) => put<Prescription>(`/pharmacy/prescriptions/${id}`, data),
+    dispense: (id: string) => put<{ message: string; rxId: string; invoiceId: string }>(`/pharmacy/prescriptions/${id}/dispense`, {}),
+    getCategories: () => get<{ id: string; name: string }[]>('/pharmacy/categories'),
+    createCategory: (name: string) => post<{ id: string; name: string }>('/pharmacy/categories', { name }),
+    getTransactions: (filters?: any) => get<any[]>(`/pharmacy/transactions${toQuery(filters)}`),
+    getTransactionItems: (id: string) => get<any[]>(`/pharmacy/transactions/${id}/items`),
+    createTransaction: (data: any) => post<{ id: string; invoiceId: string }>('/pharmacy/transactions', data),
+    processReturn: (id: string, data: { items: any[], exchangeItems?: any[], paymentMethod?: string }) => post<any>(`/pharmacy/transactions/${id}/return`, data),
+    getRevenueStats: () => get<any>('/pharmacy/stats/revenue'),
+    getPatientCredits: (patientId: string) => get<{ balance: number }>(`/pharmacy/credits/${patientId}`),
+    getSalesReceipts: (params?: { startDate?: string; endDate?: string; paymentMethod?: string; pendingOnly?: boolean }) =>
+        get<any>(`/pharmacy/sales-receipts${toQuery(params)}`),
+    addManualReceipt: (data: { date: string; amount: number; paymentMethod: string; referenceName?: string; invoiceNumber?: string }) =>
+        post<{ id: string; invoiceId: string; message: string }>('/pharmacy/sales-receipts/manual', data),
+    getPendingTransfers: () => get<any[]>('/pharmacy/sales-receipts/pending-transfers'),
+    transferDailySales: (data: { date: string }) => post<any>('/pharmacy/sales-receipts/transfer', data),
+    adminClearTransactions: () => apiFetch<any>('/pharmacy/admin/clear-transactions', { method: 'DELETE' }),
+    adminClearHospitalRevenue: () => apiFetch<any>('/pharmacy/admin/clear-hospital-revenue', { method: 'DELETE' }),
+};
+
+// ─── Pharmacy Purchase Hub ───────────────────────────────────────
+export const pharmacyPurchaseApi = {
+    getSuppliers: () => get<Supplier[]>('/pharmacy/purchase/suppliers'),
+    createSupplier: (data: Partial<Supplier>) => post<Supplier>('/pharmacy/purchase/suppliers', data),
+    updateSupplier: (id: string, data: Partial<Supplier>) => put<Supplier>(`/pharmacy/purchase/suppliers/${id}`, data),
+    
+    getOrders: (params?: QueryParams) => get<PurchaseOrder[]>(`/pharmacy/purchase/orders${toQuery(params)}`),
+    getOrdersBySupplier: (supplierId: string) => get<PurchaseOrder[]>(`/pharmacy/purchase/orders?supplier_id=${supplierId}`),
+    getOrder: (id: string) => get<PurchaseOrder & { items: PurchaseItem[] }>(`/pharmacy/purchase/orders/${id}`),
+    createOrder: (data: any) => post<{ id: string; poNumber: string }>('/pharmacy/purchase/orders', data),
+    updateOrderStatus: (id: string, status: string, receiveData?: any[]) => put<{ message: string }>(`/pharmacy/purchase/orders/${id}/status`, { status, receiveData }),
+    
+    getBatches: (params?: QueryParams) => get<Batch[]>(`/pharmacy/purchase/batches${toQuery(params)}`),
+    refreshBatchStatus: () => post<{ message: string }>('/pharmacy/purchase/batches/refresh-status', {}),
+    
+    getReturns: () => get<SupplierReturn[]>('/pharmacy/purchase/returns'),
+    getReturnsBySupplier: (supplierId: string) => get<SupplierReturn[]>(`/pharmacy/purchase/returns?supplier_id=${supplierId}`),
+    createReturn: (data: any) => post<{ id: string }>('/pharmacy/purchase/returns', data),
+    
+    getStats: () => get<{
+        totalPurchases: number;
+        expiringCount: number;
+        expiredCount: number;
+        returnedAmount: number;
+        stockValue: number;
+    }>('/pharmacy/purchase/stats'),
+};
+
+// ─── Laboratory ──────────────────────────────────────────────────
+export const laboratoryApi = {
+    getAll: (params?: QueryParams) => get<LabTest[]>(`/laboratory${toQuery(params)}`),
+    getById: (id: string) => get<LabTest>(`/laboratory/${id}`),
+    getCatalog: () => get<LabCatalogItem[]>('/laboratory/catalog'),
+    getStats: () => get<LabStats>('/laboratory/stats'),
+    create: (data: Partial<LabTest>) => post<LabTest>('/laboratory', data),
+    update: (id: string, data: Partial<LabTest>) => put<LabTest>(`/laboratory/${id}`, data),
+    delete: (id: string) => del(`/laboratory/${id}`),
+    collectSample: (id: string, data: { collectedBy: string; barcode: string }) => put<LabTest>(`/laboratory/${id}/collect`, data),
+    createCatalogItem: (data: Partial<LabCatalogItem>) => post<LabCatalogItem>('/laboratory/catalog', data),
+    updateCatalogItem: (id: string, data: Partial<LabCatalogItem>) => put<LabCatalogItem>(`/laboratory/catalog/${id}`, data),
+    deleteCatalogItem: (id: string) => del(`/laboratory/catalog/${id}`),
+    getCategories: () => get<{ id: string; name: string }[]>('/laboratory/categories'),
+    createCategory: (name: string) => post<{ id: string; name: string }>('/laboratory/categories', { name }),
+};
+
+// ─── Billing ─────────────────────────────────────────────────────
+export const billingApi = {
+    getAll: (params?: QueryParams) => get<Invoice[]>(`/billing${toQuery(params)}`),
+    getById: (id: string) => get<Invoice>(`/billing/${id}`),
+    create: (data: Partial<Invoice>) => post<Invoice>('/billing', data),
+    update: (id: string, data: Partial<Invoice>) => put<Invoice>(`/billing/${id}`, data),
+    delete: (id: string) => del(`/billing/${id}`),
+    getPatientFinancialHistory: (patientId: string) => get<{
+        summary: {
+            totalBilled: number;
+            totalPaid: number;
+            totalInsurance: number;
+            outstandingBalance: number;
+        };
+        invoices: Invoice[];
+        claims: InsuranceClaim[];
+    }>(`/billing/patient/${patientId}/history`),
+};
+
+// ─── OPD ─────────────────────────────────────────────────────────
+export const opdApi = {
+    getAll: (params?: QueryParams) => get<OPDVisit[]>(`/opd${toQuery(params)}`),
+    getById: (id: string) => get<OPDVisit>(`/opd/${id}`),
+    getStats: () => get<OPDAnalytics>('/opd/stats'),
+    getPatientSummary: (id: string) => get<PatientSummary>(`/opd/${id}/patient-summary`),
+    create: (data: Partial<OPDVisit>) => post<OPDVisit>('/opd', data),
+    update: (id: string, data: Partial<OPDVisit>) => put<OPDVisit>(`/opd/${id}`, data),
+    saveConsultation: (id: string, data: Partial<OPDVisit> & { completeVisit?: boolean; medications?: PrescriptionMedicine[] }) => put<OPDVisit>(`/opd/${id}/consultation`, data),
+    delete: (id: string) => del(`/opd/${id}`),
+};
+
+// ─── Procedures ──────────────────────────────────────────────────
+export const procedureApi = {
+    getByVisitId: (visitId: string) => get<Procedure[]>(`/procedures/visit/${visitId}`),
+    create: (data: Partial<Procedure>) => post<Procedure>('/procedures', data),
+    update: (id: string, data: Partial<Procedure>) => put<Procedure>(`/procedures/${id}`, data),
+    cancel: (id: string) => del<{ message: string }>(`/procedures/${id}`),
+};
+
+// ─── IPD ─────────────────────────────────────────────────────────
+export const ipdApi = {
+    getAdmissions: (params?: QueryParams) => get<IPDAdmission[]>(`/ipd/admissions${toQuery(params)}`),
+    createAdmission: (data: Partial<IPDAdmission>) => post<IPDAdmission>('/ipd/admissions', data),
+    updateAdmission: (id: string, data: Partial<IPDAdmission>) => put<IPDAdmission>(`/ipd/admissions/${id}`, data),
+    getBeds: (params?: QueryParams) => get<Bed[]>(`/ipd/beds${toQuery(params)}`),
+    createBed: (data: Partial<Bed>) => post<Bed>('/ipd/beds', data),
+    updateBed: (id: string, data: Partial<Bed>) => put<Bed>(`/ipd/beds/${id}`, data),
+    deleteBed: (id: string) => del(`/ipd/beds/${id}`),
+    getWards: () => get<Ward[]>('/ipd/wards'),
+    createWard: (data: Partial<Ward>) => post<Ward>('/ipd/wards', data),
+    getNurseNotes: (admissionId: string) => get<NurseNote[]>(`/ipd/nurse-notes/${admissionId}`),
+    createNurseNote: (data: Partial<NurseNote>) => post<NurseNote>('/ipd/nurse-notes', data),
+    getDoctorRounds: (admissionId: string) => get<DoctorRound[]>(`/ipd/doctor-rounds/${admissionId}`),
+    createDoctorRound: (data: Partial<DoctorRound>) => post<DoctorRound>('/ipd/doctor-rounds', data),
+    getAnalytics: () => get<IPDAnalytics>('/ipd/analytics'),
+};
+
+// ─── Insurance ───────────────────────────────────────────────────
+export const insuranceApi = {
+    getCompanies: () => get<InsuranceCompany[]>('/insurance/companies'),
+    createCompany: (data: Partial<InsuranceCompany>) => post<InsuranceCompany>('/insurance/companies', data),
+    updateCompany: (id: string, data: Partial<InsuranceCompany>) => put<InsuranceCompany>(`/insurance/companies/${id}`, data),
+    deleteCompany: (id: string) => del(`/insurance/companies/${id}`),
+    getPolicies: (patientId?: string) => get<InsurancePolicy[]>(`/insurance/policies${patientId ? `?patientId=${patientId}` : ''}`),
+    createPolicy: (data: Partial<InsurancePolicy>) => post<InsurancePolicy>('/insurance/policies', data),
+    deletePolicy: (id: string) => del(`/insurance/policies/${id}`),
+    getClaims: (params?: QueryParams) => get<InsuranceClaim[]>(`/insurance/claims${toQuery(params)}`),
+    createClaim: (data: Partial<InsuranceClaim>) => post<InsuranceClaim>('/insurance/claims', data),
+    updateClaim: (id: string, data: Partial<InsuranceClaim>) => put<InsuranceClaim>(`/insurance/claims/${id}`, data),
+};
+
+// ─── Users ───────────────────────────────────────────────────────
+export const usersApi = {
+    getAll: (params?: QueryParams) => get<User[]>(`/users${toQuery(params)}`),
+    getById: (id: string) => get<User>(`/users/${id}`),
+    create: (data: Partial<User> & { password: string }) => post<User>('/users', data),
+    update: (id: string, data: Partial<User> & { password?: string }) => put<User>(`/users/${id}`, data),
+    delete: (id: string) => del(`/users/${id}`),
+};
+
+// ─── Inventory ───────────────────────────────────────────────────
+export const inventoryApi = {
+    getAll: (params?: QueryParams) => get<InventoryItem[]>(`/inventory${toQuery(params)}`),
+    getById: (id: string) => get<InventoryItem>(`/inventory/${id}`),
+    create: (data: Partial<InventoryItem>) => post<InventoryItem>('/inventory', data),
+    update: (id: string, data: Partial<InventoryItem>) => put<InventoryItem>(`/inventory/${id}`, data),
+    delete: (id: string) => del(`/inventory/${id}`),
+};
+
+// ─── Accounts ────────────────────────────────────────────────────
+export const accountsApi = {
+    getAll: (params?: QueryParams) => get<AccountEntry[]>(`/accounts${toQuery(params)}`),
+    getSummary: () => get<AccountsSummary>(`/accounts/summary`),
+    getCashFlow: () => get<CashFlowEntry[]>(`/accounts/analytics/cashflow`),
+    getBudgets: () => get<DepartmentBudget[]>(`/accounts/budgets`),
+    updateBudget: (data: { department: string; budgetAmount: number; period?: string }) => post<{ message: string }>('/accounts/budgets', data),
+    create: (data: Partial<AccountEntry>) => post<AccountEntry>('/accounts', data),
+    update: (id: string, data: Partial<AccountEntry>) => put<AccountEntry>(`/accounts/${id}`, data),
+    delete: (id: string) => del(`/accounts/${id}`),
+};
+
+// ─── Payments ────────────────────────────────────────────────────
+export const paymentsApi = {
+    getAll: (params?: QueryParams) => get<Payment[]>(`/payments${toQuery(params)}`),
+};
+
+// ─── Audit Logs ──────────────────────────────────────────────────
+export const auditApi = {
+    getAll: (params?: QueryParams) => get<AuditLog[]>(`/audit${toQuery(params)}`),
+};
+
+// ─── Reports ─────────────────────────────────────────────────────
+export const reportsApi = {
+    getRevenue: (params?: QueryParams) => get<unknown[]>(`/reports/revenue${toQuery(params)}`),
+    getPatients: () => get<unknown>('/reports/patients'),
+    getAppointments: () => get<unknown>('/reports/appointments'),
+    getLaboratory: () => get<unknown>('/reports/laboratory'),
+    getPharmacy: () => get<unknown>('/reports/pharmacy'),
+    getFinancial: () => get<{
+        incomeByDept: { department: string; amount: number }[];
+        expenseByCategory: { category: string; amount: number }[];
+        monthlyTrend: { month: string; income: number; expense: number }[];
+    }>('/reports/financial'),
+};
+
+// ─── Settings ────────────────────────────────────────────────────
+export const settingsApi = {
+    get: () => get<HospitalSettings>('/settings'),
+    update: (data: Partial<HospitalSettings>) => put<HospitalSettings>('/settings', data),
+    resetFinancialData: () => apiFetch<{ success: boolean; message: string }>('/settings/admin/reset-financial', { method: 'DELETE' }),
+};
+
+// ─── Vitals ──────────────────────────────────────────────────────
+export const vitalsApi = {
+    getByPatientId: (patientId: string) => get<Vitals[]>(`/vitals/patient/${patientId}`),
+    create: (data: Partial<Vitals>) => post<Vitals>('/vitals', data),
+};
+
+// ─── POS ─────────────────────────────────────────────────────────
+// ===== POS API =====
+export const posApi = {
+    getPendingCharges: (patientId: string) => apiFetch<{ items: POSItem[] }>(`/pos/pending/${patientId}`),
+    getHistory: (patientId: string) => apiFetch<Invoice[]>(`/pos/history/${patientId}`),
+    checkout: (data: {
+        patientId: string | null;
+        patientName: string;
+        items: POSItem[];
+        discount: number;
+        paymentMethod: string;
+        amountPaid: number;
+        insuranceInfo?: any;
+        creditCustomerId?: string; // Added for credit module
+    }) => apiFetch<Invoice>('/pos/checkout', { method: 'POST', body: data }),
+};
+
+// ===== Credit API =====
+export const creditApi = {
+    getCustomers: () => apiFetch<any[]>('/credit/customers'),
+    registerCustomer: (data: any) => apiFetch<any>('/credit/customers', { method: 'POST', body: data }),
+    getCustomerDetails: (id: string) => apiFetch<any>(`/credit/customers/${id}`),
+    recordPayment: (data: any) => apiFetch<any>('/credit/payments', { method: 'POST', body: data }),
+    addCredit: (data: any) => apiFetch<any>('/credit/transactions', { method: 'POST', body: data }),
+    getTransactions: () => apiFetch<any[]>('/credit/transactions'),
+    getStats: () => apiFetch<any>('/credit/stats'),
+    updateCustomer: (id: string, data: any) => apiFetch<any>(`/credit/customers/${id}`, { method: 'PUT', body: data }),
+    deleteCustomer: (id: string) => apiFetch<any>(`/credit/customers/${id}`, { method: 'DELETE' }),
+    payTransaction: (id: string, data?: any) => apiFetch<any>(`/credit/transactions/${id}/pay`, { method: 'PUT', body: data || {} }),
+};
+
+// ===== HR API =====
+export const hrApi = {
+    getEmployees: () => apiFetch<any[]>('/hr/employees'),
+    registerEmployee: (data: any) => apiFetch<any>('/hr/employees', { method: 'POST', body: data }),
+    getEmployeeDetails: (id: string) => apiFetch<any>(`/hr/employees/${id}`),
+    recordExpense: (data: any) => apiFetch<any>('/hr/expenses', { method: 'POST', body: data }),
+    recordRepayment: (id: string, data: any) => apiFetch<any>(`/hr/employees/${id}/repay`, { method: 'POST', body: data }),
+    getPayrollSummary: (monthYear: string) => apiFetch<any[]>(`/hr/payroll/summary/${monthYear}`),
+    processPayroll: (data: any) => apiFetch<any>('/hr/payroll/process', { method: 'POST', body: data }),
+    getStats: () => apiFetch<any>('/hr/stats'),
+    getPayrollReport: (monthYear: string) => apiFetch<any[]>(`/hr/reports/payroll/${monthYear}`),
+    getExpenseReport: (params?: any) => apiFetch<any[]>(`/hr/reports/expenses${toQuery(params)}`),
+    updateEmployee: (id: string, data: any) => apiFetch<any>(`/hr/employees/${id}`, { method: 'PUT', body: data }),
+    deleteEmployee: (id: string) => apiFetch<any>(`/hr/employees/${id}`, { method: 'DELETE' }),
+};
+
+// ===== Revenue Analytics =====
+export const revenueAnalyticsApi = {
+    getDepartments: () => get<Department[]>('/revenue-analytics/departments'),
+    createDepartment: (data: { name: string; code?: string, isActive?: boolean }) => post<Department>('/revenue-analytics/departments', data),
+    updateDepartment: (id: string, data: Partial<Department>) => put<Department>(`/revenue-analytics/departments/${id}`, data),
+    deleteDepartment: (id: string) => del<{ message: string }>(`/revenue-analytics/departments/${id}`),
+    
+    getServiceCategories: () => get<ServiceCategory[]>('/revenue-analytics/service-categories'),
+    createServiceCategory: (data: { name: string; description?: string, isActive?: boolean }) => post<ServiceCategory>('/revenue-analytics/service-categories', data),
+    updateServiceCategory: (id: string, data: Partial<ServiceCategory>) => put<ServiceCategory>(`/revenue-analytics/service-categories/${id}`, data),
+    deleteServiceCategory: (id: string) => del<{ message: string }>(`/revenue-analytics/service-categories/${id}`),
+    
+    getReport: (params?: { startDate?: string; endDate?: string }) => get<RevenueReport>('/revenue-analytics/report' + toQuery(params)),
+    getLiveReport: (params?: { startDate?: string; endDate?: string; source?: string }) => get<LiveRevenueReport>('/revenue-analytics/live-report' + toQuery(params)),
+    getDiscounts: (params?: { startDate?: string; endDate?: string; source?: string }) => get<DiscountReport>('/revenue-analytics/discounts' + toQuery(params)),
+    updateCell: (data: { date: string; department: string; category: string; amount: number | '' }) => post<{ success: boolean }>('/revenue-analytics/report/cell', data),
+};
+
+export interface Department {
+    id: string;
+    name: string;
+    code?: string;
+    isActive: boolean;
+    createdAt: string;
+}
+
+export interface ServiceCategory {
+    id: string;
+    name: string;
+    description?: string;
+    isActive: boolean;
+    createdAt: string;
+}
+
+export interface RevenueReport {
+    columns: string[];
+    rows: {
+        department: string;
+        totals: Record<string, number>;
+        rowTotal: number;
+    }[];
+    columnTotals: Record<string, number>;
+    grandTotal: number;
+    paymentBreakdown: { method: string; total: number }[];
+    totalExpenses: number;
+    netIncome: number;
+    systemValues: Record<string, number>;
+}
+
+export interface LiveRevenueRow {
+    id: string;
+    invoiceId: string;
+    patientName: string;
+    source: string;
+    subtotalAmount: number;
+    discountAmount: number;
+    totalAmount: number;
+    paidAmount: number;
+    outstandingAmount: number;
+    paymentMethod?: string;
+    status?: string;
+    date: string;
+}
+
+export interface LiveRevenueSummary {
+    transactionCount: number;
+    totalRevenue: number;
+    totalDiscount: number;
+    totalPaid: number;
+    totalOutstanding: number;
+    bySource: Record<string, number>;
+    byMethod: Record<string, number>;
+}
+
+export interface LiveRevenueReport {
+    summary: LiveRevenueSummary;
+    rows: LiveRevenueRow[];
+}
+
+export interface DiscountReport {
+    summary: LiveRevenueSummary;
+    rows: LiveRevenueRow[];
+}
+
+export interface Vitals {
+    id: string;
+    patientId: string;
+    bp: string;
+    temperature: number;
+    pulse: number;
+    spo2: number;
+    bloodSugar: number;
+    createdBy: string;
+    createdByName?: string;
+    createdAt: string;
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────
+type QueryParams = Record<string, string | number | boolean | undefined>;
+
+function toQuery(params?: QueryParams): string {
+    if (!params) return '';
+    const filtered = Object.entries(params).filter(([, v]) => v !== undefined && v !== '');
+    if (filtered.length === 0) return '';
+    return '?' + new URLSearchParams(filtered.map(([k, v]) => [k, String(v)])).toString();
+}
+
+// ─── Types (mirror backend schema) ───────────────────────────────
+export type UserRole = 'admin' | 'doctor' | 'nurse' | 'pharmacist' | 'lab_tech' | 'receptionist' | 'accountant';
+
+export interface User {
+    id: string; name: string; email: string; role: UserRole;
+    phone: string; department?: string; avatar?: string;
+    isActive: boolean; createdAt: string;
+}
+
+export interface Patient {
+    id: string; patientId: string; firstName: string; lastName: string;
+    dateOfBirth: string; gender: string; bloodGroup: string;
+    phone: string; email: string; address: string; city: string;
+    emergencyContact: string; emergencyPhone: string;
+    insuranceProvider?: string; insurancePolicyNumber?: string;
+    allergies: string[]; chronicConditions: string[];
+    status: string; registeredAt: string; lastVisit?: string; notes?: string;
+}
+
+export interface Doctor {
+    id: string; doctorId: string; name: string; email: string; phone: string;
+    specialization: string; department: string; qualification: string;
+    experience: number; consultationFee: number; availableDays: string[];
+    availableTimeStart: string; availableTimeEnd: string;
+    status: string; avatar?: string; joinedAt: string;
+}
+
+export interface DoctorStats {
+    totalDoctors: number;
+    availableNow: number;
+    departmentBreakdown: { department: string; count: number }[];
+    onLeave: number;
+}
+
+export interface DoctorPerformance {
+    doctorName: string;
+    totalAppointments: number;
+    opdVisits: number;
+    ipdAdmissions: number;
+    estimatedRevenue: number;
+}
+
+export interface Appointment {
+    id: string; appointmentId: string; patientId: string; patientName: string;
+    doctorId: string; doctorName: string; department: string;
+    date: string; time: string; type: string; status: string;
+    notes?: string; createdAt: string; isViewedByDoctor?: boolean;
+}
+
+export interface Medicine {
+    id: string; name: string; genericName: string; category: string;
+    manufacturer: string; batchNumber: string; expiryDate: string;
+    quantity: number; reorderLevel: number; unitPrice: number;
+    sellingPrice: number; unit: string; status: string;
+}
+
+export interface Prescription {
+    id: string; prescriptionId: string; patientId: string; patientName: string;
+    doctorId: string; doctorName: string; appointmentId?: string;
+    date: string; diagnosis: string; medicines: PrescriptionMedicine[];
+    notes?: string; status: string;
+}
+
+export interface PrescriptionMedicine {
+    medicineId: string; medicineName: string; dosage: string;
+    frequency: string; duration: string; quantity: number; instructions?: string;
+    isCustom?: boolean;
+}
+
+export interface LabTest {
+    id: string; testId: string; patientId: string; patientName: string;
+    doctorId: string; doctorName: string; testName: string; testCategory: string;
+    sampleType: string; priority: string; status: string;
+    orderedAt: string; completedAt?: string; results?: string;
+    normalRange?: string; reportUrl?: string; cost: number;
+    sampleCollectedAt?: string; sampleCollectedBy?: string; sampleBarcode?: string;
+    criticalFlag?: boolean; technicianId?: string; clinicalNotes?: string;
+    isBilled?: boolean; invoiceId?: string;
+    admissionId?: string; orderedBy?: string;
+    resultEnteredBy?: string; resultEnteredAt?: string;
+    ward?: string; bedNumber?: string;
+}
+
+export interface LabStats {
+    totalToday: number;
+    pending: number;
+    inProgress: number;
+    completed: number;
+    critical: number;
+    revenueToday: number;
+}
+
+export interface LabCatalogItem {
+    id: string; name: string; category: string;
+    sampleType: string; normalRange: string; cost: number;
+}
+
+export interface Invoice {
+    id: string; invoiceId: string; patientId: string; patientName: string;
+    date: string; dueDate: string; items: InvoiceItem[];
+    subtotal: number; tax: number; discount: number; total: number;
+    paidAmount: number; status: string; paymentMethod?: string;
+    insuranceClaim?: string; notes?: string;
+}
+
+export interface InvoiceItem {
+    description: string; category: string; quantity: number;
+    unitPrice: number; total: number;
+}
+
+export interface OPDVisit {
+    id: string; visitId: string; patientId: string; patientName: string;
+    doctorId: string; doctorName: string; department: string;
+    date: string; time: string; chiefComplaint: string;
+    historyIllness?: string; pastHistory?: string; familyHistory?: string;
+    physicalExamination?: string; clinicalNotes?: string;
+    vitals: Record<string, unknown>; diagnosis?: string;
+    status: string; tokenNumber: number;
+    visitType: 'New' | 'Follow-Up' | 'Emergency';
+    medications?: PrescriptionMedicine[];
+}
+
+export interface Procedure {
+    id: string;
+    opdVisitId: string;
+    patientId: string;
+    doctorId: string;
+    name: string;
+    description?: string;
+    category?: string;
+    cost: number;
+    status: 'active' | 'cancelled';
+    createdAt: string;
+}
+
+export interface PatientSummary {
+    allergies: string[];
+    chronicConditions: string[];
+    previousVisitCount: number;
+}
+
+export interface OPDAnalytics {
+    todayVisits: number;
+    waitingCount: number;
+    consultingCount: number;
+    completedCount: number;
+    dailyRevenue: number;
+    departmentStats: { department: string; count: number }[];
+    queueStatus: { visitId: string; patientName: string; token: number; status: string }[];
+}
+
+export interface IPDAdmission {
+    id: string; admissionId: string; patientId: string; patientName: string;
+    doctorId: string; doctorName: string; department: string;
+    ward: string; bedNumber: string; admissionDate: string;
+    dischargeDate?: string; diagnosis: string; status: string;
+    nursingNotes: string[];
+}
+
+export interface Bed {
+    id: string; ward: string; bedNumber: string; type: string;
+    status: string; patientId?: string; dailyRate: number;
+    wardId?: string;
+}
+
+export interface Ward {
+    id: string; name: string; type: string; department: string;
+    totalBeds: number; dailyRate: number; createdAt: string;
+}
+
+export interface NurseNote {
+    id: string; admissionId: string; patientId: string; patientName: string;
+    nurseId: string; nurseName: string; vitals: Record<string, any>;
+    observations: string; medications: any[];
+    shift: string; createdAt: string;
+}
+
+export interface DoctorRound {
+    id: string; admissionId: string; patientId: string; patientName: string;
+    doctorId: string; doctorName: string; observations: string;
+    treatmentUpdates: string; procedureOrders: any[];
+    medications?: PrescriptionMedicine[];
+    timestamp: string;
+}
+
+export interface IPDAnalytics {
+    occupancyRate: string;
+    averageStayDays: string;
+    departmentAdmissions: { department: string; count: number }[];
+    wardCurrentUsage: { ward: string; count: number }[];
+    totalBeds: number;
+    occupiedBeds: number;
+}
+
+export interface InsuranceCompany {
+    id: string; name: string; contactPerson: string;
+    phone: string; email: string; address: string; status: string;
+}
+
+export interface InsurancePolicy {
+    id: string;
+    patientId: string;
+    companyId: string;
+    companyName: string;
+    policyNumber: string;
+    coverageType: 'full' | 'partial' | 'co-pay';
+    coverageLimit: number;
+    balanceRemaining: number;
+    coPayPercent: number;
+    expiry_date?: string;
+    status: 'active' | 'expired' | 'inactive';
+    createdAt: string;
+}
+
+export interface InsuranceClaim {
+    id: string;
+    claimId: string;
+    patientId: string;
+    patientName: string;
+    insuranceCompany: string;
+    policyNumber: string;
+    invoiceId: string;
+    claimAmount: number;
+    approvedAmount?: number;
+    status: 'submitted' | 'under-review' | 'approved' | 'rejected' | 'settled';
+    submittedAt: string;
+    settledAt?: string;
+    policyId?: string;
+}
+
+export interface InventoryItem {
+    id: string; itemId: string; name: string; category: string;
+    description?: string; quantity: number; unit: string;
+    reorderLevel: number; unitCost: number; supplier?: string;
+    lastRestocked?: string; status: string;
+}
+
+export interface AccountEntry {
+    id: string; date: string; type: 'income' | 'expense'; category: string;
+    description: string; amount: number; paymentMethod: string; referenceId?: string;
+    department: string; status: 'completed' | 'pending' | 'cancelled'; userId?: string;
+}
+
+export interface AccountsSummary {
+    totalIncome: number;
+    totalExpense: number;
+    profit: number;
+    incomeToday: number;
+    incomeMonth: number;
+    outstandingBalance: number;
+    departmentRevenue: { department: string; amount: number }[];
+    todayDeptRevenue: { department: string; amount: number }[];
+    paymentModeRevenue: { method: string; amount: number }[];
+    recentEntries: AccountEntry[];
+}
+
+export interface DepartmentBudget {
+    id: string;
+    department: string;
+    budget_amount: number;
+    period: string;
+}
+
+export interface CashFlowEntry {
+    month: string;
+    income: number;
+    expense: number;
+}
+
+export interface AccountsResponse {
+    entries: AccountEntry[];
+    summary: { totalIncome: number; totalExpense: number; profit: number };
+}
+
+export interface AuditLog {
+    id: string; userId: string; userName: string; userRole: string;
+    action: string; module: string; details: string;
+    timestamp: string; ipAddress: string;
+}
+
+export interface HospitalSettings {
+    name: string; tagline: string; address: string; phone: string;
+    email: string; website: string; currency: string; taxRate: number; logo?: string;
+    zaad?: string; sahal?: string; edahab?: string; mycash?: string;
+    pharmacy_zaad?: string; pharmacy_sahal?: string; pharmacy_edahab?: string; pharmacy_mycash?: string;
+}
+
+export interface DashboardData {
+    stats: {
+        totalPatients: number; activePatients: number; todayAppointments: number;
+        admittedPatients: number; availableDoctors: number; totalDoctors: number;
+        pendingLabTests: number; lowStockMedicines: number; pendingBills: number;
+        totalRevenue: number; monthRevenue: number; availableBeds: number; totalBeds: number;
+    };
+    recentAppointments: Appointment[];
+    revenueByMonth: { month: string; revenue: number; count: number }[];
+    apptByStatus: { status: string; count: number }[];
+    topDepartments: { department: string; count: number }[];
+}
+
+export interface POSItem {
+    type: 'medicine' | 'lab' | 'service';
+    id: string;
+    name: string;
+    unitPrice: number;
+    quantity: number;
+    category?: string;
+    prescriptionId?: string;
+    labTestId?: string;
+    visitId?: string;
+    originalInvoiceId?: string;
+    isFromVisit?: boolean;
+    isFromLab?: boolean;
+    isFromPrescription?: boolean;
+}
+
+export interface CheckoutPayload {
+    patientId?: string | null;
+    patientName?: string;
+    patientPhone?: string;
+    items: POSItem[];
+    discount: number;
+    paymentMethod: string;
+    amountPaid?: number;
+    notes?: string;
+    insuranceInfo?: {
+        company: string;
+        policyNumber: string;
+        claimAmount: number;
+    };
+}
+
+export interface Payment {
+    id: string;
+    date: string;
+    amount: number;
+    method: string;
+    invoiceId: string;
+    patientName: string;
+    invoiceTotal: number;
+    description: string;
+}
+
+// ===== Daily Operations =====
+export const dailyOperationsApi = {
+    getAll: (params?: QueryParams) => get<DailyOperation[]>(`/daily-operations${toQuery(params)}`),
+    getSummary: () => get<DailyOperationsSummary>('/daily-operations/summary'),
+    getById: (id: string) => get<DailyOperation>(`/daily-operations/${id}`),
+    create: (data: Partial<DailyOperation>) => post<DailyOperation>('/daily-operations', data),
+    update: (id: string, data: Partial<DailyOperation>) => put<DailyOperation>(`/daily-operations/${id}`, data),
+    delete: (id: string) => del(`/daily-operations/${id}`),
+};
+
+export interface DailyOperation {
+    id: string;
+    employeeId: string;
+    employeeName: string;
+    department?: string;
+    transactionType: 'Staff Laboratory Test' | 'Laboratory Internal Use' | 'Operational Expense' | 'Cash Received' | 'Other';
+    labTestId?: string;
+    labTestName?: string;
+    selectedTests?: { id: string; name: string; amount: number }[];
+    amount: number;
+    description?: string;
+    date: string;
+    recordedBy: string;
+    createdAt: string;
+}
+
+export interface DailyOperationsSummary {
+    expenses: number;
+    cashReceived: number;
+    labTests: number;
+    netBalance: number;
+}
+
+// ===== Purchase Hub Types =====
+export interface Supplier {
+    id: string;
+    name: string;
+    contactPerson?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+    createdAt: string;
+}
+
+export interface PurchaseOrder {
+    id: string;
+    poNumber: string;
+    supplierId: string;
+    supplierName?: string;
+    orderDate: string;
+    totalAmount: number;
+    status: 'pending' | 'received' | 'cancelled';
+    payment_type?: 'cash' | 'loan';
+    notes?: string;
+    createdBy: string;
+    createdAt: string;
+    items?: PurchaseItem[];
+}
+
+export interface PurchaseItem {
+    id: string;
+    poId: string;
+    medicineId: string;
+    medicineName: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+}
+
+export interface Batch {
+    id: string;
+    medicineId: string;
+    medicineName?: string;
+    batchNumber: string;
+    quantityReceived: number;
+    quantityRemaining: number;
+    expiryDate: string;
+    poId?: string;
+    supplierId?: string;
+    status: 'valid' | 'near-expiry' | 'expired';
+    createdAt: string;
+}
+
+export interface SupplierReturn {
+    id: string;
+    supplierId: string;
+    supplierName?: string;
+    batchId: string;
+    itemName: string;
+    quantity: number;
+    amount: number;
+    reason?: string;
+    returnDate: string;
+    createdAt: string;
+}
