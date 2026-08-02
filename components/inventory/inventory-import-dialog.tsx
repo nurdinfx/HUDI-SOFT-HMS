@@ -35,8 +35,7 @@ import {
 import { toast } from "sonner"
 import { pharmacyApi } from "@/lib/api"
 import {
-  parseExcelOrCSVFile,
-  parseQuickBooksIIFFile,
+  parseInventoryFile,
   downloadSampleExcelTemplate,
   downloadSampleQuickBooksTemplate,
   type ParsedInventoryItem,
@@ -64,18 +63,11 @@ export function InventoryImportDialog({ onImportSuccess }: InventoryImportDialog
   const processFile = async (selectedFile: File) => {
     setFile(selectedFile)
     setIsParsing(true)
+    const filename = selectedFile.name.toLowerCase()
+    if (filename.endsWith(".iif")) setImportType("quickbooks")
     try {
       let items: ParsedInventoryItem[] = []
-      const filename = selectedFile.name.toLowerCase()
-
-      if (filename.endsWith(".iif")) {
-        setImportType("quickbooks")
-        items = await parseQuickBooksIIFFile(selectedFile)
-      } else if (importType === "quickbooks" && filename.endsWith(".csv")) {
-        items = await parseExcelOrCSVFile(selectedFile)
-      } else {
-        items = await parseExcelOrCSVFile(selectedFile)
-      }
+      items = await parseInventoryFile(selectedFile, importType)
 
       setParsedItems(items)
       if (items.length === 0) {
