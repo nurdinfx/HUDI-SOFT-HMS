@@ -750,6 +750,36 @@ router.post('/medicines', async (req, res) => {
     }
 });
 
+router.post('/medicines/bulk', async (req, res) => {
+    const items = Array.isArray(req.body) ? req.body : req.body?.items;
+    if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: 'items array is required' });
+    }
+
+    const created = [];
+    let count = 0;
+    try {
+        for (const item of items) {
+            const { name, genericName, category, manufacturer, batchNumber, expiryDate, quantity, reorderLevel, unitPrice, sellingPrice, unit } = item;
+            if (!name) continue;
+            const id = uuidv4();
+            const qty = parseInt(quantity) || 0;
+            const rl = parseInt(reorderLevel) || 10;
+            const cat = category || 'General';
+            const status = qty === 0 ? 'out-of-stock' : qty <= rl ? 'low-stock' : 'in-stock';
+            
+            await db.prepare(`INSERT INTO medicines (id, name, generic_name, category, manufacturer, batch_number, expiry_date, quantity, reorder_level, unit_price, selling_price, unit, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+                .run(id, name, genericName || null, cat, manufacturer || null, batchNumber || null, expiryDate || null, qty, rl, unitPrice || 0, sellingPrice || 0, unit || 'tablet', status);
+            count++;
+        }
+        logAction(req.user?.id || 'system', req.user?.name || 'System', req.user?.role || 'Admin', 'CREATE', 'Pharmacy', `Bulk imported ${count} inventory items`, req.ip);
+        res.status(201).json({ message: `Successfully imported ${count} items`, count });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 router.put('/medicines/:id', async (req, res) => {
     try {
         const row = await db.prepare('SELECT * FROM medicines WHERE id = ?').get(req.params.id);

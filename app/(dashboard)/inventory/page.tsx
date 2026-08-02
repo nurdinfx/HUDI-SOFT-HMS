@@ -8,11 +8,19 @@ export default function InventoryPage() {
   const [medicines, setMedicines] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  const fetchMedicines = () => {
+    pharmacyApi
+      .getMedicines()
+      .then((m) => setMedicines(Array.isArray(m) ? m : []))
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }
+
   useEffect(() => {
-    pharmacyApi.getMedicines().then((m) => setMedicines(Array.isArray(m) ? m : [])).catch(console.error).finally(() => setLoading(false))
+    fetchMedicines()
   }, [])
 
   if (loading) return <div className="flex items-center justify-center h-64"><p className="text-muted-foreground">Loading inventory...</p></div>
 
-  return <InventoryContent medicines={medicines} />
+  return <InventoryContent medicines={medicines} onRefresh={fetchMedicines} />
 }

@@ -114,6 +114,7 @@ export const pharmacyApi = {
     getLowStock: () => get<Medicine[]>('/pharmacy/medicines/low-stock'),
     getMedicine: (id: string) => get<Medicine>(`/pharmacy/medicines/${id}`),
     createMedicine: (data: Partial<Medicine>) => post<Medicine>('/pharmacy/medicines', data),
+    bulkCreateMedicines: (items: Partial<Medicine>[]) => post<{ message: string; count: number }>('/pharmacy/medicines/bulk', items),
     updateMedicine: (id: string, data: Partial<Medicine>) => put<Medicine>(`/pharmacy/medicines/${id}`, data),
     deleteMedicine: (id: string) => del(`/pharmacy/medicines/${id}`),
     getPrescriptions: (params?: QueryParams) => get<Prescription[]>(`/pharmacy/prescriptions${toQuery(params)}`),

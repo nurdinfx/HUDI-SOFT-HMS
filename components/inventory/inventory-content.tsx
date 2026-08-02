@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Search } from "lucide-react"
+import { Search, Download, FileSpreadsheet, FileCode } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Table,
@@ -19,12 +20,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
+import { InventoryImportDialog } from "@/components/inventory/inventory-import-dialog"
+import {
+  exportToExcel,
+  exportToCSV,
+  exportToQuickBooksIIF,
+  exportToQuickBooksCSV,
+} from "@/lib/utils/inventory-io"
 import type { Medicine } from "@/lib/api"
 
 interface InventoryContentProps {
   medicines?: Medicine[]
+  onRefresh?: () => void
 }
 
 const getNumber = (value: unknown) => {
@@ -40,7 +57,7 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 2,
   }).format(getNumber(value))
 
-export function InventoryContent({ medicines = [] }: InventoryContentProps) {
+export function InventoryContent({ medicines = [], onRefresh }: InventoryContentProps) {
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
 
@@ -82,17 +99,66 @@ export function InventoryContent({ medicines = [] }: InventoryContentProps) {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Export Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <Download className="size-4" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Excel Export</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    onClick={() => exportToExcel(filtered)}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <FileSpreadsheet className="size-4 text-emerald-600" />
+                    Export Excel (.xlsx)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => exportToCSV(filtered)}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <FileSpreadsheet className="size-4 text-blue-600" />
+                    Export Excel CSV (.csv)
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>QuickBooks Export</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    onClick={() => exportToQuickBooksIIF(filtered)}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <FileCode className="size-4 text-purple-600" />
+                    Export QuickBooks (.iif)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => exportToQuickBooksCSV(filtered)}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <FileCode className="size-4 text-indigo-600" />
+                    Export QuickBooks (.csv)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Import Dialog */}
+              <InventoryImportDialog onImportSuccess={onRefresh} />
+            </div>
           </div>
         </CardContent>
       </Card>
