@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import React, { useState, useRef } from "react"
 import {
   Dialog,
   DialogContent,
@@ -104,7 +104,7 @@ export function InventoryImportDialog({ onImportSuccess }: InventoryImportDialog
     if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
-  const validItems = parsedItems.filter((item) => item.isValid)
+  const validItems = parsedItems.filter((item: ParsedInventoryItem) => item.isValid)
   const invalidCount = parsedItems.length - validItems.length
 
   const handleImportSubmit = async () => {
@@ -116,7 +116,7 @@ export function InventoryImportDialog({ onImportSuccess }: InventoryImportDialog
     setIsImporting(true)
     try {
       // Send items to backend bulk endpoint
-      const payload = validItems.map((item) => ({
+      const payload = validItems.map((item: ParsedInventoryItem) => ({
         name: item.name,
         genericName: item.genericName || null,
         category: item.category || "General",
@@ -336,7 +336,7 @@ export function InventoryImportDialog({ onImportSuccess }: InventoryImportDialog
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {parsedItems.map((item, idx) => (
+                    {parsedItems.map((item: ParsedInventoryItem, idx: number) => (
                       <TableRow key={idx} className={!item.isValid ? "bg-destructive/5" : undefined}>
                         <TableCell>
                           {item.isValid ? (
